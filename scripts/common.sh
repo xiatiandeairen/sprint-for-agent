@@ -21,13 +21,13 @@ _PROJECT_HOOK_COMMON="$CLAUDE_PROJECT_DIR/scripts/hook-common.sh"
 if [ -f "$_PROJECT_HOOK_COMMON" ]; then
     source "$_PROJECT_HOOK_COMMON"
 else
-    # fallback: 最小实现（独立运行时）
+    # fallback: Claude Code hook API 兼容实现
     hook_start() { :; }
     debug_log() { :; }
-    hook_deny() { echo "⛔ $*" >&2; exit 1; }
-    hook_allow() { exit 0; }
+    hook_deny() { echo "{\"decision\":\"deny\",\"reason\":\"$*\"}"; exit 0; }
+    hook_allow() { echo "{\"decision\":\"allow\"}"; exit 0; }
     hook_warn() { echo "⚠ $*" >&2; }
-    hook_error() { echo "💥 $*" >&2; exit 1; }
+    hook_error() { echo "{\"decision\":\"deny\",\"reason\":\"$*\"}"; exit 1; }
 fi
 
 # ─── Sprint 状态工具 ───
