@@ -42,6 +42,8 @@ debug_log "门禁结果: $gate_status"
 
 # 更新 state.json
 sprint_set 'last_gate' "{\"chunk\": $current_chunk, \"status\": \"$gate_status\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S)\"}"
+sprint_log_event "post_chunk_gate" "\"chunk\":$current_chunk,\"gate_status\":\"$gate_status\",\"agent_desc\":\"$AGENT_DESC\""
+sprint_debug_save "chunk-${current_chunk}-gate-detail.json" "$gate_result"
 
 # 记录指标
 "$SCRIPT_DIR/chunk-metrics.sh" record "$current_chunk" "$gate_result" 2>/dev/null || true

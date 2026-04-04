@@ -3,17 +3,27 @@
     "PreToolUse": [
       {
         "matcher": "Agent",
-        "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pre-chunk.sh\"",
-        "timeout": 15,
-        "statusMessage": "Sprint: checking anchor compliance..."
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pre-chunk.sh\"",
+            "timeout": 15,
+            "statusMessage": "Sprint: checking anchor compliance..."
+          }
+        ]
       }
     ],
     "PostToolUse": [
       {
         "matcher": "Agent",
-        "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-chunk.sh\"",
-        "timeout": 60,
-        "statusMessage": "Sprint: running quality gates..."
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-chunk.sh\"",
+            "timeout": 60,
+            "statusMessage": "Sprint: running quality gates..."
+          }
+        ]
       }
     ]
   }

@@ -60,6 +60,9 @@ OEOF
         # 清空指标文件
         > "$SPRINT_METRICS_FILE"
 
+        > "$SPRINT_JOURNAL_FILE"
+        sprint_log_event "sprint_init" "\"mode\":\"$MODE\",\"anchor\":\"$ANCHOR_PATH\",\"chunks_path\":\"$CHUNKS_PATH\",\"total_chunks\":$total_chunks"
+
         echo "✅ Sprint 初始化完成"
         echo "  模式: $MODE"
         echo "  Chunks: $total_chunks"
@@ -83,6 +86,11 @@ OEOF
         fi
 
         sprint_set 'current_chunk' "$next"
+        chunk_desc=""
+        if [ -f "$(sprint_get 'chunks_path')" ]; then
+            chunk_desc=$(grep -A1 "### Chunk $next " "$(sprint_get 'chunks_path')" 2>/dev/null | head -1 | sed 's/### Chunk [0-9]* — //' || echo "")
+        fi
+        sprint_log_event "chunk_start" "\"chunk\":$next,\"desc\":\"$chunk_desc\""
         echo "→ Chunk $next/$total"
         ;;
 
@@ -122,6 +130,12 @@ OEOF
         fi
 
         sprint_set 'active' 'false'
+        end_current=$(sprint_get 'current_chunk')
+        end_diff=0
+        if [ -f "$SPRINT_METRICS_FILE" ] && [ -s "$SPRINT_METRICS_FILE" ]; then
+            end_diff=$(jq -s '[.[].diff_lines] | add // 0' "$SPRINT_METRICS_FILE")
+        fi
+        sprint_log_event "sprint_end" "\"chunks_completed\":${end_current:-0},\"total_diff\":${end_diff:-0}"
         echo "✅ Sprint 已结束"
 
         # 最终指标
@@ -142,6 +156,40 @@ OEOF
                 echo "  观察日志: $obs_count 条待处理"
             fi
         fi
+        ;;
+
+    debug)
+        SUB="${1:-status}"
+        case "$SUB" in
+            on)
+                if ! sprint_is_active; then echo "⚠ 无活跃 sprint" >&2; exit 1; fi
+                sprint_set 'debug' 'true'
+                mkdir -p "$SPRINT_DEBUG_DIR"
+                echo "🔍 Debug 模式已开启"
+                sprint_log_event "debug_toggle" "\"enabled\":true"
+                ;;
+            off)
+                if ! sprint_is_active; then echo "⚠ 无活跃 sprint" >&2; exit 1; fi
+                sprint_set 'debug' 'false'
+                echo "Debug 模式已关闭"
+                sprint_log_event "debug_toggle" "\"enabled\":false"
+                ;;
+            status)
+                if sprint_debug_enabled; then
+                    echo "🔍 Debug: ON"
+                    if [ -d "$SPRINT_DEBUG_DIR" ]; then
+                        fc=$(find "$SPRINT_DEBUG_DIR" -type f 2>/dev/null | wc -l | tr -d ' ')
+                        echo "  捕获文件: $fc"
+                    fi
+                else
+                    echo "Debug: OFF"
+                fi
+                ;;
+            *)
+                echo "用法: sprint-ctl.sh debug <on|off|status>" >&2
+                exit 1
+                ;;
+        esac
         ;;
 
     set-baseline)

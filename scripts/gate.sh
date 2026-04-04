@@ -203,16 +203,19 @@ fail_count=$(printf '%s\n' "${GATES[@]}" | grep -c '"FAIL"' || echo 0)
 gates_json=$(printf '%s,' "${GATES[@]}")
 gates_json="${gates_json%,}"
 
-cat <<EOF
-{
-  "status": "$OVERALL",
-  "chunk": $CHUNK_NUM,
-  "gates": [$gates_json],
-  "summary": "$pass_count/9 PASS, $warn_count WARN, $fail_count FAIL",
-  "diff_lines": $TOTAL_DIFF,
-  "test_count": $TEST_PASSED
-}
-EOF
+# 获取变更文件列表
+changed_files_json=$(cd "$CLAUDE_PROJECT_DIR" && git diff --name-only HEAD~1 2>/dev/null | jq -R -s 'split("\n") | map(select(. != ""))' 2>/dev/null || echo '[]')
+
+output_json="{\"status\":\"$OVERALL\",\"chunk\":$CHUNK_NUM,\"gates\":[$gates_json],\"summary\":\"$pass_count/9 PASS, $warn_count WARN, $fail_count FAIL\",\"diff_lines\":$TOTAL_DIFF,\"test_count\":$TEST_PASSED,\"changed_files\":$changed_files_json,\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%S)\"}"
+
+# 保存 gate 快照
+sprint_save_gate_snapshot "$CHUNK_NUM" "$output_json"
+
+# 写入 journal
+sprint_log_event "gate_result" "\"chunk\":$CHUNK_NUM,\"status\":\"$OVERALL\",\"summary\":\"$pass_count/9 PASS, $warn_count WARN, $fail_count FAIL\",\"diff_lines\":$TOTAL_DIFF,\"test_count\":$TEST_PASSED"
+
+# 输出
+echo "$output_json"
 
 case "$OVERALL" in
     PASS) exit 0 ;;

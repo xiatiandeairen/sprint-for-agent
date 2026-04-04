@@ -1,17 +1,28 @@
 {
-  "$schema": "https://cdn.jsdelivr.net/npm/@anthropic-ai/claude-code@latest/marketplace-schema.json",
   "name": "sprint",
-  "description": "长时任务执行引擎 — Intent Anchor + Chunk Gate + Decision Review",
-  "owner": "loppy",
+  "owner": {
+    "name": "taoxia"
+  },
   "metadata": {
-    "tags": ["workflow", "quality", "long-task"],
-    "category": "developer-tools"
+    "description": "任务执行引擎 — Intent Anchor + Chunk Gate + Decision Review"
   },
   "plugins": [
     {
-      "id": "sprint",
-      "name": "Sprint",
-      "description": "AI 长时任务执行引擎"
+      "name": "sprint",
+      "source": "./",
+      "description": "AI 任务执行引擎",
+      "version": "0.2.0",
+      "author": {
+        "name": "taoxia"
+      },
+      "category": "workflow",
+      "tags": [
+        "workflow",
+        "quality",
+        "long-task",
+        "task-execution",
+        "sprint"
+      ]
     }
   ]
 }

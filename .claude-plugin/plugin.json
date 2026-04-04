@@ -1,8 +1,17 @@
 {
   "name": "sprint",
-  "version": "0.1.0",
-  "description": "长时任务执行引擎 — Intent Anchor + Chunk Gate + Decision Review",
+  "version": "0.2.0",
+  "description": "任务执行引擎 — Intent Anchor + Chunk Gate + Decision Review",
   "skills": [
-    "./skills/sprint.md"
+    "./skills/run.md",
+    "./skills/brainstorm.md",
+    "./skills/design.md",
+    "./skills/plan.md",
+    "./skills/go.md",
+    "./skills/auto.md",
+    "./skills/status.md",
+    "./skills/check.md",
+    "./skills/pivot.md",
+    "./skills/end.md"
   ]
 }

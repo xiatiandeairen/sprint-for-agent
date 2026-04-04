@@ -57,3 +57,51 @@ sprint_set() {
 sprint_append_metric() {
     echo "$1" >> "$SPRINT_METRICS_FILE"
 }
+
+# ─── Journal（事件日志，始终写入）───
+
+SPRINT_JOURNAL_FILE="$SPRINT_STATE_DIR/journal.jsonl"
+SPRINT_GATES_DIR="$SPRINT_STATE_DIR/gates"
+SPRINT_DEBUG_DIR="$SPRINT_STATE_DIR/debug"
+SPRINT_RULES_FILE="$SPRINT_STATE_DIR/rules.json"
+
+# 写入 journal 事件
+# 用法: sprint_log_event "event_name" '"key":"value","key2":"value2"'
+sprint_log_event() {
+    local event="$1"
+    shift
+    local extra="${*:-}"
+    local ts
+    ts=$(date -u +%Y-%m-%dT%H:%M:%S)
+    local line="{\"ts\":\"$ts\",\"event\":\"$event\""
+    if [ -n "$extra" ]; then
+        line+=",$extra"
+    fi
+    line+="}"
+    mkdir -p "$SPRINT_STATE_DIR"
+    echo "$line" >> "$SPRINT_JOURNAL_FILE"
+}
+
+# 保存 gate 快照
+# 用法: sprint_save_gate_snapshot <chunk_num> <gate_json>
+sprint_save_gate_snapshot() {
+    local chunk_num="$1" gate_json="$2"
+    mkdir -p "$SPRINT_GATES_DIR"
+    echo "$gate_json" > "$SPRINT_GATES_DIR/chunk-${chunk_num}.json"
+}
+
+# 检查 debug 模式是否开启
+sprint_debug_enabled() {
+    [ -f "$SPRINT_STATE_FILE" ] && \
+    [ "$(jq -r '.debug // false' "$SPRINT_STATE_FILE" 2>/dev/null)" = "true" ]
+}
+
+# Debug 模式下保存文件
+# 用法: sprint_debug_save "chunk-3-prompt.md" "content"
+sprint_debug_save() {
+    if sprint_debug_enabled; then
+        local filename="$1" content="$2"
+        mkdir -p "$SPRINT_DEBUG_DIR"
+        echo "$content" > "$SPRINT_DEBUG_DIR/$filename"
+    fi
+}
