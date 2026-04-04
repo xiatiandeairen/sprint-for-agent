@@ -1,0 +1,8 @@
+{
+  "name": "sprint",
+  "version": "0.1.0",
+  "description": "长时任务执行引擎 — Intent Anchor + Chunk Gate + Decision Review",
+  "skills": [
+    "./skills/sprint.md"
+  ]
+}
