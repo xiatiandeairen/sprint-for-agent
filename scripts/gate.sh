@@ -19,6 +19,9 @@
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 
+sprint_db_ensure
+CURRENT_SPRINT=$(sprint_current_id)
+
 ANCHOR_PATH="${1:?用法: gate.sh <anchor-path> [chunk-number]}"
 CHUNK_NUM="${2:-0}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -129,7 +132,7 @@ diff_deletions=$(echo "$diff_stat" | grep -oE '[0-9]+ deletion' | grep -oE '[0-9
 TOTAL_DIFF=$((${diff_insertions:-0} + ${diff_deletions:-0}))
 
 diff_budget=150  # 默认
-chunks_path=$(sprint_get 'chunks_path' 2>/dev/null || echo "")
+chunks_path=$(sprint_chunks_path "$CURRENT_SPRINT" 2>/dev/null || echo "")
 if [ -f "$chunks_path" ] && [ "$CHUNK_NUM" -gt 0 ]; then
     budget=$(grep -A10 "Chunk $CHUNK_NUM" "$chunks_path" 2>/dev/null | grep -oE '≤ *[0-9]+' | grep -oE '[0-9]+' | head -1 || echo "")
     [ -n "$budget" ] && diff_budget=$budget
@@ -142,7 +145,7 @@ else
 fi
 
 # G6: temp code
-baseline_todo=$(sprint_get 'baselines.todo_count' 2>/dev/null || echo "0")
+baseline_todo=$(sprint_baseline "$CURRENT_SPRINT" "todo_count" 2>/dev/null || echo "0")
 current_todo=$(cd "$CLAUDE_PROJECT_DIR" && grep -rE 'TODO|TEMP|HACK|FIXME' src/ 2>/dev/null | wc -l | tr -d ' ' || echo 0)
 todo_delta=$((current_todo - baseline_todo))
 
@@ -157,10 +160,12 @@ fi
 # ═════════════════════════════════════
 
 # G7: size trend
-if [ -f "$SPRINT_METRICS_FILE" ] && [ -s "$SPRINT_METRICS_FILE" ] && [ "$CHUNK_NUM" -gt 1 ]; then
-    recent_count=$(wc -l < "$SPRINT_METRICS_FILE" | tr -d ' ')
+if [ "$CHUNK_NUM" -gt 1 ]; then
+    recent_count=$(sprint_db "SELECT COUNT(*) FROM sprint_chunks
+        WHERE sprint_id='$CURRENT_SPRINT' AND status='completed';")
     if [ "$recent_count" -ge 2 ]; then
-        avg_lines=$(jq -s '[.[].diff_lines] | add / length | floor' "$SPRINT_METRICS_FILE" 2>/dev/null || echo 0)
+        avg_lines=$(sprint_db "SELECT COALESCE(CAST(AVG(diff_lines) AS INTEGER), 0)
+            FROM sprint_chunks WHERE sprint_id='$CURRENT_SPRINT' AND status='completed';")
         if [ "$avg_lines" -gt 0 ] && [ "$TOTAL_DIFF" -gt $((avg_lines * 2)) ]; then
             add_gate "G7" "size-trend" "WARN" "当前 $TOTAL_DIFF 行 > 均值 ${avg_lines} 的 2 倍"
         else
@@ -175,8 +180,8 @@ fi
 
 # G8: test coverage
 changed_files=$(cd "$CLAUDE_PROJECT_DIR" && git diff --name-only HEAD~1 2>/dev/null || echo "")
-src_changed=$(echo "$changed_files" | grep -cE '\.swift$' 2>/dev/null || echo 0)
-test_changed=$(echo "$changed_files" | grep -ciE 'test' 2>/dev/null || echo 0)
+src_changed=$(echo "$changed_files" | grep -cE '\.swift$' 2>/dev/null | tr -d ' \n' || echo 0)
+test_changed=$(echo "$changed_files" | grep -ciE 'test' 2>/dev/null | tr -d ' \n' || echo 0)
 
 if [ "$src_changed" -gt 0 ] && [ "$test_changed" -eq 0 ]; then
     add_gate "G8" "test-coverage" "WARN" "改了 $src_changed 个源文件但无测试变更"
@@ -185,7 +190,7 @@ else
 fi
 
 # G9: test count baseline
-baseline_tests=$(sprint_get 'baselines.test_count' 2>/dev/null || echo "0")
+baseline_tests=$(sprint_baseline "$CURRENT_SPRINT" "test_count" 2>/dev/null || echo "0")
 if [ "$baseline_tests" -gt 0 ] && [ "$TEST_PASSED" -lt "$baseline_tests" ]; then
     add_gate "G9" "test-count" "FAIL" "测试数 $TEST_PASSED < 基线 $baseline_tests"
 else
@@ -208,11 +213,17 @@ changed_files_json=$(cd "$CLAUDE_PROJECT_DIR" && git diff --name-only HEAD~1 2>/
 
 output_json="{\"status\":\"$OVERALL\",\"chunk\":$CHUNK_NUM,\"gates\":[$gates_json],\"summary\":\"$pass_count/9 PASS, $warn_count WARN, $fail_count FAIL\",\"diff_lines\":$TOTAL_DIFF,\"test_count\":$TEST_PASSED,\"changed_files\":$changed_files_json,\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%S)\"}"
 
-# 保存 gate 快照
-sprint_save_gate_snapshot "$CHUNK_NUM" "$output_json"
+# 写入 DB
+GATE_ID=$(sprint_record_gate "$CURRENT_SPRINT" "$CHUNK_NUM" "$OVERALL" "$TOTAL_DIFF" "$TEST_PASSED")
+for gate_entry in "${GATES[@]}"; do
+    g_id=$(echo "$gate_entry" | jq -r '.id')
+    g_name=$(echo "$gate_entry" | jq -r '.name')
+    g_status=$(echo "$gate_entry" | jq -r '.status')
+    g_detail=$(echo "$gate_entry" | jq -r '.detail')
+    sprint_record_gate_item "$GATE_ID" "$g_id" "$g_name" "$g_status" "$g_detail"
+done
 
-# 写入 journal
-sprint_log_event "gate_result" "\"chunk\":$CHUNK_NUM,\"status\":\"$OVERALL\",\"summary\":\"$pass_count/9 PASS, $warn_count WARN, $fail_count FAIL\",\"diff_lines\":$TOTAL_DIFF,\"test_count\":$TEST_PASSED"
+sprint_log_event "$CURRENT_SPRINT" "gate_result" "{\"chunk\":$CHUNK_NUM,\"status\":\"$OVERALL\",\"summary\":\"$pass_count/9 PASS, $warn_count WARN, $fail_count FAIL\"}"
 
 # 输出
 echo "$output_json"

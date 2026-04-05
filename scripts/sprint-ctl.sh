@@ -1,213 +1,633 @@
 #!/bin/bash
-# sprint-ctl.sh — Sprint 生命周期管理
+# sprint-ctl.sh — Sprint 生命周期管理（SQLite）
 #
 # 用法:
-#   sprint-ctl.sh init <anchor-path> <chunks-path> [mode]
-#   sprint-ctl.sh advance
-#   sprint-ctl.sh status
-#   sprint-ctl.sh end
-#   sprint-ctl.sh set-baseline <key> <value>
+#   sprint-ctl.sh create <id> <type> "<desc>"
+#   sprint-ctl.sh activate <id>
+#   sprint-ctl.sh end <id>
+#   sprint-ctl.sh fail <id> "<reason>"
+#   sprint-ctl.sh retry <id>
+#   sprint-ctl.sh stop <id>
+#   sprint-ctl.sh abandon <id>
+#   sprint-ctl.sh archive <id>
+#   sprint-ctl.sh list
+#   sprint-ctl.sh stage-update <id> <stage> <status>
+#   sprint-ctl.sh skip-stage <id> [stage]
+#   sprint-ctl.sh log-event <id> <event> "<detail>"
+#   sprint-ctl.sh set-baseline <id> <key> <value>
+#   sprint-ctl.sh anchor-check <id>
+#   sprint-ctl.sh rollback-stage <id>
+#   sprint-ctl.sh pivot <id>
+#   sprint-ctl.sh verify <id>
+#   sprint-ctl.sh init-db
 
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 
-ACTION="${1:?用法: sprint-ctl.sh <init|advance|status|end|set-baseline>}"
+ACTION="${1:?用法: sprint-ctl.sh <command> [args...]}"
 shift
 
+# 确保 DB 存在
+sprint_db_ensure
+
+NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
 case "$ACTION" in
-    init)
-        ANCHOR_PATH="${1:?缺少 anchor-path}"
-        CHUNKS_PATH="${2:?缺少 chunks-path}"
-        MODE="${3:-checked}"
-
-        mkdir -p "$SPRINT_STATE_DIR"
-
-        # 计算 chunk 总数（匹配 ### Chunk N 格式）
-        total_chunks=0
-        if [ -f "$CHUNKS_PATH" ]; then
-            total_chunks=$(grep -cE '^### Chunk [0-9]+' "$CHUNKS_PATH" 2>/dev/null || echo 0)
-        fi
-
-        # 写入状态文件
-        cat > "$SPRINT_STATE_FILE" <<SEOF
-{
-  "active": true,
-  "anchor_path": "$ANCHOR_PATH",
-  "chunks_path": "$CHUNKS_PATH",
-  "mode": "$MODE",
-  "current_chunk": 0,
-  "total_chunks": $total_chunks,
-  "last_gate": {
-    "chunk": 0,
-    "status": "PASS",
-    "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S)"
-  },
-  "baselines": {}
-}
-SEOF
-
-        # 初始化观察日志
-        cat > "$SPRINT_OBSERVATIONS" <<OEOF
-# 观察日志
-
-> Sprint 执行过程中发现的改进机会（不在当前 scope 内）。
-> 任务结束后 review 此文件决定哪些值得单独处理。
-
-| 时间 | 文件 | 观察 |
-|------|------|------|
-OEOF
-
-        # 清空指标文件
-        > "$SPRINT_METRICS_FILE"
-
-        > "$SPRINT_JOURNAL_FILE"
-        sprint_log_event "sprint_init" "\"mode\":\"$MODE\",\"anchor\":\"$ANCHOR_PATH\",\"chunks_path\":\"$CHUNKS_PATH\",\"total_chunks\":$total_chunks"
-
-        echo "✅ Sprint 初始化完成"
-        echo "  模式: $MODE"
-        echo "  Chunks: $total_chunks"
-        echo "  Anchor: $ANCHOR_PATH"
-        echo "  State: $SPRINT_STATE_FILE"
+    init-db)
+        sprint_db_init
+        echo "[ok] DB 初始化完成: $SPRINT_DB"
         ;;
 
-    advance)
-        if ! sprint_is_active; then
-            echo "⚠ 无活跃 sprint" >&2
+    create)
+        ID="${1:?缺少 id}"
+        TYPE="${2:?缺少 type}"
+        DESC="${3:?缺少 description}"
+        BASE_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+
+        # 生成 dir_name: YYYYMMDD-HHmm-简述-id
+        DIR_DATE="${ID:0:8}"
+        DIR_TIME="${ID:9:4}"
+        DIR_DESC=$(echo "$DESC" | head -c 10 | tr ' /' '-')
+        DIR_NAME="${DIR_DATE}-${DIR_TIME}-${DIR_DESC}-${ID}"
+
+        sprint_db "INSERT INTO sprints (id, dir_name, description, type, status, base_commit, created_at, updated_at)
+                   VALUES ('$ID', '$DIR_NAME', '$DESC', '$TYPE', 'created', '$BASE_COMMIT', '$NOW', '$NOW');"
+
+        # 插入阶段列表（从第 4 个参数开始，逗号分隔的阶段名）
+        STAGES="${4:-}"
+        if [ -n "$STAGES" ]; then
+            SEQ=1
+            IFS=',' read -ra STAGE_ARR <<< "$STAGES"
+            for STAGE in "${STAGE_ARR[@]}"; do
+                STAGE=$(echo "$STAGE" | tr -d ' ')
+                sprint_db "INSERT INTO sprint_stages (sprint_id, stage, seq, status)
+                           VALUES ('$ID', '$STAGE', $SEQ, 'pending');"
+                SEQ=$((SEQ + 1))
+            done
+        fi
+
+        # 创建工作目录
+        mkdir -p "$SPRINT_DIR/active/$DIR_NAME"/{anchors,handoffs,reports,execute,tmp}
+
+        sprint_log_event "$ID" "sprint_created" "{\"type\":\"$TYPE\"}"
+        echo "[ok] Sprint #$ID 创建完成"
+        echo "  类型: $TYPE"
+        echo "  目录: .sprint/active/$DIR_NAME"
+        echo "  base_commit: $BASE_COMMIT"
+        ;;
+
+    activate)
+        ID="${1:?缺少 id}"
+        STATUS=$(sprint_field "$ID" "status")
+
+        if [ "$STATUS" != "created" ] && [ "$STATUS" != "retrying" ] && [ "$STATUS" != "stopped" ]; then
+            echo "[FAIL] Sprint #$ID status=$STATUS,无法激活" >&2
             exit 1
         fi
 
-        current=$(sprint_get 'current_chunk')
-        total=$(sprint_get 'total_chunks')
-        next=$((current + 1))
-
-        if [ "$next" -gt "$total" ]; then
-            echo "✅ 所有 chunk 已完成（$total/$total）"
-            exit 0
-        fi
-
-        sprint_set 'current_chunk' "$next"
-        chunk_desc=""
-        if [ -f "$(sprint_get 'chunks_path')" ]; then
-            chunk_desc=$(grep -A1 "### Chunk $next " "$(sprint_get 'chunks_path')" 2>/dev/null | head -1 | sed 's/### Chunk [0-9]* — //' || echo "")
-        fi
-        sprint_log_event "chunk_start" "\"chunk\":$next,\"desc\":\"$chunk_desc\""
-        echo "→ Chunk $next/$total"
-        ;;
-
-    status)
-        if ! sprint_is_active; then
-            echo "无活跃 sprint"
-            exit 0
-        fi
-
-        current=$(sprint_get 'current_chunk')
-        total=$(sprint_get 'total_chunks')
-        mode=$(sprint_get 'mode')
-        last_status=$(sprint_get 'last_gate.status')
-        anchor=$(sprint_get 'anchor_path')
-
-        echo "Sprint [$mode]"
-        echo "  进度: Chunk $current/$total"
-        echo "  Anchor: $anchor"
-        echo "  上次门禁: $last_status"
-
-        # 指标摘要
-        if [ -f "$SPRINT_METRICS_FILE" ] && [ -s "$SPRINT_METRICS_FILE" ]; then
-            total_diff=$(jq -s '[.[].diff_lines] | add // 0' "$SPRINT_METRICS_FILE")
-            avg_diff=$((total_diff / $(wc -l < "$SPRINT_METRICS_FILE" | tr -d ' ')))
-            pass_count=$(jq -r '.gate_status' "$SPRINT_METRICS_FILE" | grep -c 'PASS' || echo 0)
-            warn_count=$(jq -r '.gate_status' "$SPRINT_METRICS_FILE" | grep -c 'WARN' || echo 0)
-            fail_count=$(jq -r '.gate_status' "$SPRINT_METRICS_FILE" | grep -c 'FAIL' || echo 0)
-            echo "  累计 diff: ${total_diff} 行（均 ${avg_diff} 行/chunk）"
-            echo "  门禁: ${pass_count}P ${warn_count}W ${fail_count}F"
-        fi
+        sprint_db "UPDATE sprints SET status='running', updated_at='$NOW' WHERE id='$ID';"
+        sprint_log_event "$ID" "sprint_activated" "{\"from\":\"$STATUS\"}"
+        echo "[ok] Sprint #$ID -> running"
         ;;
 
     end)
-        if ! sprint_is_active; then
+        ID="${1:?缺少 id}"
+        STATUS=$(sprint_field "$ID" "status")
+
+        if [ "$STATUS" != "running" ]; then
+            echo "[FAIL] Sprint #$ID status=$STATUS,无法结束" >&2
+            exit 1
+        fi
+
+        sprint_db "UPDATE sprints SET status='completed', updated_at='$NOW' WHERE id='$ID';"
+
+        # 输出指标
+        COMPLETED=$(sprint_db "SELECT COUNT(*) FROM sprint_stages WHERE sprint_id='$ID' AND status='completed';")
+        SKIPPED=$(sprint_db "SELECT COUNT(*) FROM sprint_stages WHERE sprint_id='$ID' AND status='skipped';")
+        TOTAL=$(sprint_db "SELECT COUNT(*) FROM sprint_stages WHERE sprint_id='$ID';")
+
+        sprint_log_event "$ID" "sprint_ended" "{\"stages_completed\":$COMPLETED}"
+        echo "[ok] Sprint #$ID 完成"
+        echo "  阶段: $COMPLETED/$TOTAL 完成, $SKIPPED 跳过"
+        ;;
+
+    status)
+        ID="${1:?缺少 id}"
+
+        # 基本信息
+        ROW=$(sprint_db -separator '|' \
+            "SELECT description, type, status, created_at, base_commit FROM sprints WHERE id='$ID';")
+        if [ -z "$ROW" ]; then
+            echo "[FAIL] Sprint #$ID 不存在" >&2
+            exit 1
+        fi
+
+        IFS='|' read -r DESC TYPE STATUS CREATED BASE <<< "$ROW"
+        echo "Sprint #$ID"
+        echo "  描述: $DESC"
+        echo "  类型: $TYPE"
+        echo "  状态: $STATUS"
+        echo "  创建: $CREATED"
+        echo "  base: ${BASE:0:7}"
+
+        # 阶段进度
+        STAGES=$(sprint_db -separator '|' \
+            "SELECT seq, stage, status, started_at, completed_at
+             FROM sprint_stages WHERE sprint_id='$ID' ORDER BY seq;")
+
+        if [ -n "$STAGES" ]; then
+            echo ""
+            echo "  阶段:"
+            while IFS='|' read -r seq stage st started completed; do
+                case "$st" in
+                    completed)
+                        s_start=$(echo "$started" | cut -c1-16)
+                        s_end=$(echo "$completed" | cut -c1-16)
+                        printf "    %d. %-12s [completed]  %s -> %s\n" "$seq" "$stage" "$s_start" "$s_end"
+                        ;;
+                    running)
+                        s_start=$(echo "$started" | cut -c1-16)
+                        printf "    %d. %-12s [running]    %s ->\n" "$seq" "$stage" "$s_start"
+                        ;;
+                    skipped)
+                        printf "    %d. %-12s [skipped]\n" "$seq" "$stage"
+                        ;;
+                    *)
+                        printf "    %d. %-12s [pending]\n" "$seq" "$stage"
+                        ;;
+                esac
+            done <<< "$STAGES"
+        fi
+
+        # 错误信息
+        ERR=$(sprint_db -separator '|' \
+            "SELECT stage, message, retry_count, occurred_at
+             FROM sprint_errors WHERE sprint_id='$ID' ORDER BY occurred_at DESC LIMIT 1;")
+
+        echo ""
+        if [ -n "$ERR" ]; then
+            IFS='|' read -r e_stage e_msg e_retry e_time <<< "$ERR"
+            echo "  错误:"
+            echo "    阶段: $e_stage"
+            echo "    原因: $e_msg"
+            echo "    重试: $e_retry 次"
+            echo "    时间: $e_time"
+        else
+            echo "  错误: (无)"
+        fi
+        ;;
+
+    list)
+        # 停止检测: running 超 30 分钟自动标记 stopped
+        sprint_db "UPDATE sprints SET status='stopped', updated_at='$NOW'
+                   WHERE status='running'
+                   AND strftime('%s', '$NOW') - strftime('%s', updated_at) > 1800;"
+
+        # ANSI 颜色
+        C_RED='\033[0;31m'
+        C_YEL='\033[0;33m'
+        C_GRN='\033[0;32m'
+        C_RST='\033[0m'
+
+        # 按状态排序: running -> retrying -> created -> stopped -> failed
+        ROWS=$(sprint_db -separator '|' \
+            "SELECT id, type, status, description,
+                    COALESCE((SELECT stage FROM sprint_stages WHERE sprint_id=sprints.id AND status='running' LIMIT 1),
+                             (SELECT stage FROM sprint_stages WHERE sprint_id=sprints.id AND status='pending' ORDER BY seq LIMIT 1),
+                             'done') as current_stage
+             FROM sprints
+             WHERE status NOT IN ('completed', 'archived')
+             ORDER BY
+                 CASE status
+                     WHEN 'running' THEN 1
+                     WHEN 'retrying' THEN 2
+                     WHEN 'created' THEN 3
+                     WHEN 'stopped' THEN 4
+                     WHEN 'failed' THEN 5
+                 END,
+                 created_at DESC;")
+
+        if [ -z "$ROWS" ]; then
             echo "无活跃 sprint"
             exit 0
         fi
 
-        sprint_set 'active' 'false'
-        end_current=$(sprint_get 'current_chunk')
-        end_diff=0
-        if [ -f "$SPRINT_METRICS_FILE" ] && [ -s "$SPRINT_METRICS_FILE" ]; then
-            end_diff=$(jq -s '[.[].diff_lines] | add // 0' "$SPRINT_METRICS_FILE")
-        fi
-        sprint_log_event "sprint_end" "\"chunks_completed\":${end_current:-0},\"total_diff\":${end_diff:-0}"
-        echo "✅ Sprint 已结束"
-
-        # 最终指标
-        if [ -f "$SPRINT_METRICS_FILE" ] && [ -s "$SPRINT_METRICS_FILE" ]; then
-            echo ""
-            echo "─── 最终指标 ───"
-            total_chunks=$(wc -l < "$SPRINT_METRICS_FILE" | tr -d ' ')
-            total_diff=$(jq -s '[.[].diff_lines] | add // 0' "$SPRINT_METRICS_FILE")
-            echo "  Chunks 完成: $total_chunks"
-            echo "  累计 diff: $total_diff 行"
-        fi
-
-        # 观察日志统计
-        if [ -f "$SPRINT_OBSERVATIONS" ]; then
-            obs_count=$(grep -cE '^\|[^-]' "$SPRINT_OBSERVATIONS" 2>/dev/null || echo 0)
-            obs_count=$((obs_count > 1 ? obs_count - 1 : 0))  # 减表头
-            if [ "$obs_count" -gt 0 ]; then
-                echo "  观察日志: $obs_count 条待处理"
+        echo "Sprint 列表:"
+        echo ""
+        PREV_GROUP=""
+        while IFS='|' read -r id type status desc stage; do
+            # 分组标签
+            case "$status" in
+                running|retrying) GROUP="running" ;;
+                stopped)          GROUP="stopped" ;;
+                failed)           GROUP="failed" ;;
+                *)                GROUP="other" ;;
+            esac
+            if [ "$GROUP" != "$PREV_GROUP" ]; then
+                [ -n "$PREV_GROUP" ] && echo ""
+                PREV_GROUP="$GROUP"
             fi
-        fi
+
+            # 状态着色
+            case "$status" in
+                running|retrying) color="$C_GRN" ;;
+                stopped)          color="$C_YEL" ;;
+                failed)           color="$C_RED" ;;
+                *)                color="" ;;
+            esac
+
+            printf "  #%-16s  %-7s  %b%-8s%b  %-20s  -> %s\n" \
+                "$id" "$type" "$color" "$status" "$C_RST" "$desc" "$stage"
+        done <<< "$ROWS"
         ;;
 
-    debug)
-        SUB="${1:-status}"
-        case "$SUB" in
-            on)
-                if ! sprint_is_active; then echo "⚠ 无活跃 sprint" >&2; exit 1; fi
-                sprint_set 'debug' 'true'
-                mkdir -p "$SPRINT_DEBUG_DIR"
-                echo "🔍 Debug 模式已开启"
-                sprint_log_event "debug_toggle" "\"enabled\":true"
-                ;;
-            off)
-                if ! sprint_is_active; then echo "⚠ 无活跃 sprint" >&2; exit 1; fi
-                sprint_set 'debug' 'false'
-                echo "Debug 模式已关闭"
-                sprint_log_event "debug_toggle" "\"enabled\":false"
-                ;;
-            status)
-                if sprint_debug_enabled; then
-                    echo "🔍 Debug: ON"
-                    if [ -d "$SPRINT_DEBUG_DIR" ]; then
-                        fc=$(find "$SPRINT_DEBUG_DIR" -type f 2>/dev/null | wc -l | tr -d ' ')
-                        echo "  捕获文件: $fc"
-                    fi
-                else
-                    echo "Debug: OFF"
-                fi
-                ;;
-            *)
-                echo "用法: sprint-ctl.sh debug <on|off|status>" >&2
-                exit 1
-                ;;
-        esac
-        ;;
+    fail)
+        ID="${1:?缺少 id}"
+        REASON="${2:?缺少 reason}"
+        STATUS=$(sprint_field "$ID" "status")
 
-    set-baseline)
-        KEY="${1:?缺少 key}"
-        VAL="${2:?缺少 value}"
-
-        if ! sprint_is_active; then
-            echo "⚠ 无活跃 sprint" >&2
+        if [ "$STATUS" != "running" ] && [ "$STATUS" != "retrying" ]; then
+            echo "[FAIL] Sprint #$ID status=$STATUS,无法标记失败" >&2
             exit 1
         fi
 
-        sprint_set "baselines.$KEY" "$VAL"
+        STAGE=$(sprint_db "SELECT stage FROM sprint_stages WHERE sprint_id='$ID' AND status='running' LIMIT 1;")
+        RETRY_COUNT=$(sprint_db "SELECT COALESCE(MAX(retry_count),0) FROM sprint_errors WHERE sprint_id='$ID' AND stage='$STAGE';")
+
+        sprint_db "UPDATE sprints SET status='failed', updated_at='$NOW' WHERE id='$ID';"
+        sprint_db "UPDATE sprint_stages SET status='failed' WHERE sprint_id='$ID' AND stage='$STAGE';"
+        sprint_db "INSERT INTO sprint_errors (sprint_id, stage, message, retry_count, occurred_at)
+                   VALUES ('$ID', '$STAGE', '$REASON', $((RETRY_COUNT + 1)), '$NOW');"
+
+        sprint_log_event "$ID" "sprint_failed" "{\"stage\":\"$STAGE\",\"reason\":\"$REASON\"}"
+        echo "[FAIL] Sprint #$ID 失败"
+        echo "  阶段: $STAGE"
+        echo "  原因: $REASON"
+        echo "  重试次数: $((RETRY_COUNT + 1))"
+        ;;
+
+    retry)
+        ID="${1:?缺少 id}"
+        STATUS=$(sprint_field "$ID" "status")
+
+        if [ "$STATUS" != "failed" ]; then
+            echo "[FAIL] Sprint #$ID status=$STATUS,无法重试" >&2
+            exit 1
+        fi
+
+        # 恢复失败阶段为 pending
+        sprint_db "UPDATE sprint_stages SET status='pending', started_at=NULL, completed_at=NULL
+                   WHERE sprint_id='$ID' AND status='failed';"
+        sprint_db "UPDATE sprints SET status='retrying', updated_at='$NOW' WHERE id='$ID';"
+
+        sprint_log_event "$ID" "sprint_retrying" ""
+        echo "[ok] Sprint #$ID -> retrying"
+        ;;
+
+    stop)
+        ID="${1:?缺少 id}"
+        sprint_db "UPDATE sprints SET status='stopped', updated_at='$NOW' WHERE id='$ID';"
+        sprint_log_event "$ID" "sprint_stopped" ""
+        echo "[ok] Sprint #$ID -> stopped"
+        ;;
+
+    abandon)
+        ID="${1:?缺少 id}"
+        STATUS=$(sprint_field "$ID" "status")
+        BASE_COMMIT=$(sprint_field "$ID" "base_commit")
+
+        if [ "$STATUS" != "failed" ] && [ "$STATUS" != "stopped" ]; then
+            echo "[FAIL] Sprint #$ID status=$STATUS,无法放弃（需要先 fail 或 stop）" >&2
+            exit 1
+        fi
+
+        # revert 到 base_commit
+        if [ -n "$BASE_COMMIT" ] && [ "$BASE_COMMIT" != "unknown" ]; then
+            CURRENT=$(git rev-parse HEAD 2>/dev/null || echo "")
+            if [ "$CURRENT" != "$BASE_COMMIT" ]; then
+                echo "  revert 到 $BASE_COMMIT ..."
+                git revert --no-commit "$BASE_COMMIT..HEAD" 2>/dev/null || true
+                git commit -m "revert: abandon sprint #$ID" 2>/dev/null || true
+            fi
+        fi
+
+        sprint_db "UPDATE sprints SET status='archived', updated_at='$NOW' WHERE id='$ID';"
+
+        # 移动目录到 archive
+        DIR_NAME=$(sprint_field "$ID" "dir_name")
+        if [ -d "$SPRINT_DIR/active/$DIR_NAME" ]; then
+            mkdir -p "$SPRINT_DIR/archive"
+            mv "$SPRINT_DIR/active/$DIR_NAME" "$SPRINT_DIR/archive/" 2>/dev/null || true
+        fi
+
+        sprint_log_event "$ID" "sprint_abandoned" ""
+        echo "[ok] Sprint #$ID 已放弃并归档"
+        ;;
+
+    archive)
+        ID="${1:?缺少 id}"
+        STATUS=$(sprint_field "$ID" "status")
+
+        if [ "$STATUS" != "completed" ]; then
+            echo "[FAIL] Sprint #$ID status=$STATUS,只有 completed 可归档" >&2
+            exit 1
+        fi
+
+        sprint_db "UPDATE sprints SET status='archived', updated_at='$NOW' WHERE id='$ID';"
+
+        DIR_NAME=$(sprint_field "$ID" "dir_name")
+        if [ -d "$SPRINT_DIR/active/$DIR_NAME" ]; then
+            mkdir -p "$SPRINT_DIR/archive"
+            mv "$SPRINT_DIR/active/$DIR_NAME" "$SPRINT_DIR/archive/" 2>/dev/null || true
+        fi
+
+        sprint_log_event "$ID" "sprint_archived" ""
+        echo "[ok] Sprint #$ID 已归档"
+        ;;
+
+    stage-update)
+        ID="${1:?缺少 id}"
+        STAGE="${2:?缺少 stage}"
+        NEW_STATUS="${3:?缺少 status}"
+
+        case "$NEW_STATUS" in
+            running)
+                sprint_db "UPDATE sprint_stages SET status='running', started_at='$NOW' WHERE sprint_id='$ID' AND stage='$STAGE';"
+                ;;
+            completed)
+                sprint_db "UPDATE sprint_stages SET status='completed', completed_at='$NOW' WHERE sprint_id='$ID' AND stage='$STAGE';"
+                ;;
+            failed)
+                sprint_db "UPDATE sprint_stages SET status='failed' WHERE sprint_id='$ID' AND stage='$STAGE';"
+                ;;
+            *)
+                sprint_db "UPDATE sprint_stages SET status='$NEW_STATUS' WHERE sprint_id='$ID' AND stage='$STAGE';"
+                ;;
+        esac
+
+        sprint_db "UPDATE sprints SET updated_at='$NOW' WHERE id='$ID';"
+        sprint_log_event "$ID" "stage_update" "{\"stage\":\"$STAGE\",\"status\":\"$NEW_STATUS\"}"
+        echo "[ok] Sprint #$ID $STAGE -> $NEW_STATUS"
+        ;;
+
+    skip-stage)
+        ID="${1:?缺少 id}"
+        TARGET_STAGE="${2:-}"
+
+        if [ -n "$TARGET_STAGE" ]; then
+            STAGE="$TARGET_STAGE"
+        else
+            # 无指定则跳过当前 running 或第一个 pending 阶段
+            STAGE=$(sprint_db "SELECT stage FROM sprint_stages
+                WHERE sprint_id='$ID' AND status IN ('running','pending')
+                ORDER BY CASE status WHEN 'running' THEN 1 ELSE 2 END, seq LIMIT 1;")
+        fi
+
+        if [ -z "$STAGE" ]; then
+            echo "[WARN] 无可跳过的阶段" >&2
+            exit 1
+        fi
+
+        sprint_db "UPDATE sprint_stages SET status='skipped' WHERE sprint_id='$ID' AND stage='$STAGE';"
+        sprint_db "UPDATE sprints SET updated_at='$NOW' WHERE id='$ID';"
+        sprint_log_event "$ID" "stage_skipped" "{\"stage\":\"$STAGE\"}"
+        echo "[ok] Sprint #$ID $STAGE -> skipped"
+        ;;
+
+    log-event)
+        ID="${1:?缺少 id}"
+        EVENT="${2:?缺少 event}"
+        DETAIL="${3:-}"
+
+        sprint_db "INSERT INTO sprint_events (sprint_id, event, detail, ts)
+                   VALUES ('$ID', '$EVENT', '$DETAIL', '$NOW');"
+        ;;
+
+    set-baseline)
+        ID="${1:?缺少 id}"
+        KEY="${2:?缺少 key}"
+        VAL="${3:?缺少 value}"
+
+        sprint_set_baseline "$ID" "$KEY" "$VAL"
         echo "基线: $KEY = $VAL"
+        ;;
+
+    anchor-check)
+        ID="${1:?缺少 id}"
+        ANCHOR=$(sprint_anchor_path "$ID")
+
+        if [ ! -f "$ANCHOR" ]; then
+            echo "[ok] 无 anchor 文件，跳过"
+            exit 0
+        fi
+
+        # 检查 invariants
+        SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+        verify_output=$("$SCRIPT_DIR/anchor-verify.sh" "$ANCHOR" 2>/dev/null || true)
+        verify_status=$(echo "$verify_output" | jq -r '.status // "ERROR"' 2>/dev/null)
+
+        if [ "$verify_status" = "FAIL" ]; then
+            verify_detail=$(echo "$verify_output" | jq -r '.detail // ""' 2>/dev/null)
+            echo "[FAIL] Anchor 不变量违反: $verify_detail"
+            exit 1
+        fi
+
+        # 检查 boundary drift
+        drift_output=$("$SCRIPT_DIR/drift-detect.sh" "$ANCHOR" 2>/dev/null || true)
+        drifted=$(echo "$drift_output" | jq -r '.drifted // false' 2>/dev/null)
+
+        if [ "$drifted" = "true" ]; then
+            v_count=$(echo "$drift_output" | jq -r '.violation_count // 0' 2>/dev/null)
+            echo "[FAIL] Boundary drift 检测到 $v_count 个违反"
+            exit 1
+        fi
+
+        echo "[ok] Anchor 检查通过"
+        ;;
+
+    rollback-stage)
+        ID="${1:?缺少 id}"
+
+        # 找当前阶段和上一阶段
+        CURRENT=$(sprint_db "SELECT stage FROM sprint_stages
+            WHERE sprint_id='$ID' AND status IN ('running','failed')
+            ORDER BY seq DESC LIMIT 1;")
+        PREV=$(sprint_db "SELECT stage FROM sprint_stages
+            WHERE sprint_id='$ID' AND status='completed'
+            ORDER BY seq DESC LIMIT 1;")
+
+        if [ -z "$PREV" ]; then
+            echo "[FAIL] 无可回退的阶段" >&2
+            exit 1
+        fi
+
+        # 当前阶段 -> pending，上一阶段 -> pending
+        sprint_db "UPDATE sprint_stages SET status='pending', started_at=NULL, completed_at=NULL
+                   WHERE sprint_id='$ID' AND stage='$CURRENT';"
+        sprint_db "UPDATE sprint_stages SET status='pending', started_at=NULL, completed_at=NULL
+                   WHERE sprint_id='$ID' AND stage='$PREV';"
+        sprint_db "UPDATE sprints SET updated_at='$NOW' WHERE id='$ID';"
+
+        sprint_log_event "$ID" "stage_rollback" "{\"from\":\"$CURRENT\",\"to\":\"$PREV\"}"
+        echo "[ok] 回退: $CURRENT -> $PREV (两个阶段重置为 pending)"
+        ;;
+
+    pivot)
+        ID="${1:?缺少 id}"
+
+        # 标记当前阶段为 pending（重做）
+        CURRENT=$(sprint_db "SELECT stage FROM sprint_stages
+            WHERE sprint_id='$ID' AND status IN ('running','failed')
+            ORDER BY seq DESC LIMIT 1;")
+
+        if [ -n "$CURRENT" ]; then
+            sprint_db "UPDATE sprint_stages SET status='pending', started_at=NULL
+                       WHERE sprint_id='$ID' AND stage='$CURRENT';"
+        fi
+
+        sprint_db "UPDATE sprints SET updated_at='$NOW' WHERE id='$ID';"
+        sprint_log_event "$ID" "pivot" "{\"stage\":\"$CURRENT\"}"
+        echo "[ok] Pivot: $CURRENT 重置，请更新 anchor/chunks 后继续"
+        ;;
+
+    verify)
+        ID="${1:?缺少 id}"
+        PASS_COUNT=0
+        FAIL_COUNT=0
+        TOTAL=5
+
+        STATUS=$(sprint_field "$ID" "status")
+        WORK_DIR=$(sprint_work_dir "$ID")
+
+        # 1. state 一致性
+        case "$STATUS" in
+            running|retrying)
+                HAS_ACTIVE=$(sprint_db "SELECT COUNT(*) FROM sprint_stages
+                    WHERE sprint_id='$ID' AND status IN ('running','pending');")
+                if [ "$HAS_ACTIVE" -gt 0 ]; then
+                    echo "  [ok] state 一致性: $STATUS + $HAS_ACTIVE 个活跃阶段"
+                    PASS_COUNT=$((PASS_COUNT + 1))
+                else
+                    echo "  [FAIL] state 一致性: status=$STATUS 但无活跃阶段"
+                    FAIL_COUNT=$((FAIL_COUNT + 1))
+                fi
+                ;;
+            completed)
+                INCOMPLETE=$(sprint_db "SELECT COUNT(*) FROM sprint_stages
+                    WHERE sprint_id='$ID' AND status NOT IN ('completed','skipped');")
+                if [ "$INCOMPLETE" -eq 0 ]; then
+                    echo "  [ok] state 一致性: completed + 所有阶段完成/跳过"
+                    PASS_COUNT=$((PASS_COUNT + 1))
+                else
+                    echo "  [FAIL] state 一致性: status=completed 但 $INCOMPLETE 个阶段未完成"
+                    FAIL_COUNT=$((FAIL_COUNT + 1))
+                fi
+                ;;
+            failed)
+                HAS_FAILED=$(sprint_db "SELECT COUNT(*) FROM sprint_stages
+                    WHERE sprint_id='$ID' AND status='failed';")
+                if [ "$HAS_FAILED" -gt 0 ]; then
+                    echo "  [ok] state 一致性: failed + $HAS_FAILED 个失败阶段"
+                    PASS_COUNT=$((PASS_COUNT + 1))
+                else
+                    echo "  [FAIL] state 一致性: status=failed 但无失败阶段"
+                    FAIL_COUNT=$((FAIL_COUNT + 1))
+                fi
+                ;;
+            *)
+                echo "  [ok] state 一致性: $STATUS"
+                PASS_COUNT=$((PASS_COUNT + 1))
+                ;;
+        esac
+
+        # 2. 文件完整性
+        FILE_OK=true
+        FILE_ISSUES=""
+        COMPLETED_STAGES=$(sprint_db "SELECT stage FROM sprint_stages
+            WHERE sprint_id='$ID' AND status='completed';")
+        for STAGE in $COMPLETED_STAGES; do
+            # 每个 completed 阶段检查 handoffs 文件存在
+            case "$STAGE" in
+                brainstorm) [ ! -f "$WORK_DIR/handoffs/brainstorm.md" ] && FILE_OK=false && FILE_ISSUES+=" handoffs/brainstorm.md" ;;
+                research)   [ ! -f "$WORK_DIR/handoffs/research.md" ] && FILE_OK=false && FILE_ISSUES+=" handoffs/research.md" ;;
+                design)     [ ! -f "$WORK_DIR/handoffs/design.md" ] && FILE_OK=false && FILE_ISSUES+=" handoffs/design.md" ;;
+                plan)       [ ! -f "$WORK_DIR/anchors/plan.md" ] && FILE_OK=false && FILE_ISSUES+=" anchors/plan.md"
+                            [ ! -f "$WORK_DIR/handoffs/plan-chunks.md" ] && FILE_OK=false && FILE_ISSUES+=" handoffs/plan-chunks.md" ;;
+            esac
+        done
+        if [ "$FILE_OK" = true ]; then
+            echo "  [ok] 文件完整性"
+            PASS_COUNT=$((PASS_COUNT + 1))
+        else
+            echo "  [FAIL] 文件完整性: 缺失$FILE_ISSUES"
+            FAIL_COUNT=$((FAIL_COUNT + 1))
+        fi
+
+        # 3. gate 一致性
+        GATE_BAD=$(sprint_db "SELECT COUNT(*) FROM sprint_chunks c
+            JOIN sprint_gates g ON c.sprint_id=g.sprint_id AND c.chunk_num=g.chunk_num
+            WHERE c.sprint_id='$ID' AND c.status='completed'
+            AND g.id = (SELECT MAX(id) FROM sprint_gates
+                        WHERE sprint_id=c.sprint_id AND chunk_num=c.chunk_num)
+            AND g.overall='FAIL';")
+        if [ "${GATE_BAD:-0}" -eq 0 ]; then
+            echo "  [ok] gate 一致性"
+            PASS_COUNT=$((PASS_COUNT + 1))
+        else
+            echo "  [FAIL] gate 一致性: $GATE_BAD 个 completed chunk 最终 gate 为 FAIL"
+            FAIL_COUNT=$((FAIL_COUNT + 1))
+        fi
+
+        # 4. 阶段连续性
+        GAP=$(sprint_db "SELECT COUNT(*) FROM sprint_stages s1
+            JOIN sprint_stages s2 ON s1.sprint_id=s2.sprint_id AND s1.seq=s2.seq-1
+            WHERE s1.sprint_id='$ID'
+            AND s1.status NOT IN ('completed','skipped')
+            AND s2.status='completed';")
+        if [ "${GAP:-0}" -eq 0 ]; then
+            echo "  [ok] 阶段连续性"
+            PASS_COUNT=$((PASS_COUNT + 1))
+        else
+            echo "  [FAIL] 阶段连续性: 有后续阶段 completed 但前置阶段未完成"
+            FAIL_COUNT=$((FAIL_COUNT + 1))
+        fi
+
+        # 5. chunk 计数（只在 execute 阶段开始后检查）
+        EXEC_STATUS=$(sprint_db "SELECT COALESCE(
+            (SELECT status FROM sprint_stages WHERE sprint_id='$ID' AND stage='execute'), 'none');")
+        if [ "$EXEC_STATUS" = "none" ] || [ "$EXEC_STATUS" = "pending" ]; then
+            echo "  [ok] chunk 计数: execute 未开始，跳过"
+            PASS_COUNT=$((PASS_COUNT + 1))
+        else
+            DB_CHUNKS=$(sprint_db "SELECT COUNT(*) FROM sprint_chunks WHERE sprint_id='$ID';")
+            if [ -f "$WORK_DIR/plan/chunks.md" ]; then
+                FILE_CHUNKS=$(grep -cE '^### Chunk' "$WORK_DIR/plan/chunks.md" 2>/dev/null || echo 0)
+                if [ "$DB_CHUNKS" -eq "$FILE_CHUNKS" ]; then
+                    echo "  [ok] chunk 计数: $DB_CHUNKS"
+                    PASS_COUNT=$((PASS_COUNT + 1))
+                else
+                    echo "  [FAIL] chunk 计数: DB=$DB_CHUNKS, 文件=$FILE_CHUNKS"
+                    FAIL_COUNT=$((FAIL_COUNT + 1))
+                fi
+            else
+                echo "  [ok] chunk 计数: $DB_CHUNKS (无 chunks.md)"
+                PASS_COUNT=$((PASS_COUNT + 1))
+            fi
+        fi
+
+        # 汇总
+        echo ""
+        if [ "$FAIL_COUNT" -eq 0 ]; then
+            echo "[ok] Sprint #$ID 验证通过($PASS_COUNT/$TOTAL)"
+        else
+            echo "[FAIL] Sprint #$ID 验证失败($PASS_COUNT/$TOTAL)"
+            exit 1
+        fi
         ;;
 
     *)
         echo "未知操作: $ACTION" >&2
-        echo "用法: sprint-ctl.sh <init|advance|status|end|set-baseline>" >&2
+        echo "用法: sprint-ctl.sh <create|activate|end|fail|retry|stop|abandon|archive|list|status|stage-update|skip-stage|log-event|verify|init-db>" >&2
         exit 1
         ;;
 esac
