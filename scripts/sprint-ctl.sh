@@ -626,9 +626,210 @@ case "$ACTION" in
         fi
         ;;
 
+    # ═══════════════════════════════════
+    # Long Task 命令组
+    # ═══════════════════════════════════
+
+    long-goal)
+        ID="${1:?缺少 sprint id}"
+        SUB="${2:?缺少子命令 (add|achieve|list|drop)}"
+        shift 2
+
+        case "$SUB" in
+            add)
+                DESC="${1:?缺少目标描述}"
+                VERIFY="${2:?缺少验证方式}"
+                SEQ=$(sprint_db "SELECT COALESCE(MAX(seq),0)+1 FROM long_task_goals WHERE sprint_id='$ID';")
+                sprint_db "INSERT INTO long_task_goals (sprint_id, seq, description, verifiable, status)
+                           VALUES ('$ID', $SEQ, '$DESC', '$VERIFY', 'pending');"
+                echo "[ok] 目标 #$SEQ: $DESC"
+                ;;
+            achieve)
+                GOAL_SEQ="${1:?缺少目标序号}"
+                CHILD_ID="${2:-}"
+                sprint_db "UPDATE long_task_goals SET status='achieved', achieved_by='$CHILD_ID',
+                           updated_at='$NOW' WHERE sprint_id='$ID' AND seq=$GOAL_SEQ;"
+                echo "[ok] 目标 #$GOAL_SEQ -> achieved"
+                ;;
+            drop)
+                GOAL_SEQ="${1:?缺少目标序号}"
+                sprint_db "UPDATE long_task_goals SET status='dropped',
+                           updated_at='$NOW' WHERE sprint_id='$ID' AND seq=$GOAL_SEQ;"
+                echo "[ok] 目标 #$GOAL_SEQ -> dropped"
+                ;;
+            list)
+                echo "目标清单 (Sprint #$ID):"
+                sprint_db "SELECT seq, status, description FROM long_task_goals
+                           WHERE sprint_id='$ID' ORDER BY seq;" | while IFS='|' read -r seq status desc; do
+                    case "$status" in
+                        achieved) mark="[x]" ;;
+                        dropped)  mark="[-]" ;;
+                        *)        mark="[ ]" ;;
+                    esac
+                    echo "  $mark #$seq: $desc"
+                done
+                TOTAL=$(sprint_db "SELECT COUNT(*) FROM long_task_goals WHERE sprint_id='$ID';")
+                DONE=$(sprint_db "SELECT COUNT(*) FROM long_task_goals WHERE sprint_id='$ID' AND status='achieved';")
+                echo "  ($DONE/$TOTAL achieved)"
+                ;;
+            *)
+                echo "未知子命令: $SUB (add|achieve|list|drop)" >&2
+                exit 1
+                ;;
+        esac
+        ;;
+
+    long-round)
+        ID="${1:?缺少 sprint id}"
+        SUB="${2:?缺少子命令 (start|end)}"
+        shift 2
+
+        case "$SUB" in
+            start)
+                CHILD_ID="${1:?缺少子 sprint id}"
+                EST_COST="${2:?缺少预估成本}"
+                ROUND_NUM=$(sprint_db "SELECT COALESCE(MAX(round_num),0)+1 FROM long_task_rounds WHERE parent_id='$ID';")
+                GOALS_BEFORE=$(sprint_db "SELECT COUNT(*) FROM long_task_goals WHERE sprint_id='$ID' AND status='achieved';")
+                sprint_db "INSERT INTO long_task_rounds (parent_id, child_id, round_num, cost_estimated, goals_before)
+                           VALUES ('$ID', '$CHILD_ID', $ROUND_NUM, $EST_COST, $GOALS_BEFORE);"
+                echo "[ok] 轮次 #$ROUND_NUM 开始 (子 sprint: $CHILD_ID, 预估: ${EST_COST} 行)"
+                ;;
+            end)
+                CHILD_ID="${1:?缺少子 sprint id}"
+                ACTUAL_COST="${2:?缺少实际成本}"
+                GOALS_AFTER=$(sprint_db "SELECT COUNT(*) FROM long_task_goals WHERE sprint_id='$ID' AND status='achieved';")
+                ROUND_NUM=$(sprint_db "SELECT round_num FROM long_task_rounds WHERE parent_id='$ID' AND child_id='$CHILD_ID';")
+                GOALS_BEFORE=$(sprint_db "SELECT goals_before FROM long_task_rounds WHERE parent_id='$ID' AND child_id='$CHILD_ID';")
+                GOAL_DELTA=$((GOALS_AFTER - GOALS_BEFORE))
+                if [ "$ACTUAL_COST" -gt 0 ]; then
+                    ROI=$(python3 -c "print(round($GOAL_DELTA / ($ACTUAL_COST / 100), 2))")
+                else
+                    ROI=0
+                fi
+                sprint_db "UPDATE long_task_rounds SET cost_actual=$ACTUAL_COST, goals_after=$GOALS_AFTER,
+                           roi=$ROI WHERE parent_id='$ID' AND child_id='$CHILD_ID';"
+                echo "[ok] 轮次 #$ROUND_NUM 完成 (实际: ${ACTUAL_COST} 行, 目标: +$GOAL_DELTA, ROI: $ROI)"
+                ;;
+            *)
+                echo "未知子命令: $SUB (start|end)" >&2
+                exit 1
+                ;;
+        esac
+        ;;
+
+    long-risk)
+        ID="${1:?缺少 sprint id}"
+        FLAGS=""
+        DETAILS=""
+        STATUS="ok"
+
+        # R1: 方向偏移 — 最近一轮 goal_delta=0 且 cost>50
+        LAST_ROUND=$(sprint_db "SELECT cost_actual, goals_after - goals_before FROM long_task_rounds
+                     WHERE parent_id='$ID' ORDER BY round_num DESC LIMIT 1;" 2>/dev/null)
+        if [ -n "$LAST_ROUND" ]; then
+            LAST_COST=$(echo "$LAST_ROUND" | cut -d'|' -f1)
+            LAST_DELTA=$(echo "$LAST_ROUND" | cut -d'|' -f2)
+            if [ "${LAST_DELTA:-0}" -eq 0 ] && [ "${LAST_COST:-0}" -gt 50 ]; then
+                FLAGS="${FLAGS}R1,"
+                DETAILS="${DETAILS}\"R1\":\"goal_delta=0, cost=$LAST_COST\","
+                STATUS="halt"
+            fi
+        fi
+
+        # R2: ROI 连续下降 — 连续 2 轮下降
+        ROI_TREND=$(sprint_db "SELECT roi FROM long_task_rounds
+                    WHERE parent_id='$ID' AND roi IS NOT NULL ORDER BY round_num DESC LIMIT 3;" 2>/dev/null)
+        ROI_COUNT=$(echo "$ROI_TREND" | grep -c . 2>/dev/null || echo 0)
+        if [ "$ROI_COUNT" -ge 3 ]; then
+            R1_VAL=$(echo "$ROI_TREND" | sed -n '1p')
+            R2_VAL=$(echo "$ROI_TREND" | sed -n '2p')
+            R3_VAL=$(echo "$ROI_TREND" | sed -n '3p')
+            DECLINING=$(python3 -c "print('yes' if $R1_VAL < $R2_VAL < $R3_VAL else 'no')" 2>/dev/null || echo "no")
+            if [ "$DECLINING" = "yes" ]; then
+                FLAGS="${FLAGS}R2,"
+                DETAILS="${DETAILS}\"R2\":\"ROI trend: $R3_VAL -> $R2_VAL -> $R1_VAL\","
+                STATUS="halt"
+            fi
+        fi
+
+        # R3: 成本超预估 — 最近一轮 actual > estimated * 1.5
+        COST_CHECK=$(sprint_db "SELECT cost_estimated, cost_actual FROM long_task_rounds
+                     WHERE parent_id='$ID' AND cost_estimated IS NOT NULL AND cost_actual IS NOT NULL
+                     ORDER BY round_num DESC LIMIT 1;" 2>/dev/null)
+        if [ -n "$COST_CHECK" ]; then
+            C_EST=$(echo "$COST_CHECK" | cut -d'|' -f1)
+            C_ACT=$(echo "$COST_CHECK" | cut -d'|' -f2)
+            if [ "$C_EST" -gt 0 ]; then
+                OVER=$(python3 -c "print('yes' if $C_ACT > $C_EST * 1.5 else 'no')" 2>/dev/null || echo "no")
+                if [ "$OVER" = "yes" ]; then
+                    FLAGS="${FLAGS}R3,"
+                    DETAILS="${DETAILS}\"R3\":\"estimated=$C_EST, actual=$C_ACT\","
+                    [ "$STATUS" = "ok" ] && STATUS="warn"
+                fi
+            fi
+        fi
+
+        # R4: 质量恶化 — 最近子 sprint 有 gate FAIL
+        LAST_CHILD=$(sprint_db "SELECT child_id FROM long_task_rounds
+                     WHERE parent_id='$ID' ORDER BY round_num DESC LIMIT 1;" 2>/dev/null)
+        if [ -n "$LAST_CHILD" ]; then
+            FAIL_GATES=$(sprint_db "SELECT COUNT(*) FROM sprint_gates
+                         WHERE sprint_id='$LAST_CHILD' AND overall='FAIL';" 2>/dev/null)
+            if [ "${FAIL_GATES:-0}" -gt 0 ]; then
+                FLAGS="${FLAGS}R4,"
+                DETAILS="${DETAILS}\"R4\":\"child $LAST_CHILD has $FAIL_GATES FAIL gates\","
+                STATUS="halt"
+            fi
+        fi
+
+        # 清理尾部逗号
+        FLAGS=$(echo "$FLAGS" | sed 's/,$//')
+        DETAILS=$(echo "$DETAILS" | sed 's/,$//')
+
+        echo "{\"status\":\"$STATUS\",\"flags\":[$(echo "$FLAGS" | sed 's/\([^,]*\)/"\1"/g')],\"details\":{$DETAILS}}"
+        ;;
+
+    long-summary)
+        ID="${1:?缺少 sprint id}"
+        echo "=== Long Task Summary: Sprint #$ID ==="
+        echo ""
+
+        # 目标
+        echo "--- 目标 ---"
+        TOTAL_GOALS=$(sprint_db "SELECT COUNT(*) FROM long_task_goals WHERE sprint_id='$ID';")
+        ACHIEVED=$(sprint_db "SELECT COUNT(*) FROM long_task_goals WHERE sprint_id='$ID' AND status='achieved';")
+        DROPPED=$(sprint_db "SELECT COUNT(*) FROM long_task_goals WHERE sprint_id='$ID' AND status='dropped';")
+        PENDING=$((TOTAL_GOALS - ACHIEVED - DROPPED))
+        echo "  完成: $ACHIEVED | 放弃: $DROPPED | 待定: $PENDING | 总计: $TOTAL_GOALS"
+        sprint_db "SELECT seq, status, description FROM long_task_goals
+                   WHERE sprint_id='$ID' ORDER BY seq;" | while IFS='|' read -r seq status desc; do
+            case "$status" in
+                achieved) mark="[x]" ;;
+                dropped)  mark="[-]" ;;
+                *)        mark="[ ]" ;;
+            esac
+            echo "  $mark #$seq: $desc"
+        done
+
+        echo ""
+        echo "--- 轮次 ---"
+        sprint_db "SELECT round_num, child_id, cost_estimated, cost_actual, goals_after - goals_before, roi
+                   FROM long_task_rounds WHERE parent_id='$ID' ORDER BY round_num;" | while IFS='|' read -r rn cid est act delta roi; do
+            echo "  #$rn | 子sprint: $cid | 预估: ${est:-?} | 实际: ${act:-?} | 目标: +${delta:-0} | ROI: ${roi:-?}"
+        done
+
+        TOTAL_ROUNDS=$(sprint_db "SELECT COUNT(*) FROM long_task_rounds WHERE parent_id='$ID';")
+        TOTAL_COST=$(sprint_db "SELECT COALESCE(SUM(cost_actual),0) FROM long_task_rounds WHERE parent_id='$ID';")
+        AVG_ROI=$(sprint_db "SELECT COALESCE(ROUND(AVG(roi),2),'N/A') FROM long_task_rounds WHERE parent_id='$ID' AND roi IS NOT NULL;")
+        echo ""
+        echo "--- 汇总 ---"
+        echo "  轮次: $TOTAL_ROUNDS | 总成本: ${TOTAL_COST} 行 | 平均 ROI: $AVG_ROI"
+        echo "  目标完成率: $ACHIEVED/$TOTAL_GOALS"
+        ;;
+
     *)
         echo "未知操作: $ACTION" >&2
-        echo "用法: sprint-ctl.sh <create|activate|end|fail|retry|stop|abandon|archive|list|status|stage-update|skip-stage|log-event|verify|init-db>" >&2
+        echo "用法: sprint-ctl.sh <create|activate|end|fail|retry|stop|abandon|archive|list|status|stage-update|skip-stage|log-event|verify|init-db|long-goal|long-round|long-risk|long-summary>" >&2
         exit 1
         ;;
 esac

@@ -11,13 +11,14 @@ INSERT INTO schema_meta (version) VALUES (1);
 -- ═══════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS sprints (
-    id          TEXT PRIMARY KEY,                -- YYYYMMDD-HHmmss
-    dir_name    TEXT NOT NULL,                   -- YYYYMMDD-HHmm-简述-id
+    id          TEXT PRIMARY KEY,                -- YYYYMMDD-HHmmss-ms
+    dir_name    TEXT NOT NULL,                   -- ID-slug
     description TEXT NOT NULL,
     type        TEXT NOT NULL CHECK (type IN ('simple', 'medium', 'complex', 'long', 'auto')),
     mode        TEXT NOT NULL DEFAULT 'auto' CHECK (mode IN ('auto', 'step-by-step')),
     status      TEXT NOT NULL DEFAULT 'created'
                 CHECK (status IN ('created', 'running', 'failed', 'retrying', 'stopped', 'completed', 'archived')),
+    parent_id   TEXT REFERENCES sprints(id),     -- 元 sprint ID（子 sprint 才有值）
     base_commit TEXT,
     created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
@@ -136,4 +137,41 @@ CREATE TABLE IF NOT EXISTS sprint_baselines (
     key       TEXT NOT NULL,                     -- test_count, todo_count, ...
     value     INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (sprint_id, key)
+);
+
+-- ═══════════════════════════════════
+-- Long Task: 目标清单
+-- 元 sprint 的方向拆解为可验证目标
+-- ═══════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS long_task_goals (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    sprint_id   TEXT    NOT NULL REFERENCES sprints(id),
+    seq         INTEGER NOT NULL,
+    description TEXT    NOT NULL,
+    verifiable  TEXT    NOT NULL,                -- 可验证的检查方式
+    status      TEXT    NOT NULL DEFAULT 'pending'
+                CHECK (status IN ('pending', 'achieved', 'dropped')),
+    achieved_by TEXT    REFERENCES sprints(id),  -- 完成该目标的子 sprint ID
+    created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+
+-- ═══════════════════════════════════
+-- Long Task: 轮次记录
+-- 每轮子 sprint 的成本与 ROI
+-- ═══════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS long_task_rounds (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    parent_id      TEXT    NOT NULL REFERENCES sprints(id),
+    child_id       TEXT    NOT NULL REFERENCES sprints(id),
+    round_num      INTEGER NOT NULL,
+    cost_estimated INTEGER,                      -- 预估 diff 行数
+    cost_actual    INTEGER,                      -- 实际 diff 行数
+    goals_before   INTEGER,                      -- 轮次前已完成目标数
+    goals_after    INTEGER,                      -- 轮次后已完成目标数
+    roi            REAL,                         -- goal_delta / (cost_actual / 100)
+    risk_flags     TEXT,                         -- JSON: 触发的风险标志
+    created_at     TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );

@@ -64,12 +64,14 @@ description: Sprint 统一入口。评估 → 创建 → 执行流水线
 
 | 判定 | 条件 | 流水线 |
 |------|------|--------|
+| 判定 | 条件 | 流水线 |
 | 不走 sprint | plan 不需要（一步能完成，信息密度低，决策密度低） | 直接执行 |
 | simple | 需要 plan + execute，不需要 research 和 design | plan -> execute -> [quality] -> insight |
 | medium | 需要 design 或 research | [research] -> [design] -> plan -> execute -> [quality] -> insight |
 | complex | 需要 brainstorm（不确定性高）| brainstorm -> research -> design -> plan -> execute -> quality -> review -> insight |
+| long | 用户指定 `/sprint long` 或方向性描述（无具体需求） | 不走常规流水线，执行 `stages/long.md` |
 
-方括号表示按 2.1 判断可能需要也可能不需要。
+方括号表示按 2.1 判断可能需要也可能不需要。long 类型跳过 2.1 评估，直接路由到 `stages/long.md` 执行三阶段循环。
 
 ## 2.3 输出与确认 [GATE:must]
 
@@ -248,7 +250,7 @@ abandon 流程：
 | simple      | anchor: lite, chunks_max: 3, budget: 100    | mode: auto, review: none       |
 | medium      | anchor: full, budget: 150                   | mode: checked, review: sampled |
 | complex     | anchor: full, budget: 150                   | mode: checked, review: every   |
-| long (TODO) | anchor: full, budget: 200, checkpoint: true | mode: checked, resume: true    |
+| long        | 不走常规流水线，执行 stages/long.md 的三阶段循环 | max_rounds: 5, resume: true    |
 | auto (TODO) | anchor: lite, budget: 100                   | mode: auto, trigger: cron      |
 
 
@@ -277,9 +279,11 @@ bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" create "{type}" "{desc}" "{stages}"
 bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" activate "{id}"
 ```
 
-输出启动提示（不等用户），进入流水线。
+输出启动提示（不等用户）。
 
-### 流水线循环
+**long 类型特殊处理**：long 类型不走下面的流水线循环，而是用 Read 工具读取 `stages/long.md`，按其 Phase 1-3 执行。
+
+### 流水线循环（simple/medium/complex）
 
 对每个 stage 依次执行：
 
