@@ -142,19 +142,25 @@ bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" anchor-check "{sprint-id}"
 
 **完成标志**: 两份文件存在 + 每条结论有证据
 
-### Step 8: 用户确认 [GATE:review]
+### Step 8: 用户确认 [BRANCH]
 
 **做什么**: 请用户 review 质量报告
-**完成标志**: 用户确认 `[ok]`
+
+| 条件 | 路径 |
+|------|------|
+| auto 模式 | → [INFO] 输出质量报告要点，继续 |
+| step-by-step 模式 | → [STOP:confirm] 呈现质量报告，等用户确认 `[ok]` |
+
+**完成标志**: auto: 已输出 / step-by-step: 用户确认 `[ok]`
 
 ## 提前终止
 
 | 条件 | 行为 |
 |------|------|
-| simple 类型 + execute 全 PASS | 简化：只跑 Step 1-2，跳 3-5 |
-| 用户说「跳过」 | skip |
+| simple 类型 + execute 全 PASS | [SKIP: simple 且全 PASS] Step 3-5 简化跳过 |
+| 用户说「跳过」 | [SKIP: 用户请求] 整个 quality 阶段跳过 |
 
-## 验证清单
+## 验证清单 [CHECKLIST]
 
 - [ ] 两份文件存在 + reports 状态 `[ok]`
 - [ ] 全量测试有命令输出证据

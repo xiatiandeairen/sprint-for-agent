@@ -85,7 +85,7 @@ insight 的价值在于改进建议指向具体阶段的具体改进。
 
 **完成标志**: observations 每条有处置
 
-### Step 6: 写两份产出 + 完成后操作 [GATE:must]
+### Step 6: 写两份产出 + 完成后操作 [STOP:choose]
 
 **交接文件** `{sprint}/handoffs/insight.md`:
 ```markdown
@@ -135,7 +135,7 @@ insight 的价值在于改进建议指向具体阶段的具体改进。
 | 无 DB 指标（sprint 中途终止） | 跳过 Step 1-3，只做 Step 4-6 |
 | 用户说「直接结束」 | 跳到 Step 6 |
 
-## 验证清单
+## 验证清单 [CHECKLIST]
 
 - [ ] 两份文件存在 + reports 状态 `[ok]`
 - [ ] 预估 vs 实际有偏差表

@@ -127,7 +127,7 @@ bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" set-baseline "{sprint-id}" todo_coun
 
 **完成标志**: 文件存在
 
-### Step 6: 用户确认 [GATE:must]
+### Step 6: 用户确认 [STOP:confirm]
 
 **做什么**: 呈现 anchor + chunks + 风险，用户确认
 **怎么做**:
@@ -144,7 +144,7 @@ bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" set-baseline "{sprint-id}" todo_coun
 | design 约束过于模糊 | 回退 design 补充 |
 | 任务只需 1 个 chunk | 正常继续 |
 
-## 验证清单
+## 验证清单 [CHECKLIST]
 
 - [ ] `{sprint}/anchors/plan.md` 存在 + invariants 每条有检查命令
 - [ ] `{sprint}/handoffs/plan-chunks.md` 存在 + chunk >= 1

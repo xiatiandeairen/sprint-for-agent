@@ -54,26 +54,32 @@ bash "$SPRINT_PLUGIN/scripts/gate.sh" "{anchor_path}" {chunk_num}
 ```
 **完成标志**: gate JSON 输出，返回码已知
 
-### Step 4: 处理 Gate 结果
+### Step 4: 处理 Gate 结果 [BRANCH]
 
 **做什么**: 根据 gate 结果决定下一步
 
-| 结果 | auto 模式 | checked 模式 |
-|------|-----------|-------------|
-| PASS | 继续 | 继续 |
-| WARN | 累计 < 3 继续，>= 3 暂停 | 继续 |
-| FAIL | revert + 重试 1 次，再 FAIL 暂停 | 暂停等修复 |
+| 条件 | 路径 |
+|------|------|
+| gate 返回码 0 (PASS) | → 继续下一步 |
+| gate 返回码 2 (WARN) 且本 sprint WARN 累计 < 3 | → [INFO:warn] 输出警告，继续 |
+| gate 返回码 2 (WARN) 且累计 >= 3 | → [STOP:confirm] 等用户介入 |
+| gate 返回码 1 (FAIL) 且 auto 模式 | → [RETRY:1] revert 当前变更后重试，再 FAIL → [STOP:confirm] |
+| gate 返回码 1 (FAIL) 且 checked 模式 | → [STOP:confirm] 暂停等修复 |
 
 **完成标志**: PASS/WARN 继续，FAIL 已处理
 
-### Step 5: 人审查（checked 模式）[GATE:review]
+### Step 5: 人审查 [BRANCH]
 
 **做什么**: 呈现 chunk 摘要，等用户决定
-**怎么做**: 输出变更概要 + gate 结果
-- review: none -> 跳过
-- review: sampled -> 首 + 每 3-4 个 + 末尾
-- review: every -> 全部
-**完成标志**: 用户 `[ok]` / `[调整]` / `[回退]`
+
+| 条件 | 路径 |
+|------|------|
+| review=none | → [SKIP: review=none] |
+| review=sampled 且非采样点 | → [SKIP: 非采样点] |
+| review=sampled 且采样点（首 + 每 3-4 个 + 末尾） | → [STOP:choose] 输出变更概要 + gate 结果，用户选 [ok] / [调整] / [回退] |
+| review=every | → [STOP:choose] 输出变更概要 + gate 结果，用户选 [ok] / [调整] / [回退] |
+
+**完成标志**: 跳过/用户选择完成
 
 ### Step 6: Commit
 
@@ -88,7 +94,7 @@ bash "$SPRINT_PLUGIN/scripts/gate.sh" "{anchor_path}" {chunk_num}
 | 全部 chunk 完成 | 进 quality |
 | 用户说「够了」 | 标记剩余 skipped，进 quality |
 
-## 验证清单
+## 验证清单 [CHECKLIST]
 
 - [ ] 所有 chunk 完成（或标记 skipped）
 - [ ] 每个 completed chunk 在 DB 有 gate 记录且 overall != FAIL
