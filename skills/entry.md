@@ -25,17 +25,17 @@ description: Sprint 统一入口。评估 → 创建 → 执行流水线
 | `[SKIP:ask]`     | 建议跳过    | 问用户，ok 才跳                                                       |
 | `[RETRY:N]`      | 重试 N 次  | N ≤ 2，超限升级为 [STOP]，输出 `[重试] {单元} (n/N)`                         |
 | `[BACK:目标]`      | 回退      | 目标必须显式（step/stage 名），输出 `[回退] {原因}，回到 {目标}`                     |
-| `[EMPHASIZE]`    | 重点关注的信息 | 需要重点关注的信息，千万不能忽略                                                |
 
 
 **动作标记**
 
 
-| 原语            | 语义    | 规则                                        |
-| ------------- | ----- | ----------------------------------------- |
-| `[CHECKLIST]` | 逐条验证  | 每条 `- [ ]` 必须逐条验证，不跳条，`[x]` 通过 / `[!]` 失败 |
-| `[TASK:标题]`   | 创建任务  | 用 TaskCreate 创建，完成时 TaskUpdate            |
-| `[PROGRESS]`  | 创建进度条 | 显示进度条，根据任务完成情况更新进度                        |
+| 原语            | 语义       | 规则                                        |
+| ------------- | -------- | ----------------------------------------- |
+| `[BASH]`      | 必须用 Bash 执行 | 标记的命令必须用 Bash 工具真正执行，不是口头描述 |
+| `[CHECKLIST]` | 逐条验证     | 每条 `- [ ]` 必须逐条验证，不跳条，`[x]` 通过 / `[!]` 失败 |
+| `[TASK:标题]`   | 创建任务     | 用 TaskCreate 创建，完成时 TaskUpdate            |
+| `[PROGRESS]`  | 追踪进度     | 显示进度，根据任务完成情况更新                        |
 
 
 **组合规则**：一个 step 最多一个主原语；BRANCH 路径可引用其他原语；RETRY 超限升级为 STOP；SKIP 优先级最高。
@@ -281,14 +281,12 @@ abandon 流程：
 
 固定顺序：`brainstorm → research → design → plan → execute → quality → review → insight`
 
-## 5.2 执行器
+## 5.2 执行器 [BASH]
 
-<HARD-RULE>
 1. 每个 sprint-ctl.sh 命令必须用 Bash 工具真正执行，不是口头描述。
-2. 每个阶段必须用 Read 工具读取 stages/{stage}.md，然后按步骤执行。
+2. 每个阶段必须用 Read 工具读取 `stages/{stage}.md`，然后按步骤执行。
 3. stage 文件中的 shell 命令也必须用 Bash 工具执行。
-违反任何一条 = 流程无效。
-</HARD-RULE>
+4. 违反任何一条 = 流程无效。
 
 插件根目录变量（后续命令中使用）：
 
@@ -298,7 +296,7 @@ SPRINT_PLUGIN="src/plugins/sprint"
 
 ### 创建 Sprint
 
-用户确认评估后，用 Bash 工具执行：
+用户确认评估后 [BASH]：
 
 ```bash
 # create 自动生成 ID，返回值中包含 ID
@@ -318,13 +316,13 @@ bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" activate "{id}"
 
 **step 0** — [TASK: {stage}] 为当前阶段创建跟踪任务，阶段完成后标记 completed。
 
-**step 1** — 用 Bash 工具执行：
+**step 1** [BASH] — 标记阶段 running：
 
 ```bash
 bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" stage-update "{id}" "{stage}" running
 ```
 
-**step 2** — brainstorm/research 跳过，其他阶段用 Bash 工具执行：
+**step 2** [BASH] — brainstorm/research 跳过，其他阶段检查 anchor：
 
 ```bash
 bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" anchor-check "{id}"
@@ -339,7 +337,7 @@ bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" anchor-check "{id}"
 | step-by-step 模式 | → [SKIP:ask] 展示建议，问用户是否跳过               |
 
 
-- 跳过则用 Bash 工具执行：
+- 跳过则 [BASH]：
 
 ```bash
 bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" skip-stage "{id}"
@@ -361,19 +359,17 @@ bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" skip-stage "{id}"
   - `[CHECKLIST]` -> 逐条验证，不跳条
   - `[TASK:标题]` -> 用 TaskCreate 创建任务
 
-<HARD-RULE>
-STOP 等待规则（适用于所有 [STOP] 原语，详见「〇、流程控制原语」）：
-1. 输出内容后，停下来等用户回复
-2. `[STOP:confirm]`: 只有以下回复算放行：continue / ok / yes / 确认 / 同意 / 好 / 对 / 可以。其他回复 = 还在沟通
+STOP 等待规则（详见「〇、流程控制原语」）：
+1. 输出内容后停下等用户回复
+2. `[STOP:confirm]`: 只认白名单词放行，其他回复 = 还在沟通
 3. `[STOP:choose]`: 用户必须选一个列出的选项
 4. `[STOP:respond]`: 用户给出实质回复后才继续
-5. 不能根据回复内容的质量或完整度推测用户意图
-</HARD-RULE>
+5. 不能根据回复内容推测用户意图
 
 - scope 外发现 -> 追加 observations.md
 - 超时(30分钟) -> 执行 `sprint-ctl.sh stop "{id}"`，退出
 
-**step 6** — 失败时读 stage 文件的「排查指南」尝试处理。无法恢复则用 Bash 工具执行：
+**step 6** — 失败时读 stage 文件的「排查指南」尝试处理。无法恢复则 [BASH]：
 
 ```bash
 bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" fail "{id}" "{reason}"
@@ -383,7 +379,7 @@ bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" fail "{id}" "{reason}"
 
 **step 7** — 按 stage 文件的「验证清单」逐条检查，任一失败则回到 step 6
 
-**step 8** — 用 Bash 工具执行：
+**step 8** [BASH] — 验证：
 
 ```bash
 bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" verify "{id}"
@@ -391,7 +387,7 @@ bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" verify "{id}"
 
 PASS 继续，FAIL 回到 step 6
 
-**step 9** — 用 Bash 工具执行：
+**step 9** [BASH] — 标记阶段完成：
 
 ```bash
 bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" stage-update "{id}" "{stage}" completed
@@ -400,7 +396,7 @@ bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" log-event "{id}" "stage_completed" "
 
 ### 完成
 
-所有阶段完成后，用 Bash 工具执行：
+所有阶段完成后 [BASH]：
 
 ```bash
 bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" end "{id}"
