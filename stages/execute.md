@@ -30,18 +30,38 @@ scope 外发现记录到 observations，不在当前 sprint 执行。
 | 交接 | `{sprint}/execute/observations.md` | insight 消费 | scope 外发现 |
 | 指标 | DB sprint_chunks + sprint_gates | quality/insight | chunk 级指标 + gate 详情 |
 
-## 步骤（每个 Chunk 循环）
+## 步骤（每个 Chunk 循环） [PROGRESS]
 
-### Step 1: Re-anchor
+进入 execute 时，根据 chunk 总数初始化进度：`[进度] execute: 0/{total} chunks`。
+每完成一个 chunk 更新：`[进度] execute: {n}/{total} chunks`。
 
-**做什么**: 重新读 anchor + chunks，获取当前 chunk
-**怎么做**: 读 `{sprint}/anchors/plan.md` + `{sprint}/handoffs/plan-chunks.md`
-**完成标志**: 当前 chunk 的描述、预算、验证方式已明确
+### Step 1: Re-anchor + 执行策略
+
+**做什么**: 重新读 anchor + chunks，获取当前 chunk，确定执行策略
+**怎么做**:
+1. 读 `{sprint}/anchors/plan.md` + `{sprint}/handoffs/plan-chunks.md`
+2. 确定当前 chunk 的执行策略：
+
+**模型选择** [BRANCH]：
+
+| 条件 | 路径 |
+|------|------|
+| chunk 涉及 ≤ 2 个文件，改动明确 | → sonnet（快速、低成本） |
+| chunk 跨 ≥ 3 个文件或涉及接口变更 | → opus（需要上下文理解） |
+
+**隔离判断** [BRANCH]：
+
+| 条件 | 路径 |
+|------|------|
+| chunk 改动独立，不影响主分支可编译性 | → 在当前分支执行 |
+| chunk 改动有破坏性（重构、删文件、改接口） | → [WORKTREE] 在隔离 worktree 中执行，完成后合回 |
+
+**完成标志**: 当前 chunk 的描述、预算、验证方式、模型、是否隔离已明确
 
 ### Step 2: 实现
 
 **做什么**: 写代码
-**怎么做**: 按 chunk 描述实现，遵守 anchor boundaries
+**怎么做**: 按 chunk 描述实现，遵守 anchor boundaries，使用 Step 1 确定的模型
 - scope 外发现 -> 追加 `{sprint}/execute/observations.md`
 **完成标志**: 代码写完，可编译
 

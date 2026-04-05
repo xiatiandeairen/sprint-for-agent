@@ -330,6 +330,8 @@ bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" activate "{id}"
 
 对每个 stage 依次执行：
 
+**step 0** — [TASK: {stage}] 为当前阶段创建跟踪任务，阶段完成后标记 completed。
+
 **step 1** — 用 Bash 工具执行：
 
 ```bash
