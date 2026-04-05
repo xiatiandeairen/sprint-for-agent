@@ -39,22 +39,22 @@ case "$ACTION" in
         ;;
 
     create)
-        ID="${1:?缺少 id}"
-        TYPE="${2:?缺少 type}"
-        DESC="${3:?缺少 description}"
+        TYPE="${1:?缺少 type}"
+        DESC="${2:?缺少 description}"
         BASE_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
 
-        # 生成 dir_name: YYYYMMDD-HHmm-简述-id
-        DIR_DATE="${ID:0:8}"
-        DIR_TIME="${ID:9:4}"
-        DIR_DESC=$(echo "$DESC" | head -c 10 | tr ' /' '-')
-        DIR_NAME="${DIR_DATE}-${DIR_TIME}-${DIR_DESC}-${ID}"
+        # 自动生成 ID: YYYYMMDD-HHmmss-毫秒
+        ID=$(date +%Y%m%d-%H%M%S)-$(python3 -c "import time; print(f'{int(time.time()*1000)%1000:03d}')")
+
+        # 生成 dir_name: ID-简述
+        DIR_SLUG=$(echo "$DESC" | LC_ALL=C tr -cs 'a-zA-Z0-9' '-' | head -c 30 | sed 's/-$//')
+        DIR_NAME="${ID}-${DIR_SLUG}"
 
         sprint_db "INSERT INTO sprints (id, dir_name, description, type, status, base_commit, created_at, updated_at)
                    VALUES ('$ID', '$DIR_NAME', '$DESC', '$TYPE', 'created', '$BASE_COMMIT', '$NOW', '$NOW');"
 
-        # 插入阶段列表（从第 4 个参数开始，逗号分隔的阶段名）
-        STAGES="${4:-}"
+        # 插入阶段列表（第 3 个参数，逗号分隔的阶段名）
+        STAGES="${3:-}"
         if [ -n "$STAGES" ]; then
             SEQ=1
             IFS=',' read -ra STAGE_ARR <<< "$STAGES"
@@ -74,6 +74,7 @@ case "$ACTION" in
         echo "  类型: $TYPE"
         echo "  目录: .sprint/active/$DIR_NAME"
         echo "  base_commit: $BASE_COMMIT"
+        echo "  id: $ID"
         ;;
 
     activate)

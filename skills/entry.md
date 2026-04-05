@@ -271,7 +271,9 @@ SPRINT_PLUGIN="src/plugins/sprint"
 用户确认评估后，用 Bash 工具执行：
 
 ```bash
-bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" create "{id}" "{type}" "{desc}" "{stages}"
+# create 自动生成 ID，返回值中包含 ID
+bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" create "{type}" "{desc}" "{stages}"
+# 从 create 输出中提取 ID，用于后续命令
 bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" activate "{id}"
 ```
 
