@@ -188,19 +188,19 @@ created ──→ running ──→ completed ──→ archived
 ## 4.2 状态转换
 
 
-| 从         | 到         | 触发条件                  | 前置动作                                         | 执行命令                                        |
-| --------- | --------- | --------------------- | -------------------------------------------- | ------------------------------------------- |
-| --        | created   | `/sprint <描述>` + 类型确认 | 评估类型，确认流水线阶段                                 | `sprint-ctl.sh create {id} {type} "{desc}"` |
+| 从         | 到         | 触发条件                  | 前置动作                                          | 执行命令                                        |
+| --------- | --------- | --------------------- | --------------------------------------------- | ------------------------------------------- |
+| --        | created   | `/sprint <描述>` + 类型确认 | 评估类型，确认流水线阶段                                  | `sprint-ctl.sh create {id} {type} "{desc}"` |
 | created   | running   | 流水线开始执行第一个阶段          | 确认本地无其他变更，记录 base_commit，初始化阶段列表，输出信息提示，见 4.3 | `sprint-ctl.sh activate {id}`               |
 | running   | completed | 所有 required 阶段完成      | 输出信息提示，见 4.4                                  | `sprint-ctl.sh end {id}`                    |
 | running   | failed    | 阶段失败，重试耗尽             | 输出信息提示，见 4.5                                  | `sprint-ctl.sh fail {id} "{reason}"`        |
-| running   | stopped   | 超时检测（见 4.6）           | 保存当前阶段进度                                     | `sprint-ctl.sh stop {id}`                   |
-| failed    | retrying  | 用户选择重试                | 确认用户已修复问题                                    | `sprint-ctl.sh retry {id}`                  |
-| retrying  | running   | 重试阶段执行成功              | --                                           | `sprint-ctl.sh activate {id}`               |
-| retrying  | failed    | 重试阶段执行失败              | 记录重试次数 +1                                    | `sprint-ctl.sh fail {id} "{reason}"`        |
-| failed    | archived  | 用户执行 abandon          | 二次确认，`git revert` 到 base_commit              | `sprint-ctl.sh abandon {id}`                |
-| stopped   | running   | 用户恢复                  | 读取上次阶段进度                                     | `sprint-ctl.sh activate {id}`               |
-| completed | archived  | 手动 / 7 天自动            | 压缩产出文件                                       | `sprint-ctl.sh archive {id}`                |
+| running   | stopped   | 超时检测（见 4.6）           | 保存当前阶段进度                                      | `sprint-ctl.sh stop {id}`                   |
+| failed    | retrying  | 用户选择重试                | 确认用户已修复问题                                     | `sprint-ctl.sh retry {id}`                  |
+| retrying  | running   | 重试阶段执行成功              | --                                            | `sprint-ctl.sh activate {id}`               |
+| retrying  | failed    | 重试阶段执行失败              | 记录重试次数 +1                                     | `sprint-ctl.sh fail {id} "{reason}"`        |
+| failed    | archived  | 用户执行 abandon          | 二次确认，`git revert` 到 base_commit               | `sprint-ctl.sh abandon {id}`                |
+| stopped   | running   | 用户恢复                  | 读取上次阶段进度                                      | `sprint-ctl.sh activate {id}`               |
+| completed | archived  | 手动 / 7 天自动            | 压缩产出文件                                        | `sprint-ctl.sh archive {id}`                |
 
 
 ## 4.3 启动提示 [INFO]
@@ -281,21 +281,7 @@ abandon 流程：
 
 固定顺序：`brainstorm → research → design → plan → execute → quality → review → insight`
 
-## 5.2 类型参数
-
-阶段组合由 2.1 评估结果决定，不再固定映射。类型只决定默认参数：
-
-
-| 类型          | plan 参数                                  | execute 参数                     |
-| ----------- | ---------------------------------------- | ------------------------------ |
-| simple      | anchor: lite, chunks_max: 3, budget: 100 | mode: auto, review: none       |
-| medium      | anchor: full, budget: 150                | mode: checked, review: sampled |
-| complex     | anchor: full, budget: 150                | mode: checked, review: every   |
-| long        | 不走常规流水线，执行 stages/long.md 的三阶段循环         | max_rounds: 5, resume: true    |
-| auto (TODO) | anchor: lite, budget: 100                | mode: auto, trigger: cron      |
-
-
-## 5.3 执行器
+## 5.2 执行器
 
 <HARD-RULE>
 1. 每个 sprint-ctl.sh 命令必须用 Bash 工具真正执行，不是口头描述。
@@ -422,7 +408,7 @@ bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" end "{id}"
 
 输出完成提示。
 
-## 5.4 数据流
+## 5.3 数据流
 
 产出在 `.sprint/active/{id}/` 下，按消费方组织：
 
