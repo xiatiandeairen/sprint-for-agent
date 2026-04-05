@@ -132,8 +132,6 @@ bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" long-goal "{parent_id}" achieve {seq
 bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" long-risk "{parent_id}"
 ```
 
-处理结果：
-
 处理结果 [BRANCH]：
 
 | 条件 | 路径 |
