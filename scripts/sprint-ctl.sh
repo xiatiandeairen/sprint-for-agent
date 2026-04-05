@@ -41,13 +41,20 @@ case "$ACTION" in
     create)
         TYPE="${1:?缺少 type}"
         DESC="${2:?缺少 description}"
+
+        # description 必须是英文（仅允许 ASCII 可打印字符）
+        if echo "$DESC" | LC_ALL=C grep -q '[^[:print:]]'; then
+            echo "[FAIL] description 必须是英文: $DESC" >&2
+            exit 1
+        fi
+
         BASE_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
 
         # 自动生成 ID: YYYYMMDD-HHmmss-毫秒
         ID=$(date +%Y%m%d-%H%M%S)-$(python3 -c "import time; print(f'{int(time.time()*1000)%1000:03d}')")
 
-        # 生成 dir_name: ID-简述
-        DIR_SLUG=$(echo "$DESC" | LC_ALL=C tr -cs 'a-zA-Z0-9' '-' | head -c 30 | sed 's/-$//')
+        # 生成 dir_name: ID-slug
+        DIR_SLUG=$(echo "$DESC" | LC_ALL=C tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | head -c 30 | sed 's/-$//')
         DIR_NAME="${ID}-${DIR_SLUG}"
 
         sprint_db "INSERT INTO sprints (id, dir_name, description, type, status, base_commit, created_at, updated_at)

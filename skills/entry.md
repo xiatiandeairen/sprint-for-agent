@@ -274,7 +274,8 @@ SPRINT_PLUGIN="src/plugins/sprint"
 
 ```bash
 # create 自动生成 ID，返回值中包含 ID
-bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" create "{type}" "{desc}" "{stages}"
+# desc 必须是英文（用于生成目录名 slug）
+bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" create "{type}" "{english_desc}" "{stages}"
 # 从 create 输出中提取 ID，用于后续命令
 bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" activate "{id}"
 ```
