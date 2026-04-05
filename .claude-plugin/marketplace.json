@@ -11,7 +11,7 @@
       "name": "sprint",
       "source": "./",
       "description": "AI 任务执行引擎",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "author": {
         "name": "taoxia"
       },
