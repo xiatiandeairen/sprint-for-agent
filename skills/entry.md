@@ -8,7 +8,35 @@ description: Sprint 统一入口。评估 → 创建 → 执行流水线
 
 ---
 
-> 前置知识：执行前先用 Read 工具读取 `src/plugins/sprint/flow.md`，理解 9 个流程控制原语的语义和规则。
+# 〇、流程控制原语
+
+本文件和 stage 文件中使用以下原语。每个语义单一，正交不重叠。
+
+**流程控制**
+
+| 原语 | 语义 | 规则 |
+|------|------|------|
+| `[STOP:confirm]` | 停下等确认 | 只认白名单词放行：ok / yes / continue / 确认 / 同意 / 好 / 对 / 可以。其他回复 = 还在沟通 |
+| `[STOP:choose]` | 停下等选择 | 正文列出选项，用户必须选一个 |
+| `[STOP:respond]` | 停下等实质回复 | 用户给出回答/反馈后才继续（不是"嗯""好"） |
+| `[INFO]` | 输出不停 | 必须有输出模板，输出后直接继续 |
+| `[INFO:warn]` | 警告不停 | 输出前缀 `[警告]`，不阻塞 |
+| `[BRANCH]` | 按条件选路 | 必须附条件-路径表，条件必须可观测，路径可引用其他原语 |
+| `[SKIP:条件]` | 条件跳过 | 条件满足自动跳，输出 `[跳过] {单元} — {原因}` |
+| `[SKIP:ask]` | 建议跳过 | 问用户，ok 才跳 |
+| `[RETRY:N]` | 重试 N 次 | N ≤ 2，超限升级为 [STOP]，输出 `[重试] {单元} (n/N)` |
+| `[BACK:目标]` | 回退 | 目标必须显式（step/stage 名），输出 `[回退] {原因}，回到 {目标}` |
+
+**动作标记**
+
+| 原语 | 语义 | 规则 |
+|------|------|------|
+| `[CHECKLIST]` | 逐条验证 | 每条 `- [ ]` 必须逐条验证，不跳条，`[x]` 通过 / `[!]` 失败 |
+| `[TASK:标题]` | 创建任务 | 用 TaskCreate 创建，完成时 TaskUpdate |
+
+**组合规则**：一个 step 最多一个主原语；BRANCH 路径可引用其他原语；RETRY 超限升级为 STOP；SKIP 优先级最高。
+
+---
 
 # 一、参数解析
 
@@ -318,7 +346,7 @@ bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" skip-stage "{id}"
 - 每个 Step 按「怎么做」执行，按「完成标志」验证
 - stage 文件中的 shell 命令用 Bash 工具执行
 - 遇到原语按规则处理：
-  - `[STOP:confirm]` / `[STOP:respond]` / `[STOP:choose]` -> 输出内容，等待用户（两种模式一致），规则见 flow.md
+  - `[STOP:confirm]` / `[STOP:respond]` / `[STOP:choose]` -> 输出内容，等待用户（两种模式一致），规则见「〇、流程控制原语」
   - `[BRANCH]` -> 按条件-路径表选路，路径中可引用 [STOP]、[INFO]、[RETRY] 等
   - `[INFO]` / `[INFO:warn]` -> 输出后继续，不等用户
   - `[SKIP:条件]` / `[SKIP:ask]` -> 满足条件跳过，输出 `[跳过] {单元} — {原因}`
@@ -328,7 +356,7 @@ bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" skip-stage "{id}"
   - `[TASK:标题]` -> 用 TaskCreate 创建任务
 
 <HARD-RULE>
-STOP 等待规则（适用于所有 [STOP] 原语，详见 flow.md）：
+STOP 等待规则（适用于所有 [STOP] 原语，详见「〇、流程控制原语」）：
 1. 输出内容后，停下来等用户回复
 2. `[STOP:confirm]`: 只有以下回复算放行：continue / ok / yes / 确认 / 同意 / 好 / 对 / 可以。其他回复 = 还在沟通
 3. `[STOP:choose]`: 用户必须选一个列出的选项
