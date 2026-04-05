@@ -739,7 +739,10 @@ case "$ACTION" in
         # R2: ROI 连续下降 — 连续 2 轮下降
         ROI_TREND=$(sprint_db "SELECT roi FROM long_task_rounds
                     WHERE parent_id='$ID' AND roi IS NOT NULL ORDER BY round_num DESC LIMIT 3;" 2>/dev/null)
-        ROI_COUNT=$(echo "$ROI_TREND" | grep -c . 2>/dev/null || echo 0)
+        ROI_COUNT=0
+        if [ -n "$ROI_TREND" ]; then
+            ROI_COUNT=$(echo "$ROI_TREND" | wc -l | tr -d ' ')
+        fi
         if [ "$ROI_COUNT" -ge 3 ]; then
             R1_VAL=$(echo "$ROI_TREND" | sed -n '1p')
             R2_VAL=$(echo "$ROI_TREND" | sed -n '2p')
@@ -786,7 +789,11 @@ case "$ACTION" in
         FLAGS=$(echo "$FLAGS" | sed 's/,$//')
         DETAILS=$(echo "$DETAILS" | sed 's/,$//')
 
-        echo "{\"status\":\"$STATUS\",\"flags\":[$(echo "$FLAGS" | sed 's/\([^,]*\)/"\1"/g')],\"details\":{$DETAILS}}"
+        if [ -z "$FLAGS" ]; then
+            echo "{\"status\":\"$STATUS\",\"flags\":[],\"details\":{}}"
+        else
+            echo "{\"status\":\"$STATUS\",\"flags\":[$(echo "$FLAGS" | sed 's/\([^,]*\)/"\1"/g')],\"details\":{$DETAILS}}"
+        fi
         ;;
 
     long-summary)
