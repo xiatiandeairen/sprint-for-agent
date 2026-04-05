@@ -8,6 +8,8 @@ description: Sprint 统一入口。评估 → 创建 → 执行流水线
 
 ---
 
+> 前置知识：执行前先用 Read 工具读取 `src/plugins/sprint/flow.md`，理解 9 个流程控制原语的语义和规则。
+
 # 一、参数解析
 
 
@@ -73,7 +75,7 @@ description: Sprint 统一入口。评估 → 创建 → 执行流水线
 
 方括号表示按 2.1 判断可能需要也可能不需要。long 类型跳过 2.1 评估，直接路由到 `stages/long.md` 执行三阶段循环。
 
-## 2.3 输出与确认 [GATE:must]
+## 2.3 输出与确认 [STOP:confirm]
 
 不走 sprint 时直接执行：
 
@@ -162,7 +164,7 @@ created ──→ running ──→ completed ──→ archived
 | completed | archived  | 手动 / 7 天自动            | 压缩产出文件                                       | `sprint-ctl.sh archive {id}`                |
 
 
-## 3.3 启动提示 [SOFT-GATE]
+## 3.3 启动提示 [INFO]
 
 sprint 创建并激活后输出，不等用户响应直接进入流水线：
 
@@ -177,7 +179,7 @@ sprint 创建并激活后输出，不等用户响应直接进入流水线：
    base_commit: {short_hash}
 ```
 
-## 3.4 完成提示 [SOFT-GATE]
+## 3.4 完成提示 [INFO]
 
 ```
 [ok] Sprint #{id} 完成
@@ -188,7 +190,7 @@ sprint 创建并激活后输出，不等用户响应直接进入流水线：
    耗时: 约 25 分钟
 ```
 
-## 3.5 失败提示 [HARD-GATE]
+## 3.5 失败提示 [STOP:choose]
 
 阶段失败且重试耗尽后，sprint 标记 failed，必须等用户介入：
 
@@ -298,9 +300,13 @@ bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" stage-update "{id}" "{stage}" runnin
 bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" anchor-check "{id}"
 ```
 
-**step 3** — optional 阶段处理：
-- auto 模式 -> 按 2.1 判断结果自动决定
-- sbs 模式 -> 展示建议，问用户是否跳过 [GATE:must]
+**step 3** — optional 阶段处理 [BRANCH]：
+
+| 条件 | 路径 |
+|------|------|
+| auto 模式 | → 按 2.1 判断结果自动决定，跳过时 `[跳过] {阶段} — {原因}` |
+| step-by-step 模式 | → [SKIP:ask] 展示建议，问用户是否跳过 |
+
 - 跳过则用 Bash 工具执行：
 ```bash
 bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" skip-stage "{id}"
@@ -311,10 +317,24 @@ bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" skip-stage "{id}"
 **step 5** — 按 stage 文件的「步骤」段逐步执行：
 - 每个 Step 按「怎么做」执行，按「完成标志」验证
 - stage 文件中的 shell 命令用 Bash 工具执行
-- 遇到 gate 按模式处理：
-  - `[GATE:must]` -> 输出内容，等待用户（两种模式一致）
-  - `[GATE:decide]` -> auto: AI 高置信则 "[自动决策] {结论}" 继续，低置信等用户 / sbs: 等用户
-  - `[GATE:review]` -> auto: "[自动通过] {摘要}" 继续 / sbs: 等用户
+- 遇到原语按规则处理：
+  - `[STOP:confirm]` / `[STOP:respond]` / `[STOP:choose]` -> 输出内容，等待用户（两种模式一致），规则见 flow.md
+  - `[BRANCH]` -> 按条件-路径表选路，路径中可引用 [STOP]、[INFO]、[RETRY] 等
+  - `[INFO]` / `[INFO:warn]` -> 输出后继续，不等用户
+  - `[SKIP:条件]` / `[SKIP:ask]` -> 满足条件跳过，输出 `[跳过] {单元} — {原因}`
+  - `[RETRY:N]` -> 失败重试 N 次，超限升级为 [STOP]
+  - `[BACK:目标]` -> 回退到指定 step/stage
+  - `[CHECKLIST]` -> 逐条验证，不跳条
+  - `[TASK:标题]` -> 用 TaskCreate 创建任务
+
+<HARD-RULE>
+STOP 等待规则（适用于所有 [STOP] 原语，详见 flow.md）：
+1. 输出内容后，停下来等用户回复
+2. `[STOP:confirm]`: 只有以下回复算放行：continue / ok / yes / 确认 / 同意 / 好 / 对 / 可以。其他回复 = 还在沟通
+3. `[STOP:choose]`: 用户必须选一个列出的选项
+4. `[STOP:respond]`: 用户给出实质回复后才继续
+5. 不能根据回复内容的质量或完整度推测用户意图
+</HARD-RULE>
 - scope 外发现 -> 追加 observations.md
 - 超时(30分钟) -> 执行 `sprint-ctl.sh stop "{id}"`，退出
 
@@ -322,7 +342,7 @@ bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" skip-stage "{id}"
 ```bash
 bash "$SPRINT_PLUGIN/scripts/sprint-ctl.sh" fail "{id}" "{reason}"
 ```
-输出失败提示 [GATE:must] -> 用户介入（见 3.5）
+输出失败提示 [STOP:choose] -> 用户介入（见 3.5）
 
 **step 7** — 按 stage 文件的「验证清单」逐条检查，任一失败则回到 step 6
 
