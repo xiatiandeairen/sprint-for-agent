@@ -1,8 +1,5 @@
 {
   "name": "sprint",
-  "version": "0.3.0",
-  "description": "任务执行引擎 — 按任务类型路由，多 sprint 并发，Intent Anchor + Chunk Gate",
-  "skills": [
-    "./skills/entry.md"
-  ]
+  "version": "2.0.0",
+  "description": "任务执行引擎 — 按任务类型路由，7 阶段流水线，anchor 验证"
 }
