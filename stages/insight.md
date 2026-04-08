@@ -81,6 +81,22 @@ If any of these occurred during the sprint, note them:
 
 Only output if genuinely useful. Do not force lessons.
 
+## Step 5: Commit Proposal
+
+Generate a single-line English commit message following [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+{type}({scope}): {description}
+```
+
+- **type**: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `perf`, `style`, `ci`, `build`
+- **scope**: module or area affected (e.g. `scoring`, `bunny`, `sprint`)
+- **description**: imperative, lowercase, no period, max 72 chars
+
+If changes span multiple scopes, pick the most significant one. If the sprint included breaking changes, add `!` after scope: `feat(api)!: remove legacy endpoint`.
+
+Present the proposed message and [STOP:confirm]. On confirmation, commit staged changes with that message.
+
 ---
 
 ## Completion
@@ -89,4 +105,5 @@ Only output if genuinely useful. Do not force lessons.
 - Metrics summary printed
 - Deviation analysis printed (plan vs actual)
 - Process evaluation printed
+- Commit message proposed and optionally committed
 - No handoff file (insight is terminal output only)
