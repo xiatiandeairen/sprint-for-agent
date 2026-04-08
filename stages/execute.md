@@ -1,6 +1,16 @@
 # execute
 
-Run tasks from plan handoff. Each unit follows: coding → anchor → test → review.
+Run tasks from plan handoff. Each unit follows: coding → build verify → anchor → test → review.
+
+Model: sonnet (default for coding; opus for integration/interface changes)
+
+## Default Anchors
+
+Every sprint automatically includes these anchors unless explicitly removed:
+
+- `MUST_BUILD` — full project build must pass after each task
+
+For typed languages (Swift, Kotlin, TypeScript, Rust, Go, Java): build verification is mandatory after each task, not optional.
 
 ## Input
 
@@ -26,6 +36,7 @@ Execute the task's TDD steps:
 - Run test → confirm FAIL
 - Implement
 - Run test → confirm PASS
+- Build verify (if typed language: run project build command, must pass before proceeding)
 - Commit
 
 Use the model specified in the task (sonnet/opus).
@@ -76,12 +87,37 @@ Repeat 1-4 for each task until all tasks complete.
 
 ## Subagent-driven Mode
 
+### Worktree Isolation (subagent-driven only)
+
+When subagent-driven mode is selected, execute automatically enters a worktree for isolation:
+
+1. Create worktree via `EnterWorktree`
+2. All chunks execute inside the worktree
+3. Quality stage also runs inside the worktree
+4. On quality pass → rebase worktree onto trunk for linear history
+   - Rebase conflict → stop, report to user with conflict details
+5. `ExitWorktree` to clean up
+
+This allows the user to start a new `/sprint` in the main trunk while this sprint executes in the background.
+
+Step-by-step mode does NOT use worktree — it runs directly on trunk.
+
 ### 1. Dispatch
 
 For each chunk in plan handoff:
 - Independent chunks → dispatch in parallel as subagents
 - Dependent chunks → dispatch sequentially after dependencies complete
 - Each subagent prompt includes: chunk files, steps, code, model specification
+
+Output model selection per chunk at dispatch time:
+```
+[dispatch] chunk {N.M} — model: {model}
+```
+
+If a chunk involves cross-module integration or interface changes, upgrade to opus and note the reason:
+```
+[dispatch] chunk {N.M} — model: opus (cross-module integration)
+```
 
 Subagent execution per chunk: coding → anchor-check → AI test → self-review.
 

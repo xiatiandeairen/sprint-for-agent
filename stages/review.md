@@ -88,9 +88,25 @@ Write `.sprint/{id}/handoffs/review.md`:
 
 ---
 
+## Step 4: User Feedback [STOP:respond]
+
+Ask user:
+
+```
+Anything to adjust or note before closing?
+- Issues to fix → return to execute
+- Decisions to reconsider → note in handoff
+- All good → proceed to next stage
+```
+
+If user has feedback → update handoff with user's notes. If fix needed → return to execute.
+
+---
+
 ## Completion
 
 - Review covers all tasks from execute
 - Key decisions documented with rationale
 - Change table complete
+- User feedback collected
 - Handoff written

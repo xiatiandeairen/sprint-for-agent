@@ -1,7 +1,7 @@
 ---
-name: sprint
+
+## name: sprint
 description: Task execution workflow. Evaluates complexity, trims stages, executes step by step with anchor verification.
----
 
 # Sprint
 
@@ -9,6 +9,7 @@ description: Task execution workflow. Evaluates complexity, trims stages, execut
 
 ## Rules
 
+- When `/sprint` is explicitly invoked, the full sprint flow is mandatory: evaluate → confirm → create → pipeline. No shortcuts, no "just do it". Even if the task looks simple, the evaluate step decides whether to skip stages — not the executor.
 - Bash commands marked `# [RUN]` must be executed with Bash tool, not described verbally.
 - `[TASK] xxx` triggers TaskCreate. Mark TaskUpdate completed when done.
 - Wait for user at `[STOP:confirm]` (only proceed on: ok/yes/continue/确认/好/可以), `[STOP:choose]` (user picks one option), `[STOP:respond]` (user gives substantive reply).
@@ -20,16 +21,71 @@ description: Task execution workflow. Evaluates complexity, trims stages, execut
 
 ---
 
+## Model Selection
+
+Every stage and subagent chunk must declare its model. Selection is based on the evaluate level for that stage.
+
+### Per-Stage Rules
+
+Model follows the stage's evaluate level:
+
+| Stage      | Level 0 (skip/minimal) | Level 1 (light/quick) | Level 2 (deep/full) |
+| ---------- | ---------------------- | --------------------- | ------------------- |
+| brainstorm | —                      | sonnet                | opus                |
+| design     | —                      | sonnet                | opus                |
+| plan       | sonnet                 | sonnet                | sonnet              |
+| execute    | sonnet                 | sonnet                | (per-chunk below)   |
+| quality    | sonnet                 | sonnet                | sonnet              |
+| review     | —                      | sonnet                | opus                |
+| insight    | sonnet                 | sonnet                | sonnet              |
+
+**Execute per-chunk rules** (level 2 only):
+
+| Chunk characteristic                        | Model  |
+| ------------------------------------------- | ------ |
+| Single file, clear spec from plan           | sonnet |
+| Cross-module, interface changes, new API    | opus   |
+| Mechanical only (move, rename, formatting)  | haiku  |
+
+**Decision criteria for chunk model:**
+- Does this chunk change a public interface or API boundary? → opus
+- Does this chunk touch files in 3+ different modules? → opus
+- Is the change a direct translation of plan spec? → sonnet
+- Is the change purely mechanical (no logic)? → haiku
+
+### Override
+
+Stage files may override the default with:
+
+- File-level: `Model: {opus/sonnet/haiku}` at the top of the stage file
+- Step-level: `Step N — Model: opus (reason: ...)` inline
+
+### Runtime Output
+
+Output the model at each execution point:
+
+- Stage start: `[stage] {stage} — model: {model} (level: {N})`
+- Subagent dispatch: `[dispatch] chunk {N.M} — model: {model} (reason: {why})`
+
+### Logging
+
+- `metrics.log` stage_start event appends model: `{timestamp}|stage_start|{stage}|model={model}|level={N}`
+- Execute handoff: each chunk result annotated with actual model used
+
+---
+
 ## Evaluate
 
 Extract 4 dimensions from user description, run evaluate command.
 
-| Dimension | 0 | 1 | 2 |
-|-----------|---|---|---|
-| goal_clarity | Actionable | Directional | Vague |
-| scope_size | Point | Module | System |
-| risk_level | Low (local, reversible) | Medium (module impact) | High (data/auth/prod/delete/migrate) |
-| validation_difficulty | Easy (automated) | Medium (partial manual) | Hard (subjective/complex) |
+
+| Dimension             | 0                       | 1                       | 2                                    |
+| --------------------- | ----------------------- | ----------------------- | ------------------------------------ |
+| goal_clarity          | Actionable              | Directional             | Vague                                |
+| scope_size            | Point                   | Module                  | System                               |
+| risk_level            | Low (local, reversible) | Medium (module impact)  | High (data/auth/prod/delete/migrate) |
+| validation_difficulty | Easy (automated)        | Medium (partial manual) | Hard (subjective/complex)            |
+
 
 Override keywords from description: `delete/migrate/payment/production/permission` → risk=2. `optimize/explore` → clarify≥1. `system/architecture` → design≥1, plan≥1.
 
@@ -40,12 +96,14 @@ bash "$SPRINT_CTL" evaluate {gc} {ss} {rl} {vd} {keywords...}
 
 ### Decision → Stage Mapping
 
-| Decision | 0 | 1 | 2 | Stage |
-|----------|---|---|---|-------|
-| clarify | skip | light | deep | brainstorm |
-| design | skip | quick | research+model | design |
-| plan | minimal | split tasks | tasks+deps+anchor | plan |
-| guardrail | skip | basic verify | full+review | quality, review |
+
+| Decision  | 0       | 1            | 2                 | Stage           |
+| --------- | ------- | ------------ | ----------------- | --------------- |
+| clarify   | skip    | light        | deep              | brainstorm      |
+| design    | skip    | quick        | research+model    | design          |
+| plan      | minimal | split tasks  | tasks+deps+anchor | plan            |
+| guardrail | skip    | basic verify | full+review       | quality, review |
+
 
 execute and insight: always.
 
@@ -79,15 +137,17 @@ Metrics: `{timestamp}|{event}|{data...}` — sprint_start, stage_start, stage_en
 
 ## Stages
 
-| Stage | File | When |
-|-------|------|------|
-| brainstorm | `stages/brainstorm.md` | clarify ≥ 1 |
-| design | `stages/design.md` | design ≥ 1 |
-| plan | `stages/plan.md` | always |
-| execute | `stages/execute.md` | always |
-| quality | `stages/quality.md` | guardrail ≥ 1 |
-| review | `stages/review.md` | guardrail ≥ 2 |
-| insight | `stages/insight.md` | always |
+
+| Stage      | File                   | When          |
+| ---------- | ---------------------- | ------------- |
+| brainstorm | `stages/brainstorm.md` | clarify ≥ 1   |
+| design     | `stages/design.md`     | design ≥ 1    |
+| plan       | `stages/plan.md`       | always        |
+| execute    | `stages/execute.md`    | always        |
+| quality    | `stages/quality.md`    | guardrail ≥ 1 |
+| review     | `stages/review.md`     | guardrail ≥ 2 |
+| insight    | `stages/insight.md`    | always        |
+
 
 ---
 
@@ -108,3 +168,4 @@ Chaining: each stage reads upstream handoff. design skipped → plan uses user d
 # [RUN] after all stages
 bash "$SPRINT_CTL" end "{id}"
 ```
+

@@ -179,6 +179,27 @@ print(json.dumps(s, indent=2))
     done <<< "$ACTUAL"
     echo "> creep          $CREEP files"
   fi
+
+  # Check after-triggers: find sprints waiting for this one to complete
+  TRIGGERS_FILE="$SPRINT_DIR/triggers.json"
+  if [[ -f "$TRIGGERS_FILE" ]]; then
+    # Extract sprint IDs of triggered targets
+    TRIGGERED=$(python3 -c "
+import json, sys
+with open('$TRIGGERS_FILE') as f:
+    triggers = json.load(f)
+found = [t for t in triggers if t.get('type') == 'after' and t.get('spec') == '$ID']
+for t in found:
+    print(t['sprint_id'])
+" 2>/dev/null || true)
+    if [[ -n "$TRIGGERED" ]]; then
+      echo ""
+      echo "> [trigger] after-sprints ready to resume:"
+      while IFS= read -r tid; do
+        echo ">   /todo $tid"
+      done <<< "$TRIGGERED"
+    fi
+  fi
   ;;
 
 evaluate)

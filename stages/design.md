@@ -108,8 +108,9 @@ Narrow down the solution space through binary tradeoff questions. Ask 3 question
 1. Pick 3 most discriminating questions for the current context
 2. Present with A/B options, wait for all 3 answers
 3. Narrow solution space based on answers
-4. If still ambiguous, pick next 3 questions, repeat
-5. Once converged, output 3 concrete task goals ranked by fit:
+4. If answers already point to a clear direction (all 3 align to same approach) → skip remaining rounds, go to output
+5. If still ambiguous, pick next 3 questions, repeat (max 3 rounds)
+6. Once converged, output 3 concrete task goals ranked by fit:
 
 ```
 Based on your preferences, the task goals are:

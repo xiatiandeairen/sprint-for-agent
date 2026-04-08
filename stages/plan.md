@@ -2,6 +2,8 @@
 
 From design handoff to executable task list. Determine specs, identify risks, generate anchors, split tasks.
 
+Model: sonnet
+
 ## Mode
 
 - **plan=1:** Minimal. Skip Step 2-3. Directly split tasks from design, basic anchors.
@@ -26,6 +28,44 @@ A) Step-by-step — tasks run one at a time in this session.
 
 B) Subagent-driven — tasks split into parallel chunks,
    dispatched to subagents. You verify after all complete.
+
+C) Deferred — save the plan and execute later.
+   Choose a trigger: specific time, after another sprint, or manual.
+```
+
+### Option C: Deferred Execution
+
+If user picks C, collect trigger strategy:
+
+```
+When should this sprint resume?
+
+A) At a specific time — e.g. "tomorrow 10am", "2026-04-09 14:00"
+B) After sprint {id} completes — chain with another sprint
+C) Manual — run `/todo {sprint_id}` when ready
+```
+
+Then:
+1. Complete remaining plan steps (anchors, tasks) as normal
+2. Write trigger to `.sprint/triggers.json`:
+   ```json
+   {
+     "sprint_id": "{id}",
+     "type": "at|after|manual",
+     "spec": "{ISO time or sprint id or null}",
+     "resume_stage": "execute",
+     "created_at": "{ISO timestamp}"
+   }
+   ```
+3. For `type=at`: create macOS launchd plist at `~/Library/LaunchAgents/com.loppy.trigger-{id}.plist` to invoke `claude` CLI at the scheduled time. If in an active session, also start a `/loop` polling check.
+4. For `type=after`: no extra setup — `sprint-ctl.sh end` checks triggers.json automatically.
+5. For `type=manual`: no extra setup — user runs `/todo {sprint_id}` when ready.
+6. Skip execute stage. Write plan handoff as normal, then end the pipeline at plan stage.
+
+Output:
+```
+> Sprint #{id} plan saved. Trigger: {type} {spec}
+> Resume with: /todo {id}
 ```
 
 ---
