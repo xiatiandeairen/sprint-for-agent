@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate plugin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate plugin.json
+        run: |
+          echo "Checking plugin.json structure..."
+          python3 -c "
+          import json, sys
+          with open('.claude-plugin/plugin.json') as f:
+              data = json.load(f)
+          required = ['name', 'version', 'description']
+          missing = [k for k in required if k not in data]
+          if missing:
+              print(f'Missing required fields: {missing}')
+              sys.exit(1)
+          print(f'Plugin: {data[\"name\"]} v{data[\"version\"]}')
+          "
+
+      - name: Validate marketplace.json
+        run: |
+          python3 -c "
+          import json, sys
+          with open('.claude-plugin/marketplace.json') as f:
+              data = json.load(f)
+          assert 'name' in data, 'Missing name'
+          assert 'plugins' in data, 'Missing plugins array'
+          print(f'Marketplace: {data[\"name\"]} ({len(data[\"plugins\"])} plugins)')
+          "
+
+      - name: Validate hooks.json
+        run: |
+          python3 -c "
+          import json
+          with open('hooks/hooks.json') as f:
+              data = json.load(f)
+          assert 'hooks' in data
+          print(f'Hooks: {list(data[\"hooks\"].keys())}')
+          "
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check markdown files exist
+        run: |
+          echo "Checking required skill files..."
+          for f in skills/sprint/SKILL.md skills/long-sprint/SKILL.md skills/todo/SKILL.md; do
+            if [ ! -f "$f" ]; then
+              echo "Missing: $f"
+              exit 1
+            fi
+            echo "OK: $f"
+          done
+
+      - name: Check stage files exist
+        run: |
+          echo "Checking required stage files..."
+          for f in brainstorm design plan execute quality review insight; do
+            if [ ! -f "stages/$f.md" ]; then
+              echo "Missing: stages/$f.md"
+              exit 1
+            fi
+            echo "OK: stages/$f.md"
+          done
+
+      - name: Lint shell scripts
+        run: |
+          if command -v shellcheck &> /dev/null; then
+            shellcheck scripts/*.sh
+          else
+            echo "shellcheck not available, using bash -n"
+            for f in scripts/*.sh; do
+              bash -n "$f" && echo "OK: $f" || exit 1
+            done
+          fi
+
+  scripts:
+    name: Test scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test sprint-ctl evaluate
+        run: |
+          output=$(bash scripts/sprint-ctl.sh evaluate 0 1 0 1 2>&1) || true
+          echo "$output"
+          # Should produce evaluate output without errors
+          if echo "$output" | grep -q "Error"; then
+            echo "sprint-ctl evaluate failed"
+            exit 1
+          fi
+
+      - name: Test sprint-ctl create + list
+        run: |
+          git init /tmp/test-repo && cd /tmp/test-repo
+          cp -r "$GITHUB_WORKSPACE/scripts" .
+          bash scripts/sprint-ctl.sh create "test sprint" "plan,execute,insight" 2>&1
+          bash scripts/sprint-ctl.sh list 2>&1

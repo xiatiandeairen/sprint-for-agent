@@ -1,0 +1,32 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Claude Code Review
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          direct_prompt: |
+            Review this PR for:
+            1. **Skill definition correctness** — SKILL.md files must have valid frontmatter (name, description), proper rule definitions, and correct script path references.
+            2. **Stage file consistency** — Stage files must follow the handoff template (## Conclusion, ## Downstream, ## Output). Check that stage references in SKILL.md match actual files in stages/.
+            3. **Script safety** — Shell scripts must use `set -euo pipefail`, quote variables properly, and handle missing arguments gracefully.
+            4. **Anchor format** — Any anchor definitions must use valid types: MUST_EXIST, MUST_NOT_EXIST, MUST_IMPORT, MUST_NOT_IMPORT, MUST_BUILD, MUST_TEST, FILE_NOT_MODIFIED.
+            5. **Plugin metadata** — plugin.json version must be semver. marketplace.json must list all skills.
+
+            Focus on correctness and safety. This is an AI agent plugin — mistakes here affect agent behavior at runtime.
