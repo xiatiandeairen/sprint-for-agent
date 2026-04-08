@@ -154,7 +154,7 @@ print(json.dumps(s, indent=2))
   echo ""
 
   # Per-stage durations
-  while IFS='|' read -r event stage status end_ts dur; do
+  while IFS='|' read -r _event stage _status _end_ts dur; do
     printf "> %-15s %s\n" "$stage" "$dur"
   done < <(grep "^stage_end" "$DIR/metrics.log")
 
