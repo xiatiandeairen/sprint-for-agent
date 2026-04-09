@@ -4,10 +4,10 @@
 
 - total: 4
 - steps:
-  1. Stage Start: Task Tracking
-  2. Step-by-step Mode
-  3. Subagent-driven Mode
-  4. Write Handoff
+  1. 初始化任务追踪
+  2. 逐步执行
+  3. 并行执行
+  4. 输出执行报告
 
 Run tasks from plan handoff. Each unit follows: coding → build verify → anchor → test → review.
 
@@ -30,7 +30,7 @@ For typed languages (Swift, Kotlin, TypeScript, Rust, Go, Java): build verificat
 
 Determined in plan stage by user choice:
 - **step-by-step:** Run tasks serially in current session. Verify each with user before next.
-- **subagent-driven:** Dispatch chunks to subagents in parallel. Unified verification after all complete.
+- **subagent-driven:** Dispatch tasks to subagents in parallel. Unified verification after all complete.
 
 ---
 
@@ -120,12 +120,12 @@ Repeat 1-4 for each task until all tasks complete.
 
 ### Worktree Isolation
 
-Execute creates exactly **1 worktree** at the start of subagent-driven mode. All subagent chunks work within this single shared worktree — they must operate on different files, which is guaranteed by the plan's task splitting strategy.
+Execute creates exactly **1 worktree** at the start of subagent-driven mode. All subagent tasks work within this single shared worktree — they must operate on different files, which is guaranteed by the plan's task splitting strategy.
 
 1. Create worktree via `EnterWorktree`
-2. **All** chunks execute inside this worktree (no per-chunk isolation)
+2. **All** tasks execute inside this shared worktree
 3. Quality stage also runs inside the worktree
-4. After all chunks pass quality → rebase worktree onto trunk for linear history
+4. After all tasks pass quality → rebase worktree onto trunk for linear history
    - Rebase conflict → stop, report to user with conflict details
 5. `ExitWorktree` to clean up
 
@@ -135,29 +135,29 @@ Step-by-step mode does NOT use worktree — it runs directly on trunk.
 
 ### 1. Dispatch
 
-For each chunk in plan handoff:
-- Independent chunks → dispatch in parallel as subagents
-- Dependent chunks → dispatch sequentially after dependencies complete
-- **Upstream failure blocks downstream:** if a chunk fails, all chunks that depend on it are paused and not dispatched until the upstream is fixed and verified
-- Each subagent prompt includes: chunk files, steps, code, model specification
+For each task in plan handoff:
+- Independent tasks → dispatch in parallel as subagents
+- Dependent tasks → dispatch sequentially after dependencies complete
+- **Upstream failure blocks downstream:** if a task fails, all tasks that depend on it are paused and not dispatched until the upstream is fixed and verified
+- Each subagent prompt includes: task files, steps, code, model specification
 
 Subagent TDD adaptation follows the same rules as step-by-step mode (code → TDD, doc/config → direct write, refactor → test-refactor-test).
 
-After dispatching, show the initial status of all chunks:
+After dispatching, show the initial status of all tasks:
 ```
-- chunk 1.1 ✓ complete
-- chunk 1.2 ● running
-- chunk 2.1 ○ waiting (depends on 1.1)
+- Task 1 ✓ complete
+- Task 2 ● running
+- Task 3 ○ waiting (depends on Task 1)
 ```
 
-Update this display as each chunk completes. After ALL chunks complete, proceed to Collect Results.
+Update this display as each task completes. After ALL tasks complete, proceed to Collect Results.
 
-Subagent execution per chunk: coding → anchor-check → AI test (including implementation consistency check) → self-review.
+Subagent execution per task: coding → anchor-check → AI test (including implementation consistency check) → self-review.
 
 ### 2. Collect Results
 
 Wait for all subagents to complete. Collect:
-- Changed files per chunk
+- Changed files per task
 - Anchor check results
 - Test results (build/test/lint + implementation consistency)
 - Any errors, deviations, or concerns raised by subagents
@@ -167,16 +167,10 @@ Wait for all subagents to complete. Collect:
 Output combined verification:
 
 ```
-### ✅ All Chunks Complete
+### ✅ All Tasks Complete
 
-**Task 1**: {title}
-- Chunk 1.1: {status} ✓
-- Chunk 1.2: {status} ✓
-- Chunk 1.3: {status} ✓
-
-**Task 2**: {title}
-- Chunk 2.1: {status} ✓
-- Chunk 2.2: {status} ✓
+**Task 1**: {title} — {status} ✓
+**Task 2**: {title} — {status} ✓
 
 **Anchor**: {N} pass / {N} fail
 **Build**: PASS ✓
@@ -191,17 +185,17 @@ Output combined verification:
 ---
 ```
 
-Wait for user to confirm. Issues → dispatch fix subagent for specific chunk, re-verify.
+Wait for user to confirm. Issues → dispatch fix subagent for specific task, re-verify.
 
 ### Recovery (Subagent Failures)
 
-When a subagent chunk fails:
+When a subagent task fails:
 
 1. **1st failure** → retry with same model, include full error context in the prompt
 2. **2nd failure** → upgrade model (sonnet → opus), retry
 3. **3rd failure** → stop, report to user with error details for decision
 
-If the failed chunk is upstream of other chunks, those downstream chunks remain paused until the upstream chunk succeeds.
+If the failed task is upstream of other tasks, those downstream tasks remain paused until the upstream task succeeds.
 
 ---
 
@@ -245,7 +239,7 @@ After all tasks verified, write `.sprint/{id}/handoffs/execute.md`:
 
 ## Completion
 
-- All tasks/chunks executed
+- All tasks executed
 - All anchor checks passed
 - All AI tests passed (build/test/lint + implementation consistency)
 - User verified each task (step-by-step) or all tasks (subagent-driven)
