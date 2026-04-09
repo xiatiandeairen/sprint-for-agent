@@ -4,22 +4,22 @@
 
 - total: 7
 - steps:
-  1. Step 1: Demand Modeling
-  2. Step 2: Decision Convergence
-  3. Step 3: Industry Insight
-  4. Step 4: Solution Alignment
-  5. Step 5: Implementation Priority Review
-  6. Step 6: System Design
-  7. Step 7: Write Handoff
+  1. 确定解决方案的形式
+  2. 收敛方向
+  3. 参考行业实践
+  4. 确定具体方案
+  5. 确认功能清单
+  6. 确认技术方向
+  7. 输出设计文档
 
 From confirmed demand to concrete solution design. Goal: plan stage can split tasks directly from design output.
 
 ## Mode
 
-Mode criteria are defined in SKILL.md (Mode Determination section). Reference that for design=1 vs design=2 rules.
+Mode criteria are defined in SKILL.md (Mode Determination section). Reference that for quick vs full rules.
 
-- **design=1:** Skip Step 1-2. Start from Step 3 (conditional) or Step 4 directly if approach is obvious.
-- **design=2:** Full Step 1-4. Demand modeling → decision convergence → industry insight (conditional) → solution alignment.
+- **quick:** Skip Step 1-2. Start from Step 3 (conditional) or Step 4 directly if approach is obvious.
+- **full:** Full Step 1-4. Demand modeling → decision convergence → industry insight (conditional) → solution alignment.
 
 ## Input
 
@@ -28,7 +28,7 @@ Mode criteria are defined in SKILL.md (Mode Determination section). Reference th
 
 ---
 
-## Step 1: Demand Modeling (design=2 only)
+## Step 1: Demand Modeling (full only)
 
 Classify each need into its optimal delivery form. Do not default to "feature" — choose the form that best solves the underlying problem.
 
@@ -98,7 +98,7 @@ Only selected needs proceed to Step 2. Unselected needs are logged as "out of sc
 
 ---
 
-## Step 2: Decision Convergence (design=2 only)
+## Step 2: Decision Convergence (full only)
 
 Narrow down the solution space through binary tradeoff questions. Present all 3 questions in one batch; user answers all at once.
 
@@ -154,7 +154,7 @@ Only selected goals proceed to Step 3. Unselected goals logged as "deferred" in 
 
 ## Step 3: Industry Insight (conditional)
 
-**Trigger condition:** Only execute when design=2 AND the task involves technology selection or approach comparison (e.g., choosing between frameworks, architectural patterns, or competing implementation strategies).
+**Trigger condition:** Only execute when full AND the task involves technology selection or approach comparison (e.g., choosing between frameworks, architectural patterns, or competing implementation strategies).
 
 If the trigger condition is not met, skip this step entirely.
 
@@ -433,8 +433,8 @@ Handoff must contain a structured decision ledger:
 
 ### Checklist
 
-- [ ] Demand modeling done, user confirmed delivery form (design=2)
-- [ ] Decision convergence done, task goals confirmed (design=2)
+- [ ] Demand modeling done, user confirmed delivery form (full)
+- [ ] Decision convergence done, task goals confirmed (full)
 - [ ] Industry insight: skipped (condition not met or user said no) OR confirmed by user
 - [ ] Solution design confirmed
 - [ ] Decision Register: no `open`, all `core` entries `confirmed`
@@ -445,7 +445,7 @@ Handoff must contain a structured decision ledger:
 
 ## Early Exit
 
-- design=1: approach obvious from code → Step 4 minimal design, Step 6 trigger assessment only (likely skip), done
+- quick: approach obvious from code → Step 4 minimal design, Step 6 trigger assessment only (likely skip), done
 - Upstream already contains design detail → fill gaps only
 
 ## Recovery
