@@ -23,33 +23,33 @@ description: Task execution workflow. Evaluates complexity, trims stages, execut
 
 ## Model Selection
 
-Every stage and subagent chunk must declare its model. Selection is based on the evaluate level for that stage.
+Every stage and subagent task must declare its model. Selection is based on the evaluate level for that stage.
 
 ### Per-Stage Rules
 
 Model follows the stage's evaluate level:
 
-| Stage      | Level 0 (skip/minimal) | Level 1 (light/quick) | Level 2 (deep/full) |
-| ---------- | ---------------------- | --------------------- | ------------------- |
-| brainstorm | —                      | sonnet                | opus                |
-| design     | —                      | sonnet                | opus                |
-| plan       | sonnet                 | sonnet                | sonnet              |
-| execute    | sonnet                 | sonnet                | (per-chunk below)   |
-| quality    | sonnet                 | sonnet                | sonnet              |
-| review     | —                      | sonnet                | opus                |
-| insight    | sonnet                 | sonnet                | sonnet              |
+| Stage      | quick  | full              |
+| ---------- | ------ | ----------------- |
+| brainstorm | sonnet | opus              |
+| design     | sonnet | opus              |
+| plan       | sonnet | sonnet            |
+| execute    | sonnet | (per-task below)  |
+| quality    | sonnet | sonnet            |
+| review     | sonnet | opus              |
+| insight    | sonnet | sonnet            |
 
-**Execute per-chunk rules** (level 2 only):
+**Execute per-task rules** (full only):
 
-| Chunk characteristic                        | Model  |
+| Task characteristic                         | Model  |
 | ------------------------------------------- | ------ |
 | Single file, clear spec from plan           | sonnet |
 | Cross-module, interface changes, new API    | opus   |
 | Mechanical only (move, rename, formatting)  | haiku  |
 
-**Decision criteria for chunk model:**
-- Does this chunk change a public interface or API boundary? → opus
-- Does this chunk touch files in 3+ different modules? → opus
+**Decision criteria for task model:**
+- Does this task change a public interface or API boundary? → opus
+- Does this task touch files in 3+ different modules? → opus
 - Is the change a direct translation of plan spec? → sonnet
 - Is the change purely mechanical (no logic)? → haiku
 
@@ -63,7 +63,7 @@ Stage files may override the default with:
 ### Logging
 
 - `metrics.log` stage_start event: `{timestamp}|stage_start|{stage}`
-- Execute handoff: each chunk result annotated with actual model used
+- Execute handoff: each task result annotated with actual model used
 
 ---
 
@@ -90,12 +90,12 @@ bash "$SPRINT_CTL" evaluate {gc} {ss} {rl} {vd} {keywords...}
 ### Decision → Stage Mapping
 
 
-| Decision  | 0       | 1            | 2                 | Stage           |
-| --------- | ------- | ------------ | ----------------- | --------------- |
-| clarify   | skip    | light        | deep              | brainstorm      |
-| design    | skip    | quick        | research+model    | design          |
-| plan      | minimal | split tasks  | tasks+deps+anchor | plan            |
-| guardrail | skip    | basic verify | full+review       | quality, review |
+| Decision  | quick            | full                | Stage           |
+| --------- | ---------------- | ------------------- | --------------- |
+| clarify   | light            | deep                | brainstorm      |
+| design    | quick            | research+model      | design          |
+| plan      | split tasks      | tasks+deps+anchor   | plan            |
+| guardrail | basic verify     | full+review         | quality, review |
 
 
 execute and insight: always.
@@ -104,8 +104,8 @@ execute and insight: always.
 
 Evaluate also determines the mode level for each stage that has modes:
 
-| Mode | Determines | Level 1 (light) | Level 2 (deep) |
-|------|-----------|-----------------|----------------|
+| Mode | Determines | quick | full |
+|------|-----------|-------|------|
 | clarify | brainstorm depth | Goal clear, uncertainty is "how" not "what" | Strategic/exploratory description + new Object + no clear exclusions |
 | design | design depth | Direction already clear from brainstorm | Multiple technical paths need comparison |
 | plan | plan depth | Small scope or few files | Cross-module changes + risk points exist |
@@ -198,6 +198,20 @@ For each stage in trimmed pipeline:
   - Choice: "请选择一个方向：" followed by A/B/C options
   - Response: "你觉得呢？" or context-appropriate question
 - SKILL.md and stage files still use these markers as AI behavior instructions internally.
+
+### Confirmation Skip
+
+Users can skip confirmation points by expressing skip intent (go, ok, continue, 下一步, 跳过, etc.). AI judges by intent, no specific keywords required:
+
+- Skip intent → accept current output, move to next step
+- Discussion intent (question, objection, modification) → continue discussing current step
+- core decisions in Decision Register cannot be skipped
+
+Do not prompt "reply go to skip" — let the interaction flow naturally.
+
+### Pace Principle
+
+brainstorm, design, and plan stages are thinking stages. Their value comes from thorough alignment and deliberation, not speed. Confirmation points in these stages are necessary quality gates — do not rush through them.
 
 ### Progress Indicator
 
