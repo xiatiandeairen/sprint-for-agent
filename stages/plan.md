@@ -2,15 +2,14 @@
 
 ## Progress
 
-- total: 7
+- total: 6
 - steps:
-  1. Step 1: Execution Mode
-  2. Step 2: Spec Preferences
-  3. Step 3: Decision Points
-  4. Step 4: Generate Anchors
-  5. Step 5: Split Tasks
-  6. Step 6: User Confirm
-  7. Write Handoff
+  1. 确认实现偏好
+  2. 识别风险点
+  3. 设定验证规则
+  4. 拆分任务
+  5. 确认任务和执行方式
+  6. 输出计划文档
 
 From design handoff to executable task list. Determine specs, identify risks, generate anchors, split tasks.
 
@@ -18,8 +17,8 @@ Model: sonnet
 
 ## Mode
 
-- **plan=1:** Minimal. Skip Step 2-3. Directly split tasks from design, basic anchors.
-- **plan=2:** Full Step 1-5.
+- **quick:** Minimal. Skip Step 1-2. Directly split tasks from design, basic anchors.
+- **full:** Full Step 1-5.
 - Mode determination criteria: see SKILL.md → Mode Determination section.
 
 ## Input
@@ -29,70 +28,7 @@ Model: sonnet
 
 ---
 
-## Step 1: Execution Mode
-
-Ask user to choose:
-
-```
-How to execute this sprint?
-
-A) Step-by-step — tasks run one at a time in this session.
-   You verify each task before the next one starts.
-
-B) Subagent-driven — tasks split into parallel chunks,
-   dispatched to subagents. You verify after all complete.
-
-C) Deferred — save the plan and execute later.
-   Choose a trigger: after another sprint, or manual.
-```
-
-Then ask:
-
-```
-Commit strategy:
-
-A) Commit after each task completes
-B) Commit all changes together after sprint completes
-```
-
-Record choice in plan handoff under "Commit Preference".
-
-### Option C: Deferred Execution
-
-If user picks C, collect trigger strategy:
-
-```
-When should this sprint resume?
-
-A) /loop polling — resume within an active session (requires session to stay open)
-B) Manual — run `/todo {sprint_id}` when ready (cross-session)
-```
-
-Then:
-1. Complete remaining plan steps (anchors, tasks) as normal
-2. Write trigger to `.sprint/triggers.json`:
-   ```json
-   {
-     "sprint_id": "{id}",
-     "type": "loop|manual",
-     "spec": "{null or loop interval}",
-     "resume_stage": "execute",
-     "created_at": "{ISO timestamp}"
-   }
-   ```
-3. For `type=loop`: start a `/loop` polling check within the active session.
-4. For `type=manual`: no extra setup — user runs `/todo {sprint_id}` when ready.
-5. Skip execute stage. Write plan handoff as normal, then end the pipeline at plan stage.
-
-Output:
-```
-Sprint #{id} plan saved. Trigger: {type}
-Resume with: /todo {id}
-```
-
----
-
-## Step 2: Spec Preferences (plan=2 only)
+## Step 1: Spec Preferences (full only)
 
 Read the design handoff content and extract 2-3 relevant preference questions based on what is actually ambiguous or undecided. Do not use fixed templates.
 
@@ -113,7 +49,7 @@ Open questions:
 
 ---
 
-## Step 3: Decision Points (plan=2 only)
+## Step 2: Decision Points (full only)
 
 Based on specs + design, identify potential decision points in implementation:
 
@@ -142,7 +78,7 @@ Wait for user to confirm or add information.
 
 ---
 
-## Step 4: Generate Anchors
+## Step 3: Generate Anchors
 
 ### Systematic extraction
 
@@ -178,7 +114,7 @@ Wait for user response, then write final anchors to `.sprint/{id}/anchors.txt`.
 
 ---
 
-## Step 5: Split Tasks
+## Step 4: Split Tasks
 
 ### Task Splitting Rules
 
@@ -197,8 +133,6 @@ Wait for user response, then write final anchors to `.sprint/{id}/anchors.txt`.
 
 - XL tasks must be split to L or below before execution.
 - S tasks may be merged only if merging does not break independent verifiability.
-
-### Step-by-step mode
 
 Split into tasks. Each task is the **smallest independently verifiable unit**.
 
@@ -225,23 +159,6 @@ Per task:
 ---
 ```
 
-### Subagent-driven mode
-
-Split tasks, then further split into parallelizable chunks.
-
-Per task → per chunk:
-```
-### 📋 Task {N}: {title}
-
-- Chunk {N.1}: {subtitle} — parallel
-- Chunk {N.2}: {subtitle} — parallel
-- Chunk {N.3}: {subtitle} — sequential (depends on N.1)
-
----
-```
-
-Each chunk has same structure as step-by-step task: files, steps, model, verify.
-
 ### Expected Files
 
 Aggregate all files from all tasks:
@@ -254,34 +171,54 @@ Aggregate all files from all tasks:
 
 ---
 
-## Step 6: User Confirm
+## Step 5: Confirm Tasks and Execution
 
-Present summary overview first:
+Present task summary and execution options together:
 
 ```
-**Execution mode**: {step-by-step / subagent-driven / deferred}
-**Commit preference**: {after each task / after sprint completes}
-**Anchor**: {N} rules
+**Tasks**:
 
-- Task 1: {title} — {N} files
-- Task 2: {title} — {N} files
-- Task 3: {title} — {N} files
+- Task 1: {title} — {size} — {N} files
+- Task 2: {title} — {size} — {N} files
+- Task 3: {title} — {size} — {N} files
 
+**Anchors**: {N} rules
 **Expected Files**: {total count}
-```
 
-Then ask:
-```
-Confirm the plan, or expand a specific task for details?
+Execution mode:
+A) Step-by-step — run tasks one at a time, verify each before next
+B) Parallel — dispatch to subagents, verify after all complete
+C) Deferred — save plan, execute later
+
+Commit strategy:
+A) Commit after each task
+B) Commit all together after sprint
 ```
 
 If user requests details on a specific task, show the full task block (files, steps, model, verify). Then re-confirm.
 
 Wait for user confirmation before writing handoff.
 
+### Option C: Deferred Execution
+
+If user picks C, collect trigger strategy:
+
+```
+When should this sprint resume?
+
+A) /loop polling — resume within an active session (requires session to stay open)
+B) Manual — run `/todo {sprint_id}` when ready (cross-session)
+```
+
+Then:
+1. Write trigger to `.sprint/triggers.json`
+2. For `type=loop`: start a `/loop` polling check within the active session.
+3. For `type=manual`: no extra setup.
+4. Skip execute stage. Write plan handoff as normal, then end the pipeline at plan stage.
+
 ---
 
-## Write Handoff
+## Step 6: Write Handoff
 
 Write `.sprint/{id}/handoffs/plan.md`:
 
@@ -318,22 +255,22 @@ Write `.sprint/{id}/handoffs/plan.md`:
 ## Downstream
 Execute stage runs tasks in order.
 Step-by-step: coding → anchor → test → review per task, wait for user verify.
-Subagent-driven: all chunks parallel, then unified verify.
+Parallel: all tasks dispatched to subagents, then unified verify.
 ```
 
 ---
 
 ## Completion
 
-- Execution mode confirmed
-- Commit preference confirmed
-- Specs confirmed (plan=2)
-- Decision points reviewed (plan=2)
-- Anchors confirmed by user, anchors.txt written
-- All tasks satisfy splitting rules (no XL tasks)
-- All tasks have: files, steps, model, AI verify, user verify
-- Expected files listed
-- User confirmed full plan
+- Specs confirmed (full only, Step 1)
+- Decision points reviewed (full only, Step 2)
+- Anchors confirmed by user, anchors.txt written (Step 3)
+- All tasks satisfy splitting rules (no XL tasks) (Step 4)
+- All tasks have: files, steps, model, AI verify, user verify (Step 4)
+- Expected files listed (Step 4)
+- Execution mode and commit strategy confirmed (Step 5)
+- User confirmed full plan (Step 5)
+- Handoff written (Step 6)
 
 ## Recovery
 
