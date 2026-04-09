@@ -1,5 +1,17 @@
 # plan
 
+## Progress
+
+- total: 7
+- steps:
+  1. Step 1: Execution Mode
+  2. Step 2: Spec Preferences
+  3. Step 3: Decision Points
+  4. Step 4: Generate Anchors
+  5. Step 5: Split Tasks
+  6. Step 6: User Confirm
+  7. Write Handoff
+
 From design handoff to executable task list. Determine specs, identify risks, generate anchors, split tasks.
 
 Model: sonnet

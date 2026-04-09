@@ -1,5 +1,13 @@
 # quality
 
+## Progress
+
+- total: 3
+- steps:
+  1. Step 1: Detect Build & Test
+  2. Step 2: Custom Scripts
+  3. Step 3: Impact Verification
+
 Integration verification after execute completes. Focuses on **cross-task regression** — single-task verification was already done in execute.
 
 ## Input

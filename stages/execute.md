@@ -1,5 +1,14 @@
 # execute
 
+## Progress
+
+- total: 4
+- steps:
+  1. Stage Start: Task Tracking
+  2. Step-by-step Mode
+  3. Subagent-driven Mode
+  4. Write Handoff
+
 Run tasks from plan handoff. Each unit follows: coding → build verify → anchor → test → review.
 
 Model: sonnet (default for coding; opus for integration/interface changes)

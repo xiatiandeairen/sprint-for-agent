@@ -199,6 +199,41 @@ For each stage in trimmed pipeline:
   - Response: "你觉得呢？" or context-appropriate question
 - SKILL.md and stage files still use these markers as AI behavior instructions internally.
 
+### Progress Indicator
+
+Every AI response to user must start with progress context, separated from body by a blank line.
+
+**Layer 1: Stage progress bar** — show when entering a new stage OR on first interaction of a stage:
+
+```
+━━ {stage1} ✓ → [{current}] → {stage3} → ... ━━
+```
+
+Rules:
+- `✓` after completed stages
+- `[name]` for current stage (brackets highlight)
+- Plain text for pending stages
+- Skipped stages are omitted from the bar
+
+**Layer 2: Step progress** — show on every interaction within a stage:
+
+```
+{stage} ({current_step}/{total_steps}) — {step_name}
+```
+
+Step counts and names come from each stage file's `## Progress` metadata.
+
+**Layer 3: Task tracking** — when a step contains ≥3 sub-tasks, use TaskCreate to create a task list. Update via TaskUpdate as each completes. When <3 sub-tasks, discuss inline without creating tasks.
+
+**Display**: Layer 1 on first line, Layer 2 on second line, blank line, then body content. Example:
+
+```
+━━ brainstorm ✓ → [design] → plan → execute → quality → insight ━━
+design (4/7) — Solution Alignment
+
+{body content here}
+```
+
 ### Chaining
 
 Each stage reads upstream handoff. design skipped → plan uses user description. execute reads plan + anchors.txt. quality reads execute handoff. review reads execute handoff + git diff.

@@ -1,5 +1,13 @@
 # brainstorm
 
+## Progress
+
+- total: 3
+- steps:
+  1. Layer 1: Demand Modeling
+  2. Layer 2: Value Mining
+  3. Layer 3: Converge
+
 Align user intent through structured demand modeling and controlled value discovery.
 
 Pure conversation. Do NOT read code, files, or docs. All evidence comes from the user.

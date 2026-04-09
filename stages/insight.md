@@ -1,5 +1,15 @@
 # insight
 
+## Progress
+
+- total: 5
+- steps:
+  1. Step 1: End Sprint
+  2. Step 2: Deviation Analysis
+  3. Step 3: Process Evaluation
+  4. Step 4: Lessons
+  5. Step 5: Uncommitted Changes Check
+
 Metrics summary + deviation analysis + process evaluation. Last stage, always runs.
 
 ## Input

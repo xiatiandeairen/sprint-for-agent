@@ -1,5 +1,17 @@
 # design
 
+## Progress
+
+- total: 7
+- steps:
+  1. Step 1: Demand Modeling
+  2. Step 2: Decision Convergence
+  3. Step 3: Industry Insight
+  4. Step 4: Solution Alignment
+  5. Step 5: Implementation Priority Review
+  6. Step 6: System Design
+  7. Step 7: Write Handoff
+
 From confirmed demand to concrete solution design. Goal: plan stage can split tasks directly from design output.
 
 ## Mode
@@ -268,7 +280,83 @@ User says "skip" or "go to plan" → skip this step; remaining `detail` items st
 
 ---
 
-## Step 6: Write handoff
+## Step 6: System Design (conditional)
+
+After product decisions are locked (Step 5), determine whether the solution needs technical design depth. This step ensures core technical directions are clear before entering plan.
+
+### Trigger Assessment
+
+Based on Step 1-5 outputs, evaluate these 4 questions. Present results to user for confirmation in one round:
+
+```
+Based on the design so far:
+
+1. Need to define responsibility boundaries or layering?     → Architecture Design
+2. Have critical paths that need explicit flow ordering?      → Core Flow Design
+3. Components/layers/services exchanging data?                → Interface & Protocol
+4. Need to choose or design non-trivial algorithm logic?      → Algorithm & Optimization
+
+Applicable: {list}
+Not applicable: {list}
+
+Agree? Or adjust?
+```
+
+If all 4 are "not applicable" → skip this step entirely.
+
+### 6a: Architecture Design
+
+Define the structural skeleton of the solution.
+
+- **Layering**: what layers exist, each layer's responsibility, boundary rules (what can call what)
+- **Module decomposition**: modules/components, their responsibilities, dependency direction
+- **Key tech decisions**: framework, storage, pattern choices with rationale
+
+Output: layered diagram or structured description. Must be concrete enough that someone can judge whether a new file belongs in layer A or layer B.
+
+### 6b: Core Flow Design
+
+Define how the system processes its primary scenarios.
+
+- **Main path**: complete flow from trigger to result (happy path)
+- **Key branch paths**: error handling, edge cases that affect flow
+- **State transitions**: if stateful, define states and transition rules
+- **Data flow**: where data originates, what transforms it, where it lands
+
+Output: flow diagram, sequence diagram, or structured step-by-step description.
+
+### 6c: Interface & Protocol
+
+Define the contracts between components.
+
+- **Inter-component interfaces**: function signatures, parameters, return values
+- **Data structures**: schema definitions, field types, constraints
+- **Data formats**: serialization format, encoding conventions
+- **Calling conventions**: sync/async, error propagation, retry policy
+
+Output: interface definition table or code-level type definitions.
+
+### 6d: Algorithm & Optimization
+
+Define the core logic and its quality characteristics.
+
+- **Algorithm description**: pseudocode or logic walkthrough
+- **Complexity**: time/space analysis
+- **Multi-dimensional review**:
+  - Performance: where are the bottlenecks, acceptable?
+  - Scalability: 10x data volume, still viable?
+  - Maintainability: can a new contributor understand this?
+  - Edge cases: empty input, extreme values, concurrency
+
+Output: algorithm description with complexity and review conclusions.
+
+### Confirmation
+
+Present all applicable sub-layer outputs together. User confirms or requests changes. System design decisions are added to the Decision Register as `core` category.
+
+---
+
+## Step 7: Write handoff
 
 Write `.sprint/{id}/handoffs/design.md`:
 
@@ -351,15 +439,17 @@ Handoff must contain a structured decision ledger:
 - [ ] Solution design confirmed
 - [ ] Decision Register: no `open`, all `core` entries `confirmed`
 - [ ] Implementation Priority Review: detail items confirmed via tasks (or user skipped)
+- [ ] System Design: applicable sub-layers completed and confirmed (or all skipped)
 - [ ] User confirmed Decision Register
 - [ ] Handoff written
 
 ## Early Exit
 
-- design=1: approach obvious from code → Step 4 minimal design, confirm, done
+- design=1: approach obvious from code → Step 4 minimal design, Step 6 trigger assessment only (likely skip), done
 - Upstream already contains design detail → fill gaps only
 
 ## Recovery
 
 - Plan discovers design gap → return to design, fill gap, re-confirm
 - User changes direction after seeing design → re-run from Step 2
+- Plan discovers missing technical design → return to Step 6, fill specific sub-layer
