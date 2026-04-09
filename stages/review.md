@@ -1,5 +1,15 @@
 # review
 
+## Progress
+
+- total: 5
+- steps:
+  1. 生成代码评审
+  2. 设计对齐和代码质量
+  3. 呈现评审结果
+  4. 输出评审文档
+  5. 收集用户反馈
+
 Write a human-readable explanation of what changed, why, and what to watch out for. Only runs when guardrail=2.
 
 ## Input

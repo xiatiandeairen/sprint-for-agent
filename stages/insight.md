@@ -4,11 +4,11 @@
 
 - total: 5
 - steps:
-  1. Step 1: End Sprint
-  2. Step 2: Deviation Analysis
-  3. Step 3: Process Evaluation
-  4. Step 4: Lessons
-  5. Step 5: Uncommitted Changes Check
+  1. 结束 Sprint
+  2. 计划 vs 实际对比
+  3. 流程效率评估
+  4. 经验总结
+  5. 检查未提交改动
 
 Metrics summary + deviation analysis + process evaluation. Last stage, always runs.
 

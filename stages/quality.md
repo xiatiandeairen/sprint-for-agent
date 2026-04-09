@@ -4,9 +4,14 @@
 
 - total: 3
 - steps:
-  1. Step 1: Detect Build & Test
-  2. Step 2: Custom Scripts
-  3. Step 3: Impact Verification
+  1. 构建和测试验证
+  2. 自定义检查
+  3. 跨任务影响检查
+
+## Mode
+
+- **quick:** Step 1 only (automated build & test). Skip Step 2-3.
+- **full:** All steps. Step 1 auto checks + Step 2 custom scripts + Step 3 manual impact verification.
 
 Integration verification after execute completes. Focuses on **cross-task regression** — single-task verification was already done in execute.
 
