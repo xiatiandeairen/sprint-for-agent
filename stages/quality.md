@@ -74,32 +74,29 @@ Generate checklist covering:
 - **End-to-end flow**: does the full user-facing flow still work?
 
 ```
-═══════════════════════════════════════
-  🔬 Impact Verification
-═══════════════════════════════════════
+### 🔬 Impact Verification
 
-  Automated checks: PASS ✓
-  - Build: ✓
-  - Tests: {N} pass / 0 fail
-  - Anchor: {N} pass / 0 fail (or skipped)
-  - Custom: {results}
+**Automated checks**: PASS ✓
+- Build: ✓
+- Tests: {N} pass / 0 fail
+- Anchor: {N} pass / 0 fail (or skipped)
+- Custom: {results}
 
-  Change impact analysis:
-  - Interface changes: {list affected consumers, or "none"}
-  - Dependency direction: {pass / violations found}
-  - Stale references: {none found / list}
+**Change impact analysis**
+- Interface changes: {list affected consumers, or "none"}
+- Dependency direction: {pass / violations found}
+- Stale references: {none found / list}
 
-  Files changed:
-  - {path}
-  - {path}
+**Files changed**
+- {path}
+- {path}
 
-  Cross-task integration checks (manual):
+**Cross-task integration checks** (manual):
+- [ ] {task A × task B}: {interaction to verify}
+- [ ] {module boundary}: {interface to verify}
+- [ ] {end-to-end flow}: {what to check, how to check}
 
-  - [ ] {task A × task B}: {interaction to verify}
-  - [ ] {module boundary}: {interface to verify}
-  - [ ] {end-to-end flow}: {what to check, how to check}
-
-═══════════════════════════════════════
+---
 ```
 
 Wait for user to confirm all checks pass. Confirmed → next stage.

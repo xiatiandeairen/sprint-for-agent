@@ -69,21 +69,19 @@ Reorder the full list based on the answer. Must-haves come first, ordered by pri
 Present the ordered value list:
 
 ```
-═══════════════════════════════════════
-  Value Points
-═══════════════════════════════════════
+### Value Points
 
-  Must-have (ordered)
-  1. {value point} — {who benefits, how}
-  2. {value point} — {who benefits, how}
+**Must-have** (ordered)
+1. {value point} — {who benefits, how}
+2. {value point} — {who benefits, how}
 
-  Nice-to-have
-  - {value point}
+**Nice-to-have**
+- {value point}
 
-  Excluded
-  - {candidate} — merged into #{n} / deprioritized
+**Excluded**
+- {candidate} — merged into #{n} / deprioritized
 
-═══════════════════════════════════════
+---
 ```
 
 User confirms → value list locked. Corrections → update and re-confirm.
@@ -179,20 +177,17 @@ Sprint {n}: {value target}
 Present the full plan:
 
 ```
-═══════════════════════════════════════
-  Sub-Sprint Plan
-═══════════════════════════════════════
+### Sub-Sprint Plan
 
-  Sprint 1: {value target}
-  ...
+**Sprint 1**: {value target}
+...
 
-  Sprint 2: {value target}
-  ...
+**Sprint 2**: {value target}
+...
 
-  Total: {n} sprints
-  Execution: automatic, sequential
+**Total**: {n} sprints | **Execution**: automatic, sequential
 
-═══════════════════════════════════════
+---
 
 Confirm this split? Once confirmed, the direction is locked and execution begins automatically.
 

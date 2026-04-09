@@ -72,16 +72,14 @@ C) {another alternative}
 **Step 4:** Present filled frame to user:
 
 ```
-───────────────────────────────────────
-  📋 Demand Frame
-───────────────────────────────────────
-  🎯 Goal        {in user's words}
-  📦 Object      {as user sees it}
-  🔒 Constraint  {or "TBD in design"}
-  📍 Context     {plain terms}
-  ✅ Success     {how user knows it works}
-  ⚡ Priority    {ranking or "single item"}
-───────────────────────────────────────
+### 📋 Demand Frame
+
+- **🎯 Goal**: {in user's words}
+- **📦 Object**: {as user sees it}
+- **🔒 Constraint**: {or "TBD in design"}
+- **📍 Context**: {plain terms}
+- **✅ Success**: {how user knows it works}
+- **⚡ Priority**: {ranking or "single item"}
 ```
 
 User confirms → Demand Anchor locked. Corrections → update and re-confirm.
@@ -89,9 +87,8 @@ User confirms → Demand Anchor locked. Corrections → update and re-confirm.
 After presenting the demand frame, add a mode switch prompt:
 
 ```
-Current mode: {clarify=1: skips value mining | clarify=2: includes value mining}.
-{If clarify=1: Want to explore additional value directions? Say so and I'll switch to value mining mode.}
-{If clarify=2: If the scope is already clear enough, we can skip value mining and go straight to conclusion.}
+{If demand modeling only: Want to explore additional value directions? Say so and I'll switch to value mining mode.}
+{If full mode: If the scope is already clear enough, we can skip value mining and go straight to conclusion.}
 ```
 
 ---
@@ -175,22 +172,20 @@ B) Converge — proceed with current results
 **Step 8:** Present conclusion:
 
 ```
-═══════════════════════════════════════
-  🐰 Brainstorm Conclusion
-═══════════════════════════════════════
+### 🐰 Brainstorm Conclusion
 
-  💡 {1 sentence — what to build}
+**💡 {1 sentence — what to build}**
 
-  📖 Example
-  ┌─ Before: {now}
-  ├─ After:  {then}
-  └─ Verify: {how to check}
+**📖 Example**
+- Before: {now}
+- After: {then}
+- Verify: {how to check}
 
-  🔍 Value Points (if any)
-  ├─ {confirmed point 1}
-  └─ {confirmed point 2}
+**🔍 Value Points** (if any)
+- {confirmed point 1}
+- {confirmed point 2}
 
-═══════════════════════════════════════
+---
 ```
 
 User confirms → write handoff.

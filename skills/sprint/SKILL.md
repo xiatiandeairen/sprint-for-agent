@@ -60,16 +60,9 @@ Stage files may override the default with:
 - File-level: `Model: {opus/sonnet/haiku}` at the top of the stage file
 - Step-level: `Step N — Model: opus (reason: ...)` inline
 
-### Runtime Output
-
-Output the model at each execution point:
-
-- Stage start: `[stage] {stage} — model: {model} (level: {N})`
-- Subagent dispatch: `[dispatch] chunk {N.M} — model: {model} (reason: {why})`
-
 ### Logging
 
-- `metrics.log` stage_start event appends model: `{timestamp}|stage_start|{stage}|model={model}|level={N}`
+- `metrics.log` stage_start event: `{timestamp}|stage_start|{stage}`
 - Execute handoff: each chunk result annotated with actual model used
 
 ---
@@ -125,11 +118,13 @@ Render evaluate result in formatted block. Wait for user confirmation before cre
 
 Evaluate output format:
 ```
-> [评估] {description}
-> 流水线: {stage1} → {stage2} → ...
-> 模式: clarify={N}, design={N}, plan={N}
-> 跳过: {stages}
-> 理由: {one-line justification per stage and mode}
+### 评估: {description}
+
+- **流水线**: {stage1} → {stage2} → ...
+- **跳过**: {stages}
+- **理由**:
+  - {stage}: {one-line justification}
+  - ...
 ```
 
 ```bash

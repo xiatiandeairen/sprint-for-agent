@@ -30,27 +30,22 @@ Classify each deviation as one of:
 - `change-request` — neutral: user added or changed requirements during sprint
 
 ```
-═══════════════════════════════════════
-  📊 Plan vs Actual
-═══════════════════════════════════════
+### 📊 Plan vs Actual
 
-  Tasks:    {planned} planned → {completed} completed, {skipped} skipped
-  Files:    {expected} expected → {actual} changed
-  Rework:   {count} tasks needed fix after first attempt
+- **Tasks**: {planned} planned → {completed} completed, {skipped} skipped
+- **Files**: {expected} expected → {actual} changed
+- **Rework**: {count} tasks needed fix after first attempt
 
-  Deviations:
-  ┌──────────────────────────────┬──────────────────┐
-  │ Description                  │ Classification   │
-  ├──────────────────────────────┼──────────────────┤
-  │ {deviation description}      │ {improvement /   │
-  │                              │  issue /         │
-  │                              │  change-request} │
-  └──────────────────────────────┴──────────────────┘
+**Deviations**
 
-  Skipped:
-  - {planned task that was skipped, with reason}
+| Description | Classification |
+|-------------|---------------|
+| {deviation description} | {improvement / issue / change-request} |
 
-═══════════════════════════════════════
+**Skipped**
+- {planned task that was skipped, with reason}
+
+---
 ```
 
 If deviation is significant (>30% tasks reworked, or unexpected files > planned files), note the root cause using classification context:
@@ -69,21 +64,20 @@ For each stage that ran, give a 1-line verdict based on time ratio and output va
 - Otherwise → assess output value to determine `essential` / `helpful` / `could skip`
 
 ```
-═══════════════════════════════════════
-  💡 Process Evaluation
-═══════════════════════════════════════
+### 💡 Process Evaluation
 
-  brainstorm  {duration} ({pct}%)  {verdict} — {reason}
-  design      {duration} ({pct}%)  {verdict} — {reason}
-  plan        {duration} ({pct}%)  {verdict} — {reason}
-  execute     {duration} ({pct}%)  {verdict} — {reason}
-  quality     {duration} ({pct}%)  {verdict} — {reason}
-  review      {duration} ({pct}%)  {verdict} — {reason}
+| Stage | Duration | Share | Verdict | Reason |
+|-------|----------|-------|---------|--------|
+| brainstorm | {duration} | {pct}% | {verdict} | {reason} |
+| design | {duration} | {pct}% | {verdict} | {reason} |
+| plan | {duration} | {pct}% | {verdict} | {reason} |
+| execute | {duration} | {pct}% | {verdict} | {reason} |
+| quality | {duration} | {pct}% | {verdict} | {reason} |
+| review | {duration} | {pct}% | {verdict} | {reason} |
 
-  Recommendation for similar tasks:
-  {1 sentence — what pipeline to use next time}
+**Recommendation**: {1 sentence — what pipeline to use next time}
 
-═══════════════════════════════════════
+---
 ```
 
 Verdicts: `essential` / `helpful` / `could skip` / `too heavy` / `too light`
@@ -100,7 +94,7 @@ Only output if genuinely useful. Do not force lessons.
 
 After generating lessons, check if any have universal or reusable value — applicable beyond this sprint or project context. If yes, prompt the user:
 
-> "This lesson may be valuable for future sprints. Want to persist it with `/know learn`?"
+This lesson may be valuable for future sprints. Want to persist it with `/know learn`?
 
 If user says yes, suggest the knowledge entry in the appropriate format (decision / trap / rule). If no lessons or none worth persisting, skip this prompt entirely.
 
@@ -116,7 +110,7 @@ git -C "$SPRINT_CTL_DIR" diff --stat
 
 If there are uncommitted changes, prompt the user:
 
-> "There are uncommitted changes. Would you like to commit them?"
+There are uncommitted changes. Would you like to commit them?
 
 If user says yes:
 - Generate a conventional commit message: `{type}({scope}): {description}`

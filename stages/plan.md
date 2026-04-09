@@ -74,8 +74,8 @@ Then:
 
 Output:
 ```
-> Sprint #{id} plan saved. Trigger: {type}
-> Resume with: /todo {id}
+Sprint #{id} plan saved. Trigger: {type}
+Resume with: /todo {id}
 ```
 
 ---
@@ -113,17 +113,15 @@ Based on specs + design, identify potential decision points in implementation:
 Present to user:
 
 ```
-═══════════════════════════════════════
-  ⚠️ Decision Points
-═══════════════════════════════════════
+### ⚠️ Decision Points
 
-  1. {point} — {why it matters}
-     Risk: {low/medium/high}
-     Mitigation: {proposed approach}
+1. **{point}** — {why it matters}
+   - Risk: {low/medium/high}
+   - Mitigation: {proposed approach}
 
-  2. ...
+2. ...
 
-═══════════════════════════════════════
+---
 
 Any additional risks or constraints I should know about?
 ```
@@ -194,28 +192,25 @@ Split into tasks. Each task is the **smallest independently verifiable unit**.
 
 Per task:
 ```
-═══════════════════════════════════════
-  📋 Task {N}: {title}
-═══════════════════════════════════════
+### 📋 Task {N}: {title}
 
-  Files:
-  - create: {path}
-  - modify: {path}
+**Files**
+- create: {path}
+- modify: {path}
 
-  Steps:
-  1. Write test: {what to test}
-  2. Run test → expect FAIL
-  3. Implement: {what to write}
-  4. Run test → expect PASS
-  5. Commit
+**Steps**
+1. Write test: {what to test}
+2. Run test → expect FAIL
+3. Implement: {what to write}
+4. Run test → expect PASS
+5. Commit
 
-  Model: {sonnet / opus}
-  AI verify: {build + test + anchor-check}
-  User verify:
-  - [ ] {concrete check 1}
-  - [ ] {concrete check 2}
+**AI verify**: {build + test + anchor-check}
+**User verify**:
+- [ ] {concrete check 1}
+- [ ] {concrete check 2}
 
-═══════════════════════════════════════
+---
 ```
 
 ### Subagent-driven mode
@@ -224,12 +219,13 @@ Split tasks, then further split into parallelizable chunks.
 
 Per task → per chunk:
 ```
-═══════════════════════════════════════
-  📋 Task {N}: {title}
-  ├─ Chunk {N.1}: {subtitle}  model={sonnet}  parallel=yes
-  ├─ Chunk {N.2}: {subtitle}  model={sonnet}  parallel=yes
-  └─ Chunk {N.3}: {subtitle}  model={opus}    parallel=no (depends on N.1)
-═══════════════════════════════════════
+### 📋 Task {N}: {title}
+
+- Chunk {N.1}: {subtitle} — parallel
+- Chunk {N.2}: {subtitle} — parallel
+- Chunk {N.3}: {subtitle} — sequential (depends on N.1)
+
+---
 ```
 
 Each chunk has same structure as step-by-step task: files, steps, model, verify.
@@ -251,15 +247,15 @@ Aggregate all files from all tasks:
 Present summary overview first:
 
 ```
-Execution mode: {step-by-step / subagent-driven / deferred}
-Commit preference: {after each task / after sprint completes}
-Anchor: {N} rules
+**Execution mode**: {step-by-step / subagent-driven / deferred}
+**Commit preference**: {after each task / after sprint completes}
+**Anchor**: {N} rules
 
-Task 1: {title} — {N} files, {model}
-Task 2: {title} — {N} files, {model}
-Task 3: {title} — {N} files, {model}
+- Task 1: {title} — {N} files
+- Task 2: {title} — {N} files
+- Task 3: {title} — {N} files
 
-Expected Files: {total count}
+**Expected Files**: {total count}
 ```
 
 Then ask:

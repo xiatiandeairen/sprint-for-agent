@@ -47,33 +47,32 @@ Output any deviations or concerns found. User decides if they need fixing.
 ## Step 3: Present
 
 ```
-═══════════════════════════════════════
-  📝 Review
-═══════════════════════════════════════
+### 📝 Review
 
-  Summary: {1-2 sentences}
+**Summary**: {1-2 sentences}
 
-  Key Decisions:
-  - {decision}: {why A not B}
+**Key Decisions**
+- {decision}: {why A not B}
 
-  Changes:
-  | File | Action | What |
-  |------|--------|------|
-  | ...  | ...    | ...  |
+**Changes**
 
-  Walkthrough:
-  {data flow / call chain order: entry → processing → output}
+| File | Action | What |
+|------|--------|------|
+| ...  | ...    | ...  |
 
-  Watch Out:
-  - {gotcha}
+**Walkthrough**
+{data flow / call chain order: entry → processing → output}
 
-  Design Alignment:
-  {deviations or "follows design"}
+**Watch Out**
+- {gotcha}
 
-  Code Quality:
-  {concerns or "no issues"}
+**Design Alignment**
+{deviations or "follows design"}
 
-═══════════════════════════════════════
+**Code Quality**
+{concerns or "no issues"}
+
+---
 ```
 
 ---

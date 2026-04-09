@@ -82,23 +82,21 @@ Output: build/test results + implementation consistency check + deviations (if a
 Output the task's user verify checklist. For **S-size tasks**, multiple consecutive S-size completions may be batched into a single confirmation prompt. M/L tasks always get individual confirmation.
 
 ```
-═══════════════════════════════════════
-  ✅ Task {N} Complete: {title}
-═══════════════════════════════════════
+### ✅ Task {N} Complete: {title}
 
-  Files changed:
-  - {path}: {what changed}
+**Files changed**
+- {path}: {what changed}
 
-  AI verify: PASS ✓
-  Anchor: {N} pass / {N} fail
-  Implementation: consistent with plan ✓ (or: deviation — {detail})
+**AI verify**: PASS ✓
+**Anchor**: {N} pass / {N} fail
+**Implementation**: consistent with plan ✓ (or: deviation — {detail})
 
-  User verify:
-  - [ ] {concrete check 1}
-  - [ ] {concrete check 2}
-  - [ ] {concrete check 3}
+**User verify**:
+- [ ] {concrete check 1}
+- [ ] {concrete check 2}
+- [ ] {concrete check 3}
 
-═══════════════════════════════════════
+---
 ```
 
 Wait for user to confirm all checks pass. If issues found → fix and re-verify. Confirmed → next task.
@@ -136,21 +134,11 @@ For each chunk in plan handoff:
 
 Subagent TDD adaptation follows the same rules as step-by-step mode (code → TDD, doc/config → direct write, refactor → test-refactor-test).
 
-Output model selection per chunk at dispatch time:
-```
-[dispatch] chunk {N.M} — model: {model}
-```
-
-If a chunk involves cross-module integration or interface changes, upgrade to opus and note the reason:
-```
-[dispatch] chunk {N.M} — model: opus (cross-module integration)
-```
-
 After dispatching, show the initial status of all chunks:
 ```
-chunk 1.1 ✓ complete
-chunk 1.2 ● running
-chunk 2.1 ○ waiting (depends on 1.1)
+- chunk 1.1 ✓ complete
+- chunk 1.2 ● running
+- chunk 2.1 ○ waiting (depends on 1.1)
 ```
 
 Update this display as each chunk completes. After ALL chunks complete, proceed to Collect Results.
@@ -170,30 +158,28 @@ Wait for all subagents to complete. Collect:
 Output combined verification:
 
 ```
-═══════════════════════════════════════
-  ✅ All Chunks Complete
-═══════════════════════════════════════
+### ✅ All Chunks Complete
 
-  Task 1: {title}
-  ├─ Chunk 1.1: {status} ✓
-  ├─ Chunk 1.2: {status} ✓
-  └─ Chunk 1.3: {status} ✓
+**Task 1**: {title}
+- Chunk 1.1: {status} ✓
+- Chunk 1.2: {status} ✓
+- Chunk 1.3: {status} ✓
 
-  Task 2: {title}
-  ├─ Chunk 2.1: {status} ✓
-  └─ Chunk 2.2: {status} ✓
+**Task 2**: {title}
+- Chunk 2.1: {status} ✓
+- Chunk 2.2: {status} ✓
 
-  Anchor: {N} pass / {N} fail
-  Build: PASS ✓
-  Tests: {N} pass / {N} fail
-  Implementation: consistent with plan ✓ (or: deviations — {list})
+**Anchor**: {N} pass / {N} fail
+**Build**: PASS ✓
+**Tests**: {N} pass / {N} fail
+**Implementation**: consistent with plan ✓ (or: deviations — {list})
 
-  User verify:
-  - [ ] {check from task 1}
-  - [ ] {check from task 2}
-  - [ ] {overall integration check}
+**User verify**:
+- [ ] {check from task 1}
+- [ ] {check from task 2}
+- [ ] {overall integration check}
 
-═══════════════════════════════════════
+---
 ```
 
 Wait for user to confirm. Issues → dispatch fix subagent for specific chunk, re-verify.

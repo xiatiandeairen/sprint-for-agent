@@ -165,23 +165,21 @@ User problem → Mechanism → Industry implementation patterns → Company trad
 Present 4 perspectives per goal:
 
 ```
-═══════════════════════════════════════
-  Industry Insight: {task goal}
-═══════════════════════════════════════
+### Industry Insight: {task goal}
 
-  Frontier
-  {cutting edge approaches, latest research}
+**Frontier**
+{cutting edge approaches, latest research}
 
-  Standard
-  {industry norms, established best practices}
+**Standard**
+{industry norms, established best practices}
 
-  Popular
-  {most widely adopted, community favorites}
+**Popular**
+{most widely adopted, community favorites}
 
-  Recommended
-  {best fit for current project context, with rationale}
+**Recommended**
+{best fit for current project context, with rationale}
 
-═══════════════════════════════════════
+---
 ```
 
 Can use subagent + WebSearch for parallel research across goals.
@@ -224,23 +222,21 @@ Produce concrete design artifacts matched to the delivery form. User must be abl
 ### Present to user:
 
 ```
-═══════════════════════════════════════
-  📐 Solution Design
-═══════════════════════════════════════
+### 📐 Solution Design
 
-  Form: {delivery form}
+**Form**: {delivery form}
 
-  {design artifacts per form}
+{design artifacts per form}
 
-  Key Decisions:
-  - {decision}: {why A not B}
+**Key Decisions**
+- {decision}: {why A not B}
 
-  File Impact:
-  - create: {files}
-  - modify: {files}
-  - do not touch: {files}
+**File Impact**
+- create: {files}
+- modify: {files}
+- do not touch: {files}
 
-═══════════════════════════════════════
+---
 ```
 
 Wait for user confirmation. Corrections → update and re-present.
