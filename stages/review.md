@@ -11,16 +11,10 @@ Write a human-readable explanation of what changed, why, and what to watch out f
 
 ## Step 1: Generate Review
 
-Read execute handoff and git diff. Write two sections:
-
-### For yourself (quick context recovery)
+Read execute handoff and git diff. Write a single unified review:
 
 - **Summary:** 1-2 sentences, what was done
 - **Key decisions:** Each decision with "why A not B" rationale
-- **Watch out:** Things to be careful about when touching this code later
-
-### For team (code review level)
-
 - **Change table:** Every changed file with action type and 1-line description
 
 ```
@@ -30,11 +24,27 @@ Read execute handoff and git diff. Write two sections:
 | path | modify | ... |
 ```
 
-- **Code walkthrough:** Explain changes in logical order (not file order). Focus on "why this approach" not "what the code does".
+- **Walkthrough:** Explain changes following data flow / call chain order — entry point → intermediate processing → final output. NOT alphabetical file order, NOT git diff order. Focus on "why this approach" not "what the code does".
+- **Watch out:** Gotchas for future developers touching this code
 
 ---
 
-## Step 2: Present
+## Step 2: Design Alignment + Code Quality Scan
+
+**Design Alignment** — compare final implementation against design handoff:
+- Does implementation follow the chosen approach?
+- Any deviations from design? If yes, are they justified?
+
+**Code Quality Scan** — quick check within changed files:
+- Naming consistency within changed files
+- Obvious duplication in changed code
+- Complexity concerns (deeply nested logic, overly long functions)
+
+Output any deviations or concerns found. User decides if they need fixing.
+
+---
+
+## Step 3: Present
 
 ```
 ═══════════════════════════════════════
@@ -44,10 +54,7 @@ Read execute handoff and git diff. Write two sections:
   Summary: {1-2 sentences}
 
   Key Decisions:
-  - {decision}: {why}
-
-  Watch Out:
-  - {gotcha}
+  - {decision}: {why A not B}
 
   Changes:
   | File | Action | What |
@@ -55,14 +62,23 @@ Read execute handoff and git diff. Write two sections:
   | ...  | ...    | ...  |
 
   Walkthrough:
-  {logical explanation}
+  {data flow / call chain order: entry → processing → output}
+
+  Watch Out:
+  - {gotcha}
+
+  Design Alignment:
+  {deviations or "follows design"}
+
+  Code Quality:
+  {concerns or "no issues"}
 
 ═══════════════════════════════════════
 ```
 
 ---
 
-## Step 3: Write Handoff
+## Step 4: Write Handoff
 
 Write `.sprint/{id}/handoffs/review.md`:
 
@@ -73,31 +89,30 @@ Write `.sprint/{id}/handoffs/review.md`:
 {1-2 sentences}
 
 ## Key Decisions
-- {decision}: {rationale}
-
-## Watch Out
-- {gotcha for future developers}
+- {decision}: {why A not B}
 
 ## Change Table
 | File | Action | What changed |
 |------|--------|-------------|
 
 ## Walkthrough
-{logical order explanation}
+{data flow / call chain order explanation}
+
+## Watch Out
+- {gotcha for future developers}
+
+## Design Alignment
+{deviations or "follows design"}
+
+## Code Quality
+{concerns or "no issues"}
 ```
 
 ---
 
-## Step 4: User Feedback [STOP:respond]
+## Step 5: User Feedback
 
-Ask user:
-
-```
-Anything to adjust or note before closing?
-- Issues to fix → return to execute
-- Decisions to reconsider → note in handoff
-- All good → proceed to next stage
-```
+Anything to adjust before closing? If there are issues to fix, I'll go back to execute.
 
 If user has feedback → update handoff with user's notes. If fix needed → return to execute.
 
@@ -108,5 +123,6 @@ If user has feedback → update handoff with user's notes. If fix needed → ret
 - Review covers all tasks from execute
 - Key decisions documented with rationale
 - Change table complete
+- Design alignment and code quality checked
 - User feedback collected
 - Handoff written

@@ -8,6 +8,7 @@ Model: sonnet
 
 - **plan=1:** Minimal. Skip Step 2-3. Directly split tasks from design, basic anchors.
 - **plan=2:** Full Step 1-5.
+- Mode determination criteria: see SKILL.md → Mode Determination section.
 
 ## Input
 
@@ -30,8 +31,19 @@ B) Subagent-driven — tasks split into parallel chunks,
    dispatched to subagents. You verify after all complete.
 
 C) Deferred — save the plan and execute later.
-   Choose a trigger: specific time, after another sprint, or manual.
+   Choose a trigger: after another sprint, or manual.
 ```
+
+Then ask:
+
+```
+Commit strategy:
+
+A) Commit after each task completes
+B) Commit all changes together after sprint completes
+```
+
+Record choice in plan handoff under "Commit Preference".
 
 ### Option C: Deferred Execution
 
@@ -40,9 +52,8 @@ If user picks C, collect trigger strategy:
 ```
 When should this sprint resume?
 
-A) At a specific time — e.g. "tomorrow 10am", "2026-04-09 14:00"
-B) After sprint {id} completes — chain with another sprint
-C) Manual — run `/todo {sprint_id}` when ready
+A) /loop polling — resume within an active session (requires session to stay open)
+B) Manual — run `/todo {sprint_id}` when ready (cross-session)
 ```
 
 Then:
@@ -51,20 +62,19 @@ Then:
    ```json
    {
      "sprint_id": "{id}",
-     "type": "at|after|manual",
-     "spec": "{ISO time or sprint id or null}",
+     "type": "loop|manual",
+     "spec": "{null or loop interval}",
      "resume_stage": "execute",
      "created_at": "{ISO timestamp}"
    }
    ```
-3. For `type=at`: create macOS launchd plist at `~/Library/LaunchAgents/com.loppy.trigger-{id}.plist` to invoke `claude` CLI at the scheduled time. If in an active session, also start a `/loop` polling check.
-4. For `type=after`: no extra setup — `sprint-ctl.sh end` checks triggers.json automatically.
-5. For `type=manual`: no extra setup — user runs `/todo {sprint_id}` when ready.
-6. Skip execute stage. Write plan handoff as normal, then end the pipeline at plan stage.
+3. For `type=loop`: start a `/loop` polling check within the active session.
+4. For `type=manual`: no extra setup — user runs `/todo {sprint_id}` when ready.
+5. Skip execute stage. Write plan handoff as normal, then end the pipeline at plan stage.
 
 Output:
 ```
-> Sprint #{id} plan saved. Trigger: {type} {spec}
+> Sprint #{id} plan saved. Trigger: {type}
 > Resume with: /todo {id}
 ```
 
@@ -72,71 +82,22 @@ Output:
 
 ## Step 2: Spec Preferences (plan=2 only)
 
-Present 3 groups of multi-choice preference questions based on delivery form. One round, user answers all at once.
+Read the design handoff content and extract 2-3 relevant preference questions based on what is actually ambiguous or undecided. Do not use fixed templates.
 
-### Question templates by type
+Rules:
+- If the design already implies a preference (e.g., "minimal-diff approach", "pixel-perfect to mockup"), show the inferred preference and ask user to confirm rather than re-asking.
+- Only ask about dimensions where genuine ambiguity exists.
+- One round — user answers all at once.
 
-**Development tasks:**
+Example output format:
 ```
-1. Priority ranking (pick top 2):
-   □ Minimize blast radius
-   □ Architecture cleanliness
-   □ Production stability
-   □ Development speed
-   □ Test coverage
+Based on the design, I've inferred:
+- Change strategy: Minimal diff (design specifies touch as few files as possible) ✓ confirm?
 
-2. Change strategy:
-   □ Minimal diff — touch as few files as possible
-   □ Clean cut — refactor if it makes the change cleaner
-   □ Future-proof — design for next iteration too
-
-3. Compatibility:
-   □ Must be backward compatible
-   □ Can break internal APIs if cleaner
-   □ Full rewrite acceptable
+Open questions:
+1. Compatibility: Must be backward compatible, or can internal APIs break if cleaner?
+2. Test coverage: Add tests for new code only, or also cover adjacent touched code?
 ```
-
-**Design/UI tasks:**
-```
-1. Priority ranking (pick top 2):
-   □ Visual polish
-   □ Interaction smoothness
-   □ Consistency with existing UI
-   □ Development speed
-   □ Accessibility
-
-2. Scope:
-   □ Pixel-perfect to mockup
-   □ Close enough, polish later
-   □ Functional first, style second
-
-3. Platform:
-   □ Light mode only
-   □ Dark mode only
-   □ Both modes
-```
-
-**Strategy/Policy tasks:**
-```
-1. Priority ranking (pick top 2):
-   □ Accuracy of decisions
-   □ Explainability
-   □ Performance/latency
-   □ Configurability
-   □ Simplicity
-
-2. Edge cases:
-   □ Handle all known edges now
-   □ Handle common cases, log rare ones
-   □ Fail safe on unknowns
-
-3. Tuning:
-   □ Hardcode good defaults
-   □ User-configurable parameters
-   □ Auto-tuning
-```
-
-Select the template matching the delivery form from design. Adapt questions to specific context.
 
 ---
 
@@ -173,25 +134,59 @@ Wait for user to confirm or add information.
 
 ## Step 4: Generate Anchors
 
-Extract verifiable assertions from:
-- Design constraints (do-not-touch files, dependency rules)
-- Spec preferences (backward compat → FILE_NOT_MODIFIED)
+### Systematic extraction
+
+Auto-generate anchors from these sources in the design handoff:
+
+| Source in design handoff | Auto-generated anchor |
+|--------------------------|----------------------|
+| File structure: create files | `MUST_EXIST {path}` |
+| Constraints: do-not-touch files | `FILE_NOT_MODIFIED {path}` |
+| Dependencies: forbidden imports | `MUST_NOT_IMPORT {target} {module}` |
+| Project has tests | `MUST_TEST` |
+| Project is buildable | `MUST_BUILD` |
+
+Also extract from:
+- Spec preferences (backward compat → `FILE_NOT_MODIFIED`)
 - Decision points (risk mitigations → specific checks)
 
-Write to `.sprint/{id}/anchors.txt`:
+### User confirmation
+
+Present the extracted anchor list to user:
 
 ```
-MUST_BUILD
-MUST_TEST
-MUST_NOT_IMPORT {target} {module}
-MUST_EXIST {path}
-FILE_NOT_MODIFIED {path}
-...
+Extracted anchors:
+  MUST_BUILD
+  MUST_TEST
+  MUST_EXIST src/foo/bar.swift
+  FILE_NOT_MODIFIED src/core/legacy.swift
+
+Add, remove, or modify any anchors before I write them?
 ```
+
+Wait for user response, then write final anchors to `.sprint/{id}/anchors.txt`.
 
 ---
 
 ## Step 5: Split Tasks
+
+### Task Splitting Rules
+
+**Independent verifiability:** Each task can be verified standalone — it builds, tests pass, and behavior is observable without completing other tasks.
+
+**Single responsibility:** One task = one concern. Do not mix "add feature" + "refactor existing" in the same task.
+
+**Token budget constraint:**
+
+| Size | Files | Lines Changed | Model | Est. Tokens |
+|------|-------|--------------|-------|-------------|
+| S | 1 file | <50 lines | sonnet | ~5K |
+| M | 2-3 files | 50-200 lines | sonnet | ~15K |
+| L | 3-5 files | 200-500 lines | opus | ~30K |
+| XL | 5+ files | 500+ lines | — | Must split further |
+
+- XL tasks must be split to L or below before execution.
+- S tasks may be merged only if merging does not break independent verifiability.
 
 ### Step-by-step mode
 
@@ -253,13 +248,26 @@ Aggregate all files from all tasks:
 
 ## Step 6: User Confirm
 
-Present full plan to user:
-- Execution mode
-- Spec preferences summary
-- Decision points
-- Anchor rules
-- Task/chunk list with verify criteria
-- Expected files
+Present summary overview first:
+
+```
+Execution mode: {step-by-step / subagent-driven / deferred}
+Commit preference: {after each task / after sprint completes}
+Anchor: {N} rules
+
+Task 1: {title} — {N} files, {model}
+Task 2: {title} — {N} files, {model}
+Task 3: {title} — {N} files, {model}
+
+Expected Files: {total count}
+```
+
+Then ask:
+```
+Confirm the plan, or expand a specific task for details?
+```
+
+If user requests details on a specific task, show the full task block (files, steps, model, verify). Then re-confirm.
 
 Wait for user confirmation before writing handoff.
 
@@ -273,7 +281,10 @@ Write `.sprint/{id}/handoffs/plan.md`:
 # plan Handoff
 
 ## Execution Mode
-{step-by-step / subagent-driven}
+{step-by-step / subagent-driven / deferred}
+
+## Commit Preference
+{after each task / after sprint completes}
 
 ## Spec Preferences
 - {preference 1}
@@ -307,15 +318,17 @@ Subagent-driven: all chunks parallel, then unified verify.
 ## Completion
 
 - Execution mode confirmed
+- Commit preference confirmed
 - Specs confirmed (plan=2)
 - Decision points reviewed (plan=2)
-- anchors.txt written
+- Anchors confirmed by user, anchors.txt written
+- All tasks satisfy splitting rules (no XL tasks)
 - All tasks have: files, steps, model, AI verify, user verify
 - Expected files listed
 - User confirmed full plan
 
 ## Recovery
 
-- Task too large → split further
+- Task too large → split further (XL → L or below)
 - Missing verify criteria → add before execution
 - Design gap found → return to design stage

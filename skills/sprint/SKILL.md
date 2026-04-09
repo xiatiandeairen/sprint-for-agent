@@ -107,7 +107,30 @@ bash "$SPRINT_CTL" evaluate {gc} {ss} {rl} {vd} {keywords...}
 
 execute and insight: always.
 
-Render evaluate result in formatted block. [STOP:confirm] before creating sprint.
+### Mode Determination
+
+Evaluate also determines the mode level for each stage that has modes:
+
+| Mode | Determines | Level 1 (light) | Level 2 (deep) |
+|------|-----------|-----------------|----------------|
+| clarify | brainstorm depth | Goal clear, uncertainty is "how" not "what" | Strategic/exploratory description + new Object + no clear exclusions |
+| design | design depth | Direction already clear from brainstorm | Multiple technical paths need comparison |
+| plan | plan depth | Small scope or few files | Cross-module changes + risk points exist |
+
+Mode levels are output alongside stage trimming in the evaluate result.
+
+### Evaluate Output
+
+Render evaluate result in formatted block. Wait for user confirmation before creating sprint.
+
+Evaluate output format:
+```
+> [评估] {description}
+> 流水线: {stage1} → {stage2} → ...
+> 模式: clarify={N}, design={N}, plan={N}
+> 跳过: {stages}
+> 理由: {one-line justification per stage and mode}
+```
 
 ```bash
 # [RUN] after confirm
@@ -155,14 +178,35 @@ Metrics: `{timestamp}|{event}|{data...}` — sprint_start, stage_start, stage_en
 
 For each stage in trimmed pipeline:
 
-1. `[TASK] {stage}`
-2. `bash "$SPRINT_CTL" stage "{id}" "{stage}" running`
-3. Read `stages/{stage}.md`, execute by level from evaluate output
-4. Write handoff if applicable
-5. `bash "$SPRINT_CTL" stage "{id}" "{stage}" completed`
-6. TaskUpdate completed
+1. `bash "$SPRINT_CTL" stage "{id}" "{stage}" running`
+2. Read `stages/{stage}.md`, execute by level from evaluate output
+3. Write handoff if applicable
+4. `bash "$SPRINT_CTL" stage "{id}" "{stage}" completed`
 
-Chaining: each stage reads upstream handoff. design skipped → plan uses user description. execute reads plan + anchors.txt. quality reads execute handoff. review reads execute handoff + git diff.
+### Stage Task Rules
+
+- Do NOT create a TaskCreate for each stage. Stage progress is tracked by sprint-ctl.
+- Within a stage, create TaskCreate only when the stage has multi-step procedural work that benefits from progress tracking (e.g., design Step 5 detail decisions, execute implementation tasks).
+- For confirmation-oriented work within a stage, use checklist display instead of tasks.
+
+### Stage Transition Rules
+
+- Each stage must reach full consensus with user on all discussion items before moving to next stage.
+- When presenting issues/improvements for discussion, go through each item and reach agreement before declaring the stage complete.
+- Explicitly tell user "entering next stage: {name}" and get confirmation before proceeding.
+
+### User-Facing Communication
+
+- All internal markers (`[STOP:confirm]`, `[STOP:choose]`, `[STOP:respond]`, `[TASK]`, stage/level/step numbers) must NEVER appear in user-facing output.
+- Use natural language prompts instead:
+  - Confirmation: "以上理解是否准确？有需要调整的地方请指出。"
+  - Choice: "请选择一个方向：" followed by A/B/C options
+  - Response: "你觉得呢？" or context-appropriate question
+- SKILL.md and stage files still use these markers as AI behavior instructions internally.
+
+### Chaining
+
+Each stage reads upstream handoff. design skipped → plan uses user description. execute reads plan + anchors.txt. quality reads execute handoff. review reads execute handoff + git diff.
 
 ```bash
 # [RUN] after all stages

@@ -8,14 +8,13 @@ Pure conversation. Do NOT read code, files, or docs. All evidence comes from the
 
 - Never ask broad open-ended exploratory questions.
 - Only expand from confirmed hypotheses.
-- Ask at most one follow-up question per round.
 - Prefer multiple-choice questions (always 3 options).
 - Each question must state why it is being asked.
 - If no question materially changes the output, converge.
 
 ## Mode
 
-From evaluate output `clarify` level:
+From evaluate output `clarify` level. Grading criteria defined in SKILL.md (Mode Determination section).
 
 - **clarify=1:** Layer 1 → Layer 3 (demand modeling only)
 - **clarify=2:** Layer 1 → Layer 2 → Layer 3 (demand modeling + value mining)
@@ -39,12 +38,32 @@ Turn vague input into a 6-slot demand frame.
 
 **Step 1-2:** Extract visible slots from user description. Identify missing/ambiguous slots. Rank gaps by downstream impact.
 
-**Step 3:** For each missing slot, ask one question with 3 options. Wait for reply before asking the next slot.
+**Step 3a:** Present all slots AI inferred from the user description. Ask user to confirm or correct in one round:
 
-Format per question:
 ```
-{Why this matters for downstream}: {slot name} is unclear.
+Here's what I inferred from your description:
+- Goal: {inferred value}
+- Object: {inferred value}
+- Constraint: {inferred value or "not mentioned"}
+- Context: {inferred value or "not mentioned"}
+- Success: {inferred value or "not mentioned"}
+- Priority: {inferred value or "not mentioned"}
 
+Does this look right? Correct anything that's off.
+```
+
+**Step 3b:** For remaining unfilled or ambiguous slots after Step 3a, present all clarification questions in ONE round (not one-by-one). Max 2 rounds total (3a + 3b) to complete all slots.
+
+Format — all questions at once:
+```
+A few things are still unclear:
+
+[Slot 1 — {why it matters}]
+A) {most likely interpretation}
+B) {alternative}
+C) {another alternative}
+
+[Slot 2 — {why it matters}]
 A) {most likely interpretation}
 B) {alternative}
 C) {another alternative}
@@ -66,6 +85,14 @@ C) {another alternative}
 ```
 
 User confirms → Demand Anchor locked. Corrections → update and re-confirm.
+
+After presenting the demand frame, add a mode switch prompt:
+
+```
+Current mode: {clarify=1: skips value mining | clarify=2: includes value mining}.
+{If clarify=1: Want to explore additional value directions? Say so and I'll switch to value mining mode.}
+{If clarify=2: If the scope is already clear enough, we can skip value mining and go straight to conclusion.}
+```
 
 ---
 
@@ -98,22 +125,32 @@ Which matter to you? Any / none / other?
 
 ### Value Anchor Expansion
 
-For each confirmed value anchor, explore 4 facets sequentially. One question per facet, each with 3 options. Wait for reply before next facet.
+For each confirmed value anchor, present all 4 facets at once with AI's recommended values. User only corrects the ones they disagree with.
 
-| Facet      | Question                                                    |
-| ---------- | ----------------------------------------------------------- |
-| Scope      | How broadly does this value point apply?                    |
-| Priority   | How important is this compared to your primary goal?        |
-| Operational| What additional info is needed to deliver this value?       |
-| Boundary   | Where should this value point NOT extend to?                |
+| Facet       | Question                                                    |
+| ----------- | ----------------------------------------------------------- |
+| Scope       | How broadly does this value point apply?                    |
+| Priority    | How important is this compared to your primary goal?        |
+| Operational | What additional info is needed to deliver this value?       |
+| Boundary    | Where should this value point NOT extend to?                |
 
-Format per facet:
+Format — all facets in one round per value anchor:
 ```
-{Facet context}: {why asking this}
+Value Anchor: "{anchor}"
+- Scope: {A/B/C} (recommended) — {brief rationale}
+- Priority: {A/B/C} (recommended) — {brief rationale}
+- Operational: {A/B/C} (recommended) — {brief rationale}
+- Boundary: {A/B/C} (recommended) — {brief rationale}
 
-A) {option}
-B) {option}
-C) {option}
+Mark which ones to change, or confirm all.
+```
+
+Options per facet (always 3):
+```
+Scope       — A) this feature only  B) this module  C) system-wide
+Priority    — A) secondary to goal  B) equal weight  C) higher than goal
+Operational — A) no extra info needed  B) needs {x}  C) needs {x} and {y}
+Boundary    — A) strict limit  B) soft limit  C) no explicit limit
 ```
 
 ### Dig Deeper Loop

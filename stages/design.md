@@ -4,8 +4,10 @@ From confirmed demand to concrete solution design. Goal: plan stage can split ta
 
 ## Mode
 
-- **design=1:** Skip Step 1-2. Start from Step 3 (industry insight, simplified) or Step 4 directly if approach is obvious.
-- **design=2:** Full Step 1-4. Demand modeling → decision convergence → industry insight → solution alignment.
+Mode criteria are defined in SKILL.md (Mode Determination section). Reference that for design=1 vs design=2 rules.
+
+- **design=1:** Skip Step 1-2. Start from Step 3 (conditional) or Step 4 directly if approach is obvious.
+- **design=2:** Full Step 1-4. Demand modeling → decision convergence → industry insight (conditional) → solution alignment.
 
 ## Input
 
@@ -86,7 +88,7 @@ Only selected needs proceed to Step 2. Unselected needs are logged as "out of sc
 
 ## Step 2: Decision Convergence (design=2 only)
 
-Narrow down the solution space through binary tradeoff questions. Ask 3 questions per round, user answers all 3 before next round.
+Narrow down the solution space through binary tradeoff questions. Present all 3 questions in one batch; user answers all at once.
 
 ### Question Pool (select most relevant per context)
 
@@ -106,11 +108,12 @@ Narrow down the solution space through binary tradeoff questions. Ask 3 question
 ### Execution
 
 1. Pick 3 most discriminating questions for the current context
-2. Present with A/B options, wait for all 3 answers
-3. Narrow solution space based on answers
-4. If answers already point to a clear direction (all 3 align to same approach) → skip remaining rounds, go to output
-5. If still ambiguous, pick next 3 questions, repeat (max 3 rounds)
-6. Once converged, output 3 concrete task goals ranked by fit:
+2. Present all 3 as a single batch with A/B options; wait for user to answer all at once
+3. Add skip instruction at the end of the batch: "If the direction is already clear from these answers, reply **skip** to skip remaining rounds."
+4. Narrow solution space based on answers
+5. If answers already point to a clear direction (all 3 align to same approach) OR user replies "skip" → stop, go to output
+6. If still ambiguous, pick next 3 questions, present as another batch, repeat (max 3 rounds)
+7. Once converged, output 3 concrete task goals ranked by fit:
 
 ```
 Based on your preferences, the task goals are:
@@ -137,7 +140,21 @@ Only selected goals proceed to Step 3. Unselected goals logged as "deferred" in 
 
 ---
 
-## Step 3: Industry Insight
+## Step 3: Industry Insight (conditional)
+
+**Trigger condition:** Only execute when design=2 AND the task involves technology selection or approach comparison (e.g., choosing between frameworks, architectural patterns, or competing implementation strategies).
+
+If the trigger condition is not met, skip this step entirely.
+
+If triggered, ask the user first:
+
+```
+There may be relevant industry practices for this decision. Want me to research?
+```
+
+If user says no, skip entirely. Only proceed if user confirms yes.
+
+### Execution (when triggered and user says yes)
 
 For each confirmed task goal, research along this chain:
 
@@ -145,25 +162,23 @@ For each confirmed task goal, research along this chain:
 User problem → Mechanism → Industry implementation patterns → Company tradeoffs → Evolution trend
 ```
 
-### Execution
-
-For each task goal, present 4 perspectives:
+Present 4 perspectives per goal:
 
 ```
 ═══════════════════════════════════════
-  🔍 Industry Insight: {task goal}
+  Industry Insight: {task goal}
 ═══════════════════════════════════════
 
-  🚀 Frontier
+  Frontier
   {cutting edge approaches, latest research}
 
-  📏 Standard
+  Standard
   {industry norms, established best practices}
 
-  🌐 Popular
+  Popular
   {most widely adopted, community favorites}
 
-  🎯 Recommended
+  Recommended
   {best fit for current project context, with rationale}
 
 ═══════════════════════════════════════
@@ -232,7 +247,32 @@ Wait for user confirmation. Corrections → update and re-present.
 
 ---
 
-## Step 5: Write handoff
+## Step 5: Implementation Priority Review (skippable)
+
+After Solution Alignment and before writing the handoff, extract all detail items that require a decision, create tasks for visibility, and walk through each with the user.
+
+### Procedure
+
+**5a: Extract**
+Extract all `detail` category items from the Decision Register that are not yet `confirmed`. Sort by implementation dependency (depended-upon items first).
+
+**5b: Create tasks**
+For each detail item, create a TaskCreate with:
+- Title: the decision point
+- Status: open
+
+This gives the user visibility into how many details remain to confirm.
+
+**5c: Discuss and close**
+Walk through each item sequentially: present recommended approach + alternatives. When the user confirms, call TaskUpdate to mark that task as completed and update the Decision Register entry to `confirmed`.
+
+### Skip Condition
+
+User says "skip" or "go to plan" → skip this step; remaining `detail` items stay at `direction` and are left for plan/execute to resolve.
+
+---
+
+## Step 6: Write handoff
 
 Write `.sprint/{id}/handoffs/design.md`:
 
@@ -275,11 +315,48 @@ Write `.sprint/{id}/handoffs/design.md`:
 
 ## Completion
 
-- Demand modeling done, user confirmed delivery form (design=2)
-- Decision convergence done, task goals confirmed (design=2)
-- Industry insight confirmed
-- Solution design confirmed
-- Handoff written
+Design handoff must include a Decision Register. User confirmation required before marking design as completed.
+
+### Decision Register
+
+Handoff must contain a structured decision ledger:
+
+```markdown
+## Decision Register
+
+| # | Decision Point | Category | Status | Conclusion |
+|---|----------------|----------|--------|------------|
+| 1 | ... | core | ✓ confirmed | ... |
+| 2 | ... | core | ✓ confirmed | ... |
+| 3 | ... | detail | ○ direction | ... |
+```
+
+**Status definitions:**
+- `✓ confirmed` — Clear conclusion; downstream can execute directly
+- `○ direction` — Direction set but details pending; plan stage may fill in
+- `✗ open` — Not yet discussed
+
+**Category definitions:**
+- `core` — Decisions that affect architecture, primary flow, or system-level behavior; must be resolved before plan
+- `detail` — Implementation specifics that do not affect architecture; can remain at `direction`
+
+### Exit Rules
+
+1. No `open` status allowed
+2. All `core` entries **must** be `confirmed` before entering plan
+3. `detail` entries may remain at `direction`
+4. Decision Register must be reviewed and confirmed by the user
+
+### Checklist
+
+- [ ] Demand modeling done, user confirmed delivery form (design=2)
+- [ ] Decision convergence done, task goals confirmed (design=2)
+- [ ] Industry insight: skipped (condition not met or user said no) OR confirmed by user
+- [ ] Solution design confirmed
+- [ ] Decision Register: no `open`, all `core` entries `confirmed`
+- [ ] Implementation Priority Review: detail items confirmed via tasks (or user skipped)
+- [ ] User confirmed Decision Register
+- [ ] Handoff written
 
 ## Early Exit
 
@@ -288,5 +365,5 @@ Write `.sprint/{id}/handoffs/design.md`:
 
 ## Recovery
 
-- Plan discovers design gap → return, fill, re-confirm
+- Plan discovers design gap → return to design, fill gap, re-confirm
 - User changes direction after seeing design → re-run from Step 2
