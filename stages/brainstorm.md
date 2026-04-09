@@ -4,9 +4,9 @@
 
 - total: 3
 - steps:
-  1. Layer 1: Demand Modeling
-  2. Layer 2: Value Mining
-  3. Layer 3: Converge
+  1. 明确你要做什么
+  2. 探索额外价值
+  3. 确认最终目标
 
 Align user intent through structured demand modeling and controlled value discovery.
 
@@ -24,8 +24,8 @@ Pure conversation. Do NOT read code, files, or docs. All evidence comes from the
 
 From evaluate output `clarify` level. Grading criteria defined in SKILL.md (Mode Determination section).
 
-- **clarify=1:** Layer 1 → Layer 3 (demand modeling only)
-- **clarify=2:** Layer 1 → Layer 2 → Layer 3 (demand modeling + value mining)
+- **quick:** Layer 1 → Layer 3 (demand modeling only)
+- **full:** Layer 1 → Layer 2 → Layer 3 (demand modeling + value mining)
 
 ---
 
@@ -46,38 +46,24 @@ Turn vague input into a 6-slot demand frame.
 
 **Step 1-2:** Extract visible slots from user description. Identify missing/ambiguous slots. Rank gaps by downstream impact.
 
-**Step 3a:** Present all slots AI inferred from the user description. Ask user to confirm or correct in one round:
+**Step 3:** Present inferred slots, clarification questions for gaps, and demand frame preview in ONE round:
 
 ```
-Here's what I inferred from your description:
-- Goal: {inferred value}
-- Object: {inferred value}
-- Constraint: {inferred value or "not mentioned"}
-- Context: {inferred value or "not mentioned"}
-- Success: {inferred value or "not mentioned"}
-- Priority: {inferred value or "not mentioned"}
+Here's what I inferred — confirm, correct, or fill in the blanks:
 
-Does this look right? Correct anything that's off.
+- **Goal**: {inferred value}
+- **Object**: {inferred value}
+- **Constraint**: {inferred value or "not mentioned — A) ... B) ... C) ..."}
+- **Context**: {inferred value or "not mentioned — A) ... B) ... C) ..."}
+- **Success**: {inferred value or "not mentioned — A) ... B) ... C) ..."}
+- **Priority**: {inferred value or "not mentioned — A) ... B) ... C) ..."}
+
+For slots marked "not mentioned", pick the option that fits or write your own.
 ```
 
-**Step 3b:** For remaining unfilled or ambiguous slots after Step 3a, present all clarification questions in ONE round (not one-by-one). Max 2 rounds total (3a + 3b) to complete all slots.
+User confirms → Demand Anchor locked. Corrections → update and re-confirm (max 1 follow-up round).
 
-Format — all questions at once:
-```
-A few things are still unclear:
-
-[Slot 1 — {why it matters}]
-A) {most likely interpretation}
-B) {alternative}
-C) {another alternative}
-
-[Slot 2 — {why it matters}]
-A) {most likely interpretation}
-B) {alternative}
-C) {another alternative}
-```
-
-**Step 4:** Present filled frame to user:
+**Step 4:** After user replies, present the final demand frame (no additional confirmation round unless user made corrections):
 
 ```
 ### 📋 Demand Frame
@@ -90,8 +76,6 @@ C) {another alternative}
 - **⚡ Priority**: {ranking or "single item"}
 ```
 
-User confirms → Demand Anchor locked. Corrections → update and re-confirm.
-
 After presenting the demand frame, add a mode switch prompt:
 
 ```
@@ -101,7 +85,7 @@ After presenting the demand frame, add a mode switch prompt:
 
 ---
 
-## Layer 2: Value Mining (clarify=2 only)
+## Layer 2: Value Mining (full mode only)
 
 Controlled hypothesis generation across 4 quadrants:
 
@@ -234,7 +218,7 @@ User confirms → write handoff.
 - 6-slot frame filled, user confirmed
 - Conclusion + example confirmed
 - Handoff written
-- Value anchors + facets explored (clarify=2 only)
+- Value anchors + facets explored (full mode only)
 
 ## Early Exit
 
