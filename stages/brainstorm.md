@@ -125,18 +125,21 @@ For each confirmed value anchor, present all 4 facets at once with AI's recommen
 | Operational | What additional info is needed to deliver this value?       |
 | Boundary    | Where should this value point NOT extend to?                |
 
-Format — all facets in one round per value anchor:
+Format — recommendation-first table per value anchor:
 ```
 Value Anchor: "{anchor}"
-- Scope: {A/B/C} (recommended) — {brief rationale}
-- Priority: {A/B/C} (recommended) — {brief rationale}
-- Operational: {A/B/C} (recommended) — {brief rationale}
-- Boundary: {A/B/C} (recommended) — {brief rationale}
 
-Mark which ones to change, or confirm all.
+| 维度 | 推荐 | 理由 |
+|------|------|------|
+| 范围 | {recommended value} | {brief rationale} |
+| 优先级 | {recommended value} | {brief rationale} |
+| 前置信息 | {recommended value} | {brief rationale} |
+| 边界 | {recommended value} | {brief rationale} |
+
+全部接受，或标出要改的维度。
 ```
 
-Options per facet (always 3):
+If user flags a dimension, expand that dimension only with 3 options:
 ```
 Scope       — A) this feature only  B) this module  C) system-wide
 Priority    — A) secondary to goal  B) equal weight  C) higher than goal

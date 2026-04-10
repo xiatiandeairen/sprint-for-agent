@@ -59,11 +59,22 @@ For each dimension, try to infer from design handoff:
 
 ### Display Rules
 
-- All core questions always displayed
-- Inferred: one line with default value and source — `Q1. 改动时遇到周边小问题，要顺手修吗？→ 只改必须改的（design 指定最小变更）`
-- Undecided: list options — `Q2. 这次要解决根本原因，还是先堵住？\n   A) 先堵住  B) 追到底`
-- Auxiliary questions only appear when ambiguous, same format as undecided
-- End with: `有需要调整的说编号，没问题就继续。`
+Use recommendation-first table. Infer defaults from design handoff; mark undecided ones.
+
+```
+| 偏好 | 推荐 | 来源 |
+|------|------|------|
+| 改动范围 | 只改必须改的 | design 指定最小变更 |
+| 修复深度 | 追到底 | design 要求重构 |
+| 过渡策略 | 待定 | design 未提及 |
+| 接口兼容 | 内部可破坏 | design 指定内部重构 |
+
+"待定"项需要你选择，其余有需要调整的说一声。
+```
+
+- Inferred dimensions: show recommended value + source in table
+- Undecided dimensions: show "待定" in table; if user asks, expand with A/B options
+- Auxiliary questions (Q5/Q6): only add rows when design handoff has ambiguity on those dimensions
 
 ---
 
@@ -203,7 +214,7 @@ Aggregate all files from all tasks:
 
 Model: sonnet
 
-Present task summary and execution options together:
+Present task summary with recommended execution strategy:
 
 ```
 **Tasks**:
@@ -215,15 +226,18 @@ Present task summary and execution options together:
 **Anchors**: {N} rules
 **Expected Files**: {total count}
 
-Execution mode:
-A) Step-by-step — run tasks one at a time, verify each before next
-B) Parallel — dispatch to subagents, verify after all complete
-C) Deferred — save plan, execute later
-
-Commit strategy:
-A) Commit after each task
-B) Commit all together after sprint
+**推荐**: {execution mode} + {commit strategy}
+💡 {one-line rationale for the recommendation}
 ```
+
+AI selects the recommendation based on task characteristics:
+- All tasks S/M + independent → Parallel + commit together
+- Tasks have dependencies → Step-by-step + commit each
+- User expressed "later" / "not now" intent → Deferred
+
+If user disagrees, expand options:
+- Execution: Step-by-step / Parallel / Deferred
+- Commit: after each task / all together
 
 If user requests details on a specific task, show the full task block (files, steps, model, verify). Then re-confirm.
 

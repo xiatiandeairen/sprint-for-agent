@@ -178,6 +178,47 @@ For each stage in trimmed pipeline:
   - Response: "你觉得呢？" or context-appropriate question
 - SKILL.md and stage files still use these markers as AI behavior instructions internally.
 
+### Presentation Format
+
+When presenting multi-dimensional choices (≥3 dimensions or ≥3 options per dimension), use the **recommendation-first** pattern:
+
+**Principle:** Most users confirm the recommendation. Don't force everyone to parse all options.
+
+**Format:**
+
+1. **Table with recommendations** — one row per dimension, columns: dimension name, recommended value, brief rationale. User scans and confirms in one round.
+
+```
+| 维度 | 推荐 | 理由 |
+|------|------|------|
+| {dim1} | {recommended} | {why} |
+| {dim2} | {recommended} | {why} |
+
+全部接受，或标出要改的维度。
+```
+
+2. **Expand on demand** — user flags a dimension → show A/B/C options for that dimension only. Do not pre-expand all dimensions.
+
+3. **Mark instead of combo** — when user selects a subset from a list, use "mark which to include/exclude" instead of enumerating A/B/C/D/E combinations.
+
+```
+# Good — mark to exclude
+1. {item1}
+2. {item2}
+3. {item3}
+
+默认全部包含。要排除哪些？
+
+# Bad — combinatorial options
+A) All
+B) 1 only
+C) 1 + 2
+D) 1 + 3
+E) Other
+```
+
+**When NOT to apply:** Binary choices (A/B) and single-dimension selections (pick one from 3) remain inline — the overhead of a table is worse than the density.
+
 ### Confirmation Skip
 
 Users can skip confirmation points by expressing skip intent (go, ok, continue, 下一步, 跳过, etc.). AI judges by intent, no specific keywords required:

@@ -84,13 +84,13 @@ Your need "{need}" could be solved as:
 Wait for user to confirm delivery form per need. Then ask which needs to include in this sprint:
 
 ```
-Which needs to include in this sprint?
+This sprint includes:
 
-A) All
-B) {need 1} only
-C) {need 1} + {need 2}
-D) {need 1} + {need 3}
-E) Other combination
+1. {need 1}
+2. {need 2}
+3. {need 3}
+
+默认全部包含。要排除哪些？
 ```
 
 Only selected needs proceed to Step 2. Unselected needs are logged as "out of scope" in handoff.
@@ -145,12 +145,13 @@ Wait for user to confirm. If none fits, continue asking.
 Then ask which task goals to include in this sprint:
 
 ```
-Which task goals to include?
+This sprint includes:
 
-A) All
-B) {goal 1} only
-C) {goal 1} + {goal 2}
-D) Other combination
+1. {goal 1}
+2. {goal 2}
+3. {goal 3}
+
+默认全部包含。要排除哪些？
 ```
 
 Only selected goals proceed to Step 3. Unselected goals logged as "deferred" in handoff.
