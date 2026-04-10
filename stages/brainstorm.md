@@ -20,16 +20,11 @@ Pure conversation. Do NOT read code, files, or docs. All evidence comes from the
 - Each question must state why it is being asked.
 - If no question materially changes the output, converge.
 
-## Mode
-
-From evaluate output `clarify` level. Grading criteria defined in SKILL.md (Mode Determination section).
-
-- **quick:** Layer 1 → Layer 3 (demand modeling only)
-- **full:** Layer 1 → Layer 2 → Layer 3 (demand modeling + value mining)
-
 ---
 
-## Layer 1: Demand Modeling
+## Step 1: Demand Modeling
+
+Model: opus
 
 Turn vague input into a 6-slot demand frame.
 
@@ -76,16 +71,23 @@ User confirms → Demand Anchor locked. Corrections → update and re-confirm (m
 - **⚡ Priority**: {ranking or "single item"}
 ```
 
-After presenting the demand frame, add a mode switch prompt:
+After presenting the demand frame, present the Gate question for Step 2:
 
 ```
-{If demand modeling only: Want to explore additional value directions? Say so and I'll switch to value mining mode.}
-{If full mode: If the scope is already clear enough, we can skip value mining and go straight to conclusion.}
+你的需求背后是否有未发现的价值方向？
+
+💡 如果这是一个明确的功能点实现，直接进入结论；如果是新方向或战略性需求，值得探索。
 ```
 
 ---
 
-## Layer 2: Value Mining (full mode only)
+## Step 2: Value Mining
+
+Gate: 你的需求背后是否有未发现的价值方向？
+
+💡 如果这是一个明确的功能点实现，跳过；如果是新方向或战略性需求，值得探索。
+
+Model: opus
 
 Controlled hypothesis generation across 4 quadrants:
 
@@ -155,11 +157,13 @@ B) Converge — proceed with current results
 
 **Loop limits:**
 - After 3 rounds without user confirming convergence → ask user to redefine boundaries via counter-questions, then anchor.
-- Maximum 6 rounds total. After round 6 → force converge to Layer 3.
+- Maximum 6 rounds total. After round 6 → force converge to Step 3.
 
 ---
 
-## Layer 3: Converge
+## Step 3: Converge
+
+Model: sonnet
 
 **Step 8:** Present conclusion:
 
@@ -218,13 +222,13 @@ User confirms → write handoff.
 - 6-slot frame filled, user confirmed
 - Conclusion + example confirmed
 - Handoff written
-- Value anchors + facets explored (full mode only)
+- Value anchors + facets explored (if Step 2 entered)
 
 ## Early Exit
 
 - Needs already fully specific → skip to Step 8, still confirm conclusion
-- No reasonable hypotheses → skip Layer 2
-- User rejects value mining → skip Layer 2
+- Gate not passed → skip Step 2
+- No reasonable hypotheses in Step 2 → proceed to Step 3
 
 ## Recovery
 

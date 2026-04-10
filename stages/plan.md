@@ -13,14 +13,6 @@
 
 From design handoff to executable task list. Determine specs, identify risks, generate anchors, split tasks.
 
-Model: sonnet
-
-## Mode
-
-- **quick:** Minimal. Skip Step 1-2. Directly split tasks from design, basic anchors.
-- **full:** Full Step 1-5.
-- Mode determination criteria: see SKILL.md → Mode Determination section.
-
 ## Input
 
 - design handoff: delivery form, design content, file structure, constraints
@@ -28,28 +20,60 @@ Model: sonnet
 
 ---
 
-## Step 1: Spec Preferences (full only)
+## Step 1: Spec Preferences
 
-Read the design handoff content and extract 2-3 relevant preference questions based on what is actually ambiguous or undecided. Do not use fixed templates.
+Model: sonnet
 
-Rules:
-- If the design already implies a preference (e.g., "minimal-diff approach", "pixel-perfect to mockup"), show the inferred preference and ask user to confirm rather than re-asking.
-- Only ask about dimensions where genuine ambiguity exists.
-- One round — user answers all at once.
+Gate: 实现方式是否有多种选择（改动范围、过渡策略、兼容性）？
 
-Example output format:
-```
-Based on the design, I've inferred:
-- Change strategy: Minimal diff (design specifies touch as few files as possible) ✓ confirm?
+💡 如果只有一种显然的做法，跳过。如果改动涉及范围取舍、新旧过渡、兼容性约束等需要明确偏好的维度，进入偏好确认。
 
-Open questions:
-1. Compatibility: Must be backward compatible, or can internal APIs break if cleaner?
-2. Test coverage: Add tests for new code only, or also cover adjacent touched code?
-```
+Read the design handoff and determine each preference dimension. Show all core questions to user for confirmation. One round — user adjusts or confirms all at once.
+
+### Preference Dimensions
+
+Core (always show):
+
+| ID | User-facing question | Internal key | Option A | Option B |
+|----|---------------------|--------------|----------|----------|
+| Q1 | 改动时遇到周边小问题，要顺手修吗？ | scope | precise: 只改必须改的 | extended: 顺手清理改动范围内的 |
+| Q2 | 这次要解决根本原因，还是先把当前问题堵住？ | depth | patch: 先堵住，根因留后续 | root-cause: 追到底，彻底解决 |
+| Q3 | 新旧代码需要过渡期吗？ | transition | direct: 直接替换，不留旧代码 | incremental: 新旧并存，分步迁移 |
+| Q4 | 内部接口可以重新设计吗？ | compatibility | strict: 现有调用方都不动 | internal-break: 内部可破坏，对外不变 |
+
+Auxiliary (show only when design handoff has ambiguity on these):
+
+| ID | User-facing question | Internal key | Option A | Option B |
+|----|---------------------|--------------|----------|----------|
+| Q5 | 测试写到什么程度？ | test | minimal: 只测新增和改动的代码 | thorough: 受影响的相邻代码也补测试 |
+| Q6 | 有现成三方库能用，倾向引入还是自己写？ | dependency | built-in: 尽量不加新依赖 | external: 有成熟方案就用 |
+
+### Inference Rules
+
+For each dimension, try to infer from design handoff:
+- Design mentions "minimal changes" / "least impact" → scope=precise
+- Design mentions "refactor" / "restructure" → depth=root-cause
+- Design mentions "migration" / "deprecate" → transition=incremental
+- Design mentions "backward compatible" → compatibility=strict
+- No signal found → mark as undecided
+
+### Display Rules
+
+- All core questions always displayed
+- Inferred: one line with default value and source — `Q1. 改动时遇到周边小问题，要顺手修吗？→ 只改必须改的（design 指定最小变更）`
+- Undecided: list options — `Q2. 这次要解决根本原因，还是先堵住？\n   A) 先堵住  B) 追到底`
+- Auxiliary questions only appear when ambiguous, same format as undecided
+- End with: `有需要调整的说编号，没问题就继续。`
 
 ---
 
-## Step 2: Decision Points (full only)
+## Step 2: Decision Points
+
+Model: opus
+
+Gate: 改动是否可能引入兼容性问题、数据风险或集成冲突？
+
+💡 如果改动局部且自包含，跳过。如果涉及模块边界、数据格式变更或与现有功能的交互，需要识别风险点。
 
 Based on specs + design, identify potential decision points in implementation:
 
@@ -79,6 +103,8 @@ Wait for user to confirm or add information.
 ---
 
 ## Step 3: Generate Anchors
+
+Model: sonnet
 
 ### Systematic extraction
 
@@ -115,6 +141,8 @@ Wait for user response, then write final anchors to `.sprint/{id}/anchors.txt`.
 ---
 
 ## Step 4: Split Tasks
+
+Model: sonnet
 
 ### Task Splitting Rules
 
@@ -173,6 +201,8 @@ Aggregate all files from all tasks:
 
 ## Step 5: Confirm Tasks and Execution
 
+Model: sonnet
+
 Present task summary and execution options together:
 
 ```
@@ -220,6 +250,8 @@ Then:
 
 ## Step 6: Write Handoff
 
+Model: sonnet
+
 Write `.sprint/{id}/handoffs/plan.md`:
 
 ```markdown
@@ -232,8 +264,12 @@ Write `.sprint/{id}/handoffs/plan.md`:
 {after each task / after sprint completes}
 
 ## Spec Preferences
-- {preference 1}
-- {preference 2}
+- scope: {precise|extended}
+- depth: {patch|root-cause}
+- transition: {direct|incremental}
+- compatibility: {strict|internal-break}
+- test: {minimal|thorough} (if decided)
+- dependency: {built-in|external} (if decided)
 
 ## Decision Points
 - {point}: {mitigation}
@@ -262,8 +298,8 @@ Parallel: all tasks dispatched to subagents, then unified verify.
 
 ## Completion
 
-- Specs confirmed (full only, Step 1)
-- Decision points reviewed (full only, Step 2)
+- Specs confirmed (Step 1)
+- Decision points reviewed (Step 2)
 - Anchors confirmed by user, anchors.txt written (Step 3)
 - All tasks satisfy splitting rules (no XL tasks) (Step 4)
 - All tasks have: files, steps, model, AI verify, user verify (Step 4)

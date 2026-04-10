@@ -8,11 +8,6 @@
   2. 自定义检查
   3. 跨任务影响检查
 
-## Mode
-
-- **quick:** Step 1 only (automated build & test). Skip Step 2-3.
-- **full:** All steps. Step 1 auto checks + Step 2 custom scripts + Step 3 manual impact verification.
-
 Integration verification after execute completes. Focuses on **cross-task regression** — single-task verification was already done in execute.
 
 ## Input
@@ -47,6 +42,8 @@ Fail → return to execute to fix.
 
 ## Step 2: Custom Scripts
 
+Gate: 自动检测 — anchors.txt 存在或 scripts/quality/*.sh 目录非空时执行，否则跳过。
+
 Run project-specific quality scripts from convention directory:
 
 ```bash
@@ -66,6 +63,10 @@ fi
 All pass → Step 3. Any fail → return to execute to fix.
 
 ## Step 3: Impact Verification
+
+Gate: sprint 是否包含多个任务且任务间有文件交叉？
+
+💡 如果只有单个任务，跳过跨任务影响检查。如果多个任务修改了相关联的文件或模块，需要验证交叉影响。
 
 Focuses on **cross-task integration** only. Do NOT repeat single-task checks from execute.
 

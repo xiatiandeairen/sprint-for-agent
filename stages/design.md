@@ -14,13 +14,6 @@
 
 From confirmed demand to concrete solution design. Goal: plan stage can split tasks directly from design output.
 
-## Mode
-
-Mode criteria are defined in SKILL.md (Mode Determination section). Reference that for quick vs full rules.
-
-- **quick:** Skip Step 1-2. Start from Step 3 (conditional) or Step 4 directly if approach is obvious.
-- **full:** Full Step 1-4. Demand modeling → decision convergence → industry insight (conditional) → solution alignment.
-
 ## Input
 
 - brainstorm handoff (if exists): demand frame, scope, value points
@@ -28,7 +21,13 @@ Mode criteria are defined in SKILL.md (Mode Determination section). Reference th
 
 ---
 
-## Step 1: Demand Modeling (full only)
+## Step 1: Demand Modeling
+
+Model: opus
+
+Gate: 需求的解决方式是否不明确？
+
+💡 如果"做什么"清楚但"用什么形式做"不清楚（是功能、工作流、还是自动化？），需要分类。如果形式已明确，跳过。
 
 Classify each need into its optimal delivery form. Do not default to "feature" — choose the form that best solves the underlying problem.
 
@@ -98,7 +97,13 @@ Only selected needs proceed to Step 2. Unselected needs are logged as "out of sc
 
 ---
 
-## Step 2: Decision Convergence (full only)
+## Step 2: Decision Convergence
+
+Model: opus
+
+Gate: 是否存在多个可行方案需要取舍？
+
+💡 如果技术路径唯一且明确，跳过。如果有多种实现方式需要比较优劣，进入决策收敛。
 
 Narrow down the solution space through binary tradeoff questions. Present all 3 questions in one batch; user answers all at once.
 
@@ -152,11 +157,15 @@ Only selected goals proceed to Step 3. Unselected goals logged as "deferred" in 
 
 ---
 
-## Step 3: Industry Insight (conditional)
+## Step 3: Industry Insight
 
-**Trigger condition:** Only execute when full AND the task involves technology selection or approach comparison (e.g., choosing between frameworks, architectural patterns, or competing implementation strategies).
+Model: sonnet (with WebSearch for research)
 
-If the trigger condition is not met, skip this step entirely.
+Gate: 是否涉及技术选型或架构模式选择？
+
+💡 如果是内部逻辑实现，不需要外部参考；如果需要在框架、架构模式或竞争方案间做选择，值得调研。
+
+If the gate is not met, skip this step entirely.
 
 If triggered, ask the user first:
 
@@ -201,6 +210,8 @@ Wait for user to confirm research direction. If user disagrees, continue researc
 ---
 
 ## Step 4: Solution Alignment
+
+Model: opus
 
 Produce concrete design artifacts matched to the delivery form. User must be able to see what the solution looks like before implementation.
 
@@ -255,7 +266,13 @@ Wait for user confirmation. Corrections → update and re-present.
 
 ---
 
-## Step 5: Implementation Priority Review (skippable)
+## Step 5: Implementation Priority Review
+
+Model: sonnet
+
+Gate: 是否有待确认的实现细节？
+
+💡 如果 Step 4 已明确所有决策点，跳过。如果 Decision Register 中有 detail 类 `○ direction` 状态的条目，需要逐项确认。
 
 After Solution Alignment and before writing the handoff, extract all detail items that require a decision, create tasks for visibility, and walk through each with the user.
 
@@ -280,7 +297,13 @@ User says "skip" or "go to plan" → skip this step; remaining `detail` items st
 
 ---
 
-## Step 6: System Design (conditional)
+## Step 6: System Design
+
+Model: opus
+
+Gate: 是否需要定义架构分层、核心流程、接口协议或算法？
+
+💡 如果改动不涉及结构性变化（不增加新层、不改数据流、不设计新接口、不涉及非平凡算法），跳过。
 
 After product decisions are locked (Step 5), determine whether the solution needs technical design depth. This step ensures core technical directions are clear before entering plan.
 
@@ -358,6 +381,8 @@ Present all applicable sub-layer outputs together. User confirms or requests cha
 
 ## Step 7: Write handoff
 
+Model: sonnet
+
 Write `.sprint/{id}/handoffs/design.md`:
 
 ```markdown
@@ -433,8 +458,8 @@ Handoff must contain a structured decision ledger:
 
 ### Checklist
 
-- [ ] Demand modeling done, user confirmed delivery form (full)
-- [ ] Decision convergence done, task goals confirmed (full)
+- [ ] Demand modeling done, user confirmed delivery form
+- [ ] Decision convergence done, task goals confirmed
 - [ ] Industry insight: skipped (condition not met or user said no) OR confirmed by user
 - [ ] Solution design confirmed
 - [ ] Decision Register: no `open`, all `core` entries `confirmed`
@@ -445,7 +470,7 @@ Handoff must contain a structured decision ledger:
 
 ## Early Exit
 
-- quick: approach obvious from code → Step 4 minimal design, Step 6 trigger assessment only (likely skip), done
+- All gates evaluate to "skip" → jump to Step 4 minimal design + Step 7 handoff
 - Upstream already contains design detail → fill gaps only
 
 ## Recovery

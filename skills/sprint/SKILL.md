@@ -23,29 +23,25 @@ description: Task execution workflow. Evaluates complexity, trims stages, execut
 
 ## Model Selection
 
-Every stage and subagent task must declare its model. Selection is based on the evaluate level for that stage.
+Every stage and subagent task must declare its model. Selection is based on task characteristics, not stage name.
 
-### Per-Stage Rules
+### Unified Rules
 
-Model follows the stage's evaluate level:
+| Scenario | Model | Criteria |
+|----------|-------|----------|
+| Thinking work (demand modeling, solution design, decision convergence) | opus | Requires reasoning, comparison, trade-off analysis |
+| Execution work (task splitting, coding, verification) | sonnet | Clear spec, follow steps |
+| Mechanical work (move, rename, formatting) | haiku | No logic judgment |
 
-| Stage      | quick  | full              |
-| ---------- | ------ | ----------------- |
-| brainstorm | sonnet | opus              |
-| design     | sonnet | opus              |
-| plan       | sonnet | sonnet            |
-| execute    | sonnet | (per-task below)  |
-| quality    | sonnet | sonnet            |
-| review     | sonnet | opus              |
-| insight    | sonnet | sonnet            |
+Each stage file declares model at the step level. No global stage-level model mapping.
 
-**Execute per-task rules** (full only):
+### Execute Per-Task Rules
 
-| Task characteristic                         | Model  |
-| ------------------------------------------- | ------ |
-| Single file, clear spec from plan           | sonnet |
-| Cross-module, interface changes, new API    | opus   |
-| Mechanical only (move, rename, formatting)  | haiku  |
+| Task characteristic | Model |
+|---------------------|-------|
+| Single file, clear spec from plan | sonnet |
+| Cross-module, interface changes, new API | opus |
+| Mechanical only (move, rename, formatting) | haiku |
 
 **Decision criteria for task model:**
 - Does this task change a public interface or API boundary? → opus
@@ -57,8 +53,7 @@ Model follows the stage's evaluate level:
 
 Stage files may override the default with:
 
-- File-level: `Model: {opus/sonnet/haiku}` at the top of the stage file
-- Step-level: `Step N — Model: opus (reason: ...)` inline
+- Step-level: `Model: {opus/sonnet/haiku}` inline with the step header
 
 ### Logging
 
@@ -69,48 +64,32 @@ Stage files may override the default with:
 
 ## Evaluate
 
-Extract 4 dimensions from user description, run evaluate command.
+AI extracts 3 yes/no decisions from user description, then runs evaluate command.
 
+| Question | yes → enable | no → skip | Judgment hint |
+|----------|-------------|----------|---------------|
+| 需求是否需要澄清？（目标模糊、有多种理解方式、新领域） | brainstorm | skip | "如果你能用一句话说清楚要做什么、做到什么程度、不做什么，就不需要" |
+| 是否需要技术设计？（多条路径、跨模块、架构决策） | design | skip | "如果实现方式唯一且明确，不涉及架构选择，就不需要" |
+| 是否涉及高风险？（数据变更、权限、生产环境、删除、迁移） | quality + review | quality only | "如果改动局部可逆、不影响线上数据和权限，只需基础验证" |
 
-| Dimension             | 0                       | 1                       | 2                                    |
-| --------------------- | ----------------------- | ----------------------- | ------------------------------------ |
-| goal_clarity          | Actionable              | Directional             | Vague                                |
-| scope_size            | Point                   | Module                  | System                               |
-| risk_level            | Low (local, reversible) | Medium (module impact)  | High (data/auth/prod/delete/migrate) |
-| validation_difficulty | Easy (automated)        | Medium (partial manual) | Hard (subjective/complex)            |
+Override keywords from description: `delete/migrate/payment/production/permission` → risk=yes.
 
-
-Override keywords from description: `delete/migrate/payment/production/permission` → risk=2. `optimize/explore` → clarify≥1. `system/architecture` → design≥1, plan≥1.
+Present evaluation to user with judgment hints for each question. User confirms or adjusts.
 
 ```bash
-# [RUN]
-bash "$SPRINT_CTL" evaluate {gc} {ss} {rl} {vd} {keywords...}
+# [RUN] after confirm
+bash "$SPRINT_CTL" evaluate {clarify:0|1} {design:0|1} {risk:0|1}
 ```
 
 ### Decision → Stage Mapping
 
+| Decision | yes | no | Stage |
+|----------|-----|-----|-------|
+| clarify | brainstorm | skip | brainstorm |
+| design | design | skip | design |
+| risk | quality + review | quality only | quality, review |
 
-| Decision  | quick            | full                | Stage           |
-| --------- | ---------------- | ------------------- | --------------- |
-| clarify   | light            | deep                | brainstorm      |
-| design    | quick            | research+model      | design          |
-| plan      | split tasks      | tasks+deps+anchor   | plan            |
-| guardrail | basic verify     | full+review         | quality, review |
-
-
-execute and insight: always.
-
-### Mode Determination
-
-Evaluate also determines the mode level for each stage that has modes:
-
-| Mode | Determines | quick | full |
-|------|-----------|-------|------|
-| clarify | brainstorm depth | Goal clear, uncertainty is "how" not "what" | Strategic/exploratory description + new Object + no clear exclusions |
-| design | design depth | Direction already clear from brainstorm | Multiple technical paths need comparison |
-| plan | plan depth | Small scope or few files | Cross-module changes + risk points exist |
-
-Mode levels are output alongside stage trimming in the evaluate result.
+execute, plan, and insight: always.
 
 ### Evaluate Output
 
@@ -174,7 +153,7 @@ Metrics: `{timestamp}|{event}|{data...}` — sprint_start, stage_start, stage_en
 For each stage in trimmed pipeline:
 
 1. `bash "$SPRINT_CTL" stage "{id}" "{stage}" running`
-2. Read `stages/{stage}.md`, execute by level from evaluate output
+2. Read `stages/{stage}.md`, execute per step gates defined in stage file
 3. Write handoff if applicable
 4. `bash "$SPRINT_CTL" stage "{id}" "{stage}" completed`
 

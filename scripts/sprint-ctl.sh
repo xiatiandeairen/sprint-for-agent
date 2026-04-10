@@ -203,140 +203,71 @@ for t in found:
   ;;
 
 evaluate)
-  # Usage: sprint-ctl.sh evaluate <goal_clarity> <scope_size> <risk_level> <validation_difficulty> [keywords...]
-  # Input: 4 dimensions (0-2 each)
-  # Output: 4 decisions + stage list
-  GC="${1:-0}"; SS="${2:-0}"; RL="${3:-0}"; VD="${4:-0}"
-  shift 4 2>/dev/null || true
+  # Usage: sprint-ctl.sh evaluate <clarify> <design> <risk> [keywords...]
+  # Input: 3 binary parameters (0 or 1)
+  # Output: stage list
+  CLARIFY="${1:-0}"; DESIGN="${2:-0}"; RISK="${3:-0}"
+  shift 3 2>/dev/null || true
   KEYWORDS="$*"
 
-  # ── Rule-based scoring ──
-
-  # clarify (→ brainstorm)
-  if [[ $GC -eq 2 ]]; then CLARIFY=2
-  elif [[ $GC -eq 1 ]] || [[ $VD -eq 2 ]]; then CLARIFY=1
-  else CLARIFY=0; fi
-
-  # design (→ design)
-  if [[ $SS -eq 2 ]] || [[ $RL -eq 2 ]]; then DESIGN=2
-  elif [[ $SS -eq 1 ]] || [[ $GC -eq 1 ]]; then DESIGN=1
-  else DESIGN=0; fi
-
-  # plan (→ plan)
-  if [[ $SS -eq 2 ]]; then PLAN=2
-  elif [[ $SS -eq 1 ]] || [[ $RL -eq 1 ]]; then PLAN=1
-  else PLAN=0; fi
-
-  # guardrail (→ quality + review)
-  if [[ $RL -eq 2 ]]; then GUARDRAIL=2
-  elif [[ $RL -eq 1 ]] || [[ $VD -eq 2 ]]; then GUARDRAIL=1
-  else GUARDRAIL=0; fi
-
-  # ── Keyword overrides (兜底规则) ──
+  # ── Keyword override: high-risk keywords force risk=1 ──
   for kw in $KEYWORDS; do
     case "$kw" in
       delete|migrate|migration|payment|production|permission|数据|删除|迁移|权限|支付|生产)
-        RL=2; GUARDRAIL=2 ;;
-      optimize|explore|research|优化|看看|研究|感觉)
-        [[ $CLARIFY -lt 1 ]] && CLARIFY=1 ;;
-      system|architecture|权限体系|系统|架构)
-        [[ $DESIGN -lt 1 ]] && DESIGN=1
-        [[ $PLAN -lt 1 ]] && PLAN=1 ;;
+        RISK=1 ;;
     esac
   done
 
   # ── Build stage list ──
   STAGES=""
-  [[ $CLARIFY -ge 1 ]] && STAGES="brainstorm"
-  [[ $DESIGN -ge 1 ]] && STAGES="${STAGES:+$STAGES,}design"
-  STAGES="${STAGES:+$STAGES,}plan,execute"
-  [[ $GUARDRAIL -ge 1 ]] && STAGES="${STAGES},quality"
-  [[ $GUARDRAIL -ge 2 ]] && STAGES="${STAGES},review"
+  [[ $CLARIFY -eq 1 ]] && STAGES="brainstorm"
+  [[ $DESIGN -eq 1 ]] && STAGES="${STAGES:+$STAGES,}design"
+  STAGES="${STAGES:+$STAGES,}plan,execute,quality"
+  [[ $RISK -eq 1 ]] && STAGES="${STAGES},review"
   STAGES="${STAGES},insight"
 
   # ── Output ──
   echo "INPUT"
-  echo "  goal_clarity=$GC  scope_size=$SS  risk_level=$RL  validation_difficulty=$VD"
-  [[ -n "$KEYWORDS" ]] && echo "  keywords: $KEYWORDS"
-  echo ""
-  echo "DECISION"
-  echo "  clarify=$CLARIFY  design=$DESIGN  plan=$PLAN  guardrail=$GUARDRAIL"
+  echo "  clarify=$CLARIFY  design=$DESIGN  risk=$RISK"
   echo ""
   echo "STAGES"
   echo "  $STAGES"
   echo ""
 
-  # Stage details with reasoning
   echo "DETAIL"
 
   # brainstorm
-  if [[ $CLARIFY -eq 0 ]]; then
-    echo "  brainstorm  SKIP       goal_clarity=${GC}(clear), validation_difficulty=${VD}(easy)"
-  elif [[ $CLARIFY -eq 1 ]]; then
-    if [[ $GC -eq 1 ]]; then
-      echo "  brainstorm  level=1  light-align    goal_clarity=1(directional but not specific)"
-    else
-      echo "  brainstorm  level=1  light-align    validation_difficulty=2(hard to verify, clarify goal first)"
-    fi
+  if [[ $CLARIFY -eq 1 ]]; then
+    echo "  brainstorm  INCLUDED   goal unclear, needs exploration"
   else
-    echo "  brainstorm  level=2  deep-explore   goal_clarity=2(vague, needs exploration)"
+    echo "  brainstorm  SKIP       goal is clear"
   fi
 
   # design
-  if [[ $DESIGN -eq 0 ]]; then
-    echo "  design      SKIP       scope_size=${SS}(small), risk_level=${RL}(low), goal_clarity=${GC}(clear)"
-  elif [[ $DESIGN -eq 2 ]]; then
-    if [[ $SS -eq 2 ]]; then
-      echo "  design      level=2  research+model scope_size=2(system-wide, needs full design)"
-    else
-      echo "  design      level=2  research+model risk_level=2(high-risk, needs thorough research)"
-    fi
+  if [[ $DESIGN -eq 1 ]]; then
+    echo "  design      INCLUDED   scope needs architectural design"
   else
-    if [[ $SS -eq 1 ]]; then
-      echo "  design      level=1  quick-design   scope_size=1(module-level change)"
-    else
-      echo "  design      level=1  quick-design   goal_clarity=1(directional, needs concrete plan)"
-    fi
+    echo "  design      SKIP       scope is small, no design needed"
   fi
 
   # plan
-  if [[ $PLAN -eq 0 ]]; then
-    echo "  plan        level=0  minimal        scope_size=0(point change), risk_level=0(low)"
-  elif [[ $PLAN -eq 2 ]]; then
-    echo "  plan        level=2  tasks+deps+anchor  scope_size=2(system-wide, needs dependency orchestration)"
-  else
-    if [[ $SS -eq 1 ]]; then
-      echo "  plan        level=1  split-tasks    scope_size=1(module-level, needs step breakdown)"
-    else
-      echo "  plan        level=1  split-tasks    risk_level=1(medium risk, needs controlled steps)"
-    fi
-  fi
+  echo "  plan        ALWAYS     task breakdown required"
 
   # execute
-  echo "  execute     ALWAYS"
+  echo "  execute     ALWAYS     implementation"
 
   # quality
-  if [[ $GUARDRAIL -eq 0 ]]; then
-    echo "  quality     SKIP       risk_level=${RL}(low), validation_difficulty=${VD}(easy)"
-  elif [[ $GUARDRAIL -eq 2 ]]; then
-    echo "  quality     level=2  full-verify    risk_level=2(high-risk, needs comprehensive check)"
-  else
-    if [[ $RL -eq 1 ]]; then
-      echo "  quality     level=1  basic-verify   risk_level=1(medium risk)"
-    else
-      echo "  quality     level=1  basic-verify   validation_difficulty=2(hard to verify, needs tooling)"
-    fi
-  fi
+  echo "  quality     ALWAYS     verification"
 
   # review
-  if [[ $GUARDRAIL -ge 2 ]]; then
-    echo "  review      level=2  required       guardrail=2(high-risk decisions need human review)"
+  if [[ $RISK -eq 1 ]]; then
+    echo "  review      INCLUDED   high-risk, needs human review"
   else
-    echo "  review      SKIP       guardrail=${GUARDRAIL}(risk manageable, no review needed)"
+    echo "  review      SKIP       risk is low, no review needed"
   fi
 
   # insight
-  echo "  insight     ALWAYS"
+  echo "  insight     ALWAYS     retrospective"
   ;;
 
 list)
@@ -359,7 +290,7 @@ print(f\"{s['id']:<26} {s['type']:<10} {s['status']:<12} {s['desc']}\")
 
 *)
   echo "Usage: sprint-ctl.sh <command> [args]"
-  echo "  evaluate <gc> <ss> <rl> <vd> [keywords]  Evaluate task dimensions"
+  echo "  evaluate <clarify> <design> <risk> [keywords]  Evaluate task dimensions"
   echo "  create   <type> <desc> <stages>           Create sprint"
   echo "  activate <id>                             Activate sprint"
   echo "  stage    <id> <stage> <status>            Update stage status"
