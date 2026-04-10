@@ -7,125 +7,215 @@ description: Task execution workflow. Evaluates complexity, trims stages, execut
 
 `/sprint {description}` → evaluate → trim stages → execute pipeline.
 
+## Core Principles
+
+1. **Evaluate first** — 3 yes/no questions determine pipeline shape. Even simple tasks go through evaluate.
+2. **Anchor verification** — structural assertions complement tests. Never skip anchors even if tests pass.
+3. **Staged handoff** — each stage reads upstream handoff and writes its own. No stage operates without context.
+4. **User controls direction** — AI executes, user confirms at gate points. Core decisions cannot be skipped.
+5. **Minimum pipeline** — skip stages that add no value. "No issues found" is valid output.
+
+## Definitions
+
+| Term | Meaning |
+|------|---------|
+| Stage | Pipeline phase: brainstorm → design → plan → execute → quality → review → insight |
+| Step | Numbered progression within a stage, declared in stage file's `## Progress` |
+| Task | Independently verifiable work unit (plan splits, execute runs) |
+| Anchor | Automatically verifiable structural assertion stored in `anchors.txt`: `MUST_BUILD`, `MUST_EXIST`, `MUST_TEST`, `MUST_IMPORT`, `MUST_NOT_IMPORT`, `MUST_NOT_EXIST`, `FILE_NOT_MODIFIED` |
+| Lock | Decision lock point — confirmed and immutable. Examples: Demand Lock (brainstorm), Value Lock (brainstorm), Direction Lock (long-sprint) |
+| Handoff | Stage output document. Structure defined by each stage file's handoff template. |
+| Gate | Step-level entry condition. Types: `user` (yes/no question, user decides), `auto` (system evaluates), `always` (no condition) |
+
 ## Rules
 
-- When `/sprint` is explicitly invoked, the full sprint flow is mandatory: evaluate → confirm → create → pipeline. No shortcuts, no "just do it". Even if the task looks simple, the evaluate step decides whether to skip stages — not the executor.
-- Bash commands marked `# [RUN]` must be executed with Bash tool, not described verbally.
-- `[TASK] xxx` triggers TaskCreate. Mark TaskUpdate completed when done.
-- Wait for user at `[STOP:confirm]` (only proceed on: ok/yes/continue/确认/好/可以), `[STOP:choose]` (user picks one option), `[STOP:respond]` (user gives substantive reply).
-- Questions that ask user to choose must always list explicit options (A/B/C). Never ask a choice question without options.
-- Questions that ask user to confirm must always show the content being confirmed. Never ask "confirm?" without showing what to confirm.
-- Never expose internal concepts to user: mark names, layer/step/level numbers, evidence levels, algorithm terms, execution mode names. User sees natural conversation and formatted output blocks only.
-- Match user's language. Chinese input → Chinese response. English input → English response. Internal docs (skill files, handoffs) stay in English. Template strings in stage files are structural guides — translate to user's language when outputting.
-- Script paths are relative to this skill's base directory (provided by Claude Code as "Base directory for this skill: {path}"). Set `SPRINT_BASE` to that path, then: `SPRINT_CTL="$SPRINT_BASE/scripts/sprint-ctl.sh"`, `ANCHOR_CHECK="$SPRINT_BASE/scripts/anchor-check.sh"`, stage files at `$SPRINT_BASE/stages/{stage}.md`.
+### Hard Rules
 
----
+Apply to ALL stages. Stage files may extend (strengthen) these but must not contradict or duplicate them.
 
-## Hard Rules
+- Do not modify files outside the task's declared file list (applies to execute stage tasks). Flag unlisted changes.
+- Do not skip anchor checks, even if tests pass.
+- Do not mix "add feature" and "refactor existing code" in a single task.
+- Do not summarize code line by line. Explain decisions and data flow.
+- Do not force output when nothing substantive exists. "No issues" / "No lessons" is valid.
+- Do not classify user-requested changes as "issues". Change-requests are neutral.
 
-These apply to ALL stages. Stage files may add stage-specific rules but must not contradict these.
+### Cross-Stage Rules
 
-- Do not modify files outside the task's declared file list. If a change is needed elsewhere, flag it — do not silently edit.
-- Do not skip anchor checks, even if tests pass. Anchors and tests verify different things.
-- Do not mix "add feature" and "refactor existing code" in a single task. Split them.
-- Do not summarize code line by line. Explain decisions and data flow, not syntax.
-- Do not force output when there is nothing substantive to produce. "No issues found" / "No lessons" is a valid result.
-- Do not classify user-requested changes as "issues" in deviation analysis. User change-requests are neutral, not negative.
+Apply to all stages as positive behavioral requirements.
 
----
+1. **Conversation stages don't read code** — brainstorm, design Steps 1-2, long Steps 1-5: all evidence comes from the user. Do not read code, files, or docs until user has confirmed direction.
+2. **Only build on confirmed information** — do not generate follow-ups, hypotheses, or designs based on unconfirmed assumptions. User must confirm before expanding.
+3. **Every question justifies itself; converge when no question changes output** — each question must state why it is asked. If all information slots are filled and no question would change any downstream decision, stop asking and converge.
+4. **Each stage adds incremental value — don't re-verify upstream** — inherit upstream conclusions directly. quality does not re-test individual tasks (execute did that). review does not re-check anchors (quality did that).
+5. **Bounded exploration** — any open-ended loop (value mining, decision convergence, dig deeper) must declare a max round count. At limit, summarize current state and force convergence to next step.
+6. **Subagent failure escalation** — 1st failure: retry with error context, same model. 2nd failure: retry with upgraded model (sonnet → opus). 3rd failure: stop, report to user with full error details.
+7. **Handoff is the terminal step** — every stage that produces a handoff writes it as the final step, after all work is complete and user has confirmed.
+8. **Confirm before writing persistent artifacts** — handoffs, anchors.txt, Lock documents, reports: all require user confirmation before writing to disk.
+9. **Recovery specifies exact re-entry point** — when returning to a prior stage, specify stage name + step number. Never "start over from the beginning".
+10. **Max 3 options per choice** — any user-facing selection presents at most 3 options. More than 3 candidates → filter first, then present top 3.
 
-## Model Selection
+### Execution Markers
 
-Every stage and subagent task must declare its model. Selection is based on task characteristics, not stage name.
+- `# [RUN]` → execute with Bash tool.
+- `[TASK] xxx` → TaskCreate. Mark TaskUpdate completed when done.
+- `[STOP:confirm]` → wait (ok/yes/continue/确认/好/可以). `[STOP:choose]` → user picks option. `[STOP:respond]` → user gives substantive reply.
 
-### Unified Rules
+### Communication
 
-| Scenario | Model | Criteria |
-|----------|-------|----------|
-| Thinking work (demand modeling, solution design, decision convergence) | opus | Requires reasoning, comparison, trade-off analysis |
-| Execution work (task splitting, coding, verification) | sonnet | Clear spec, follow steps |
-| Mechanical work (move, rename, formatting) | haiku | No logic judgment |
+- Never expose internal markers to user: `[STOP:*]`, `[TASK]`, step/level numbers, algorithm terms.
+- Match user's language. Internal docs stay English. Template strings translate on output.
 
-Each stage file declares model at the step level. No global stage-level model mapping.
+### Script Paths
 
-### Execute Per-Task Rules
+Set `SPRINT_BASE` from "Base directory for this skill: {path}":
+```
+SPRINT_CTL="$SPRINT_BASE/scripts/sprint-ctl.sh"
+ANCHOR_CHECK="$SPRINT_BASE/scripts/anchor-check.sh"
+```
 
-| Task characteristic | Model |
-|---------------------|-------|
-| Single file, clear spec from plan | sonnet |
-| Cross-module, interface changes, new API | opus |
-| Mechanical only (move, rename, formatting) | haiku |
+### Model Selection
 
-**Decision criteria for task model:**
-- Does this task change a public interface or API boundary? → opus
-- Does this task touch files in 3+ different modules? → opus
-- Is the change a direct translation of plan spec? → sonnet
-- Is the change purely mechanical (no logic)? → haiku
+Declare at step level, not stage level. Default: sonnet.
 
-### Override
+| Scenario | Model |
+|----------|-------|
+| Thinking: reasoning, comparison, trade-off, design | opus |
+| Execution: clear spec, coding, verification | sonnet |
+| Mechanical: move, rename, format | haiku |
 
-Stage files may override the default with:
+Execute task override: cross-module / interface changes → opus. Single file, clear spec → sonnet. No logic → haiku.
 
-- Step-level: `Model: {opus/sonnet/haiku}` inline with the step header
+## Default Behaviors
 
-### Logging
+| Situation | Default |
+|-----------|---------|
+| Description empty | Ask user for description. Do not proceed. |
+| Description <5 words and ambiguous | Ask one clarification question before evaluate. |
+| Evaluate question answer unclear from description | Default to "no" (skip stage). |
+| Gate judgment inconclusive | Default to skip. |
+| User gives one-word answer at confirmation | Treat as confirmation (yes). |
+| User gives one-word answer at choice point | Ask again with options. |
+| Upstream handoff missing (stage was skipped) | Use user's original description as input. |
+| `sprint-ctl.sh` command fails | Report error verbatim (what failed, which command), ask user to retry or skip. |
 
-- `metrics.log` stage_start event: `{timestamp}|stage_start|{stage}`
-- Execute handoff: each task result annotated with actual model used
+## Input Normalization
 
----
+Before evaluate, normalize user's description:
 
-## Evaluate
+| Input pattern | Evaluate defaults |
+|---------------|-------------------|
+| "fix X" / "bug in X" | clarify=no, design=no, risk=evaluate X |
+| "add X" / "create X" | clarify=yes if description lacks Goal or Success slot; design=yes if >3 files or cross-module |
+| "refactor X" / "restructure X" | clarify=no, design=yes, risk=no |
+| "delete X" / "remove X" | clarify=no, design=no, risk=yes (override keyword) |
+| File path only (e.g., `src/foo.ts`) | Ask user to state intent before evaluate |
+| Sprint ID (YYYYMMDD-HHMMSS-NNN) | Route to `/todo` resume mode |
+| Mixed language input | Respond in dominant language of the description |
 
-AI extracts 3 yes/no decisions from user description, then runs evaluate command.
+## Output Constraints
 
-| Question | yes → enable | no → skip | Judgment hint |
-|----------|-------------|----------|---------------|
-| 需求是否需要澄清？（目标模糊、有多种理解方式、新领域） | brainstorm | skip | "如果你能用一句话说清楚要做什么、做到什么程度、不做什么，就不需要" |
-| 是否需要技术设计？（多条路径、跨模块、架构决策） | design | skip | "如果实现方式唯一且明确，不涉及架构选择，就不需要" |
-| 是否涉及高风险？（数据变更、权限、生产环境、删除、迁移） | quality + review | quality only | "如果改动局部可逆、不影响线上数据和权限，只需基础验证" |
+All user-facing output must follow these rules:
 
-Override keywords from description: `delete/migrate/payment/production/permission` → risk=yes.
+- Every response starts with progress indicator. No exceptions.
+- Every confirmation shows what is being confirmed. No bare "确认？".
+- Every choice lists explicit options (A/B/C). No open-ended "你觉得呢？".
+- Templates in stage files are mandatory output structure — do not freestyle.
+- Numbers are concrete: "3 files" not "several files".
+- If a step produces no actionable output, state "无" or "none" — do not silently omit.
+- Forbidden words: 尽量, 适当, 大概, 或许, roughly, approximately, maybe, perhaps.
+- Error messages include: what failed, which file/command, suggested fix.
 
-Present evaluation to user with judgment hints for each question. User confirms or adjusts.
+## Workflow
+
+### Execution Pipeline
+
+```
+/sprint {description}
+    │
+    ▼
+[Input Normalization] → parse, detect language, check override keywords
+    │
+    ▼
+[Evaluate] → 3 yes/no → user confirms → sprint-ctl evaluate + create + activate
+    │
+    ▼
+[Pipeline Loop] → for each enabled stage:
+    │   1. sprint-ctl stage running
+    │   2. read stage file, execute steps (respect gates)
+    │   3. write handoff (all stages except insight)
+    │   4. sprint-ctl stage completed
+    │   5. announce next stage, get confirmation
+    │
+    ▼
+[sprint-ctl end] → insight stage closes sprint
+```
+
+### Evaluate
+
+Extract 3 yes/no decisions from description, present with judgment hints, user confirms or adjusts.
+
+| Question | yes → enable | no → skip | Hint |
+|----------|-------------|----------|------|
+| 需求是否需要澄清？ | brainstorm | skip | 能一句话说清做什么、做到什么程度、不做什么 → 不需要 |
+| 是否需要技术设计？ | design | skip | 实现方式唯一且明确 → 不需要 |
+| 是否涉及高风险？ | quality + review | quality only | 改动局部可逆、不影响线上数据和权限 → 只需基础验证 |
+
+Override: description contains `delete/migrate/payment/production/permission` → risk=yes.
+
+Always-on: plan, execute, insight. Quality always runs; review only when risk=yes.
+
+```
+### 评估: {description}
+- **流水线**: {stage1} → {stage2} → ...
+- **跳过**: {stages}
+- **理由**: {stage}: {one-line justification}
+```
 
 ```bash
 # [RUN] after confirm
 bash "$SPRINT_CTL" evaluate {clarify:0|1} {design:0|1} {risk:0|1}
-```
-
-### Decision → Stage Mapping
-
-| Decision | yes | no | Stage |
-|----------|-----|-----|-------|
-| clarify | brainstorm | skip | brainstorm |
-| design | design | skip | design |
-| risk | quality + review | quality only | quality, review |
-
-execute, plan, and insight: always.
-
-### Evaluate Output
-
-Render evaluate result in formatted block. Wait for user confirmation before creating sprint.
-
-Evaluate output format:
-```
-### 评估: {description}
-
-- **流水线**: {stage1} → {stage2} → ...
-- **跳过**: {stages}
-- **理由**:
-  - {stage}: {one-line justification}
-  - ...
-```
-
-```bash
-# [RUN] after confirm
-bash "$SPRINT_CTL" create "{desc}" "{stages}"
+bash "$SPRINT_CTL" create "sprint" "{desc}" "{stages}"
 bash "$SPRINT_CTL" activate "{id}"
 ```
 
----
+### Pipeline Rules
+
+**Stage chaining:** each stage reads upstream handoff. design skipped → plan uses description. execute reads plan + anchors.txt. quality reads execute handoff. review reads execute handoff + git diff.
+
+**Task tracking:** do NOT create TaskCreate per stage (sprint-ctl tracks stages). TaskCreate only for ≥3 sub-tasks within a stage — **except** execute, which creates one task per plan task for progress visibility. Confirmation-oriented work uses checklist display.
+
+**Transitions:** reach full consensus before moving to next stage. Explicitly state "entering next stage: {name}" and get confirmation. brainstorm, design, plan are thinking stages — do not rush confirmation points.
+
+**Confirmation skip:** users express skip intent (go, continue, 下一步) → accept current output, proceed. Core decisions cannot be skipped. Do not prompt "reply go to skip".
+
+**Presentation format for multi-dimensional choices** (≥3 dimensions or ≥3 options):
+1. Recommendation table: dimension | recommended | rationale. User confirms or flags.
+2. Expand on demand: flagged dimension → show A/B/C for that dimension only.
+3. Mark to exclude: "默认全部包含。要排除哪些？" — not combinatorial options.
+Binary/single-dimension choices stay inline.
+
+```bash
+# [RUN] after all stages
+bash "$SPRINT_CTL" end "{id}"
+```
+
+### Progress Indicator
+
+Every response starts with:
+
+```
+━━ {stage1} ✓ → [{current}] → {stage3} → ... ━━
+{stage} ({current_step}/{total_steps}) — {step_name}
+
+{body}
+```
+
+`✓` = completed, `[name]` = current, plain = pending, skipped stages omitted. Step counts/names from stage file's `## Progress`.
+
+### Metrics
+
+`metrics.log` records `{timestamp}|{event}|{data...}`. Events: sprint_start, stage_start, stage_end, anchor_check, sprint_end. Execute handoff annotates actual model per task.
 
 ## Directory
 
@@ -137,156 +227,14 @@ bash "$SPRINT_CTL" activate "{id}"
 └── metrics.log     # append-only event log
 ```
 
-Handoff minimum: `## Conclusion` + `## Downstream` + `## Output`. Plan adds `## Expected Files`. Each stage file defines its specific template.
-
-Anchor format: `MUST_NOT_IMPORT`, `MUST_IMPORT`, `MUST_NOT_EXIST`, `MUST_EXIST`, `MUST_BUILD`, `MUST_TEST`, `FILE_NOT_MODIFIED` — one assertion per line.
-
-Metrics: `{timestamp}|{event}|{data...}` — sprint_start, stage_start, stage_end, anchor_check, sprint_end.
-
----
-
 ## Stages
 
-
-| Stage      | File                   | When          |
-| ---------- | ---------------------- | ------------- |
-| brainstorm | `stages/brainstorm.md` | clarify ≥ 1   |
-| design     | `stages/design.md`     | design ≥ 1    |
-| plan       | `stages/plan.md`       | always        |
-| execute    | `stages/execute.md`    | always        |
-| quality    | `stages/quality.md`    | guardrail ≥ 1 |
-| review     | `stages/review.md`     | guardrail ≥ 2 |
-| insight    | `stages/insight.md`    | always        |
-
-
----
-
-## Pipeline
-
-For each stage in trimmed pipeline:
-
-1. `bash "$SPRINT_CTL" stage "{id}" "{stage}" running`
-2. Read `stages/{stage}.md`, execute per step gates defined in stage file
-3. Write handoff if applicable
-4. `bash "$SPRINT_CTL" stage "{id}" "{stage}" completed`
-
-### Stage Task Rules
-
-- Do NOT create a TaskCreate for each stage. Stage progress is tracked by sprint-ctl.
-- Within a stage, create TaskCreate only when the stage has multi-step procedural work that benefits from progress tracking (e.g., design Step 5 detail decisions, execute implementation tasks).
-- For confirmation-oriented work within a stage, use checklist display instead of tasks.
-
-### Stage Transition Rules
-
-- Each stage must reach full consensus with user on all discussion items before moving to next stage.
-- When presenting issues/improvements for discussion, go through each item and reach agreement before declaring the stage complete.
-- Explicitly tell user "entering next stage: {name}" and get confirmation before proceeding.
-
-### User-Facing Communication
-
-- All internal markers (`[STOP:confirm]`, `[STOP:choose]`, `[STOP:respond]`, `[TASK]`, stage/level/step numbers) must NEVER appear in user-facing output.
-- Use natural language prompts instead:
-  - Confirmation: "以上理解是否准确？有需要调整的地方请指出。"
-  - Choice: "请选择一个方向：" followed by A/B/C options
-  - Response: "你觉得呢？" or context-appropriate question
-- SKILL.md and stage files still use these markers as AI behavior instructions internally.
-
-### Presentation Format
-
-When presenting multi-dimensional choices (≥3 dimensions or ≥3 options per dimension), use the **recommendation-first** pattern:
-
-**Principle:** Most users confirm the recommendation. Don't force everyone to parse all options.
-
-**Format:**
-
-1. **Table with recommendations** — one row per dimension, columns: dimension name, recommended value, brief rationale. User scans and confirms in one round.
-
-```
-| 维度 | 推荐 | 理由 |
-|------|------|------|
-| {dim1} | {recommended} | {why} |
-| {dim2} | {recommended} | {why} |
-
-全部接受，或标出要改的维度。
-```
-
-2. **Expand on demand** — user flags a dimension → show A/B/C options for that dimension only. Do not pre-expand all dimensions.
-
-3. **Mark instead of combo** — when user selects a subset from a list, use "mark which to include/exclude" instead of enumerating A/B/C/D/E combinations.
-
-```
-# Good — mark to exclude
-1. {item1}
-2. {item2}
-3. {item3}
-
-默认全部包含。要排除哪些？
-
-# Bad — combinatorial options
-A) All
-B) 1 only
-C) 1 + 2
-D) 1 + 3
-E) Other
-```
-
-**When NOT to apply:** Binary choices (A/B) and single-dimension selections (pick one from 3) remain inline — the overhead of a table is worse than the density.
-
-### Confirmation Skip
-
-Users can skip confirmation points by expressing skip intent (go, ok, continue, 下一步, 跳过, etc.). AI judges by intent, no specific keywords required:
-
-- Skip intent → accept current output, move to next step
-- Discussion intent (question, objection, modification) → continue discussing current step
-- core decisions in Decision Register cannot be skipped
-
-Do not prompt "reply go to skip" — let the interaction flow naturally.
-
-### Pace Principle
-
-brainstorm, design, and plan stages are thinking stages. Their value comes from thorough alignment and deliberation, not speed. Confirmation points in these stages are necessary quality gates — do not rush through them.
-
-### Progress Indicator
-
-Every AI response to user must start with progress context, separated from body by a blank line.
-
-**Layer 1: Stage progress bar** — show when entering a new stage OR on first interaction of a stage:
-
-```
-━━ {stage1} ✓ → [{current}] → {stage3} → ... ━━
-```
-
-Rules:
-- `✓` after completed stages
-- `[name]` for current stage (brackets highlight)
-- Plain text for pending stages
-- Skipped stages are omitted from the bar
-
-**Layer 2: Step progress** — show on every interaction within a stage:
-
-```
-{stage} ({current_step}/{total_steps}) — {step_name}
-```
-
-Step counts and names come from each stage file's `## Progress` metadata.
-
-**Layer 3: Task tracking** — when a step contains ≥3 sub-tasks, use TaskCreate to create a task list. Update via TaskUpdate as each completes. When <3 sub-tasks, discuss inline without creating tasks.
-
-**Display**: Layer 1 on first line, Layer 2 on second line, blank line, then body content. Example:
-
-```
-━━ brainstorm ✓ → [design] → plan → execute → quality → insight ━━
-design (4/7) — Solution Alignment
-
-{body content here}
-```
-
-### Chaining
-
-Each stage reads upstream handoff. design skipped → plan uses user description. execute reads plan + anchors.txt. quality reads execute handoff. review reads execute handoff + git diff.
-
-```bash
-# [RUN] after all stages
-bash "$SPRINT_CTL" end "{id}"
-```
-
+| Stage | File | Condition |
+|-------|------|-----------|
+| brainstorm | `stages/brainstorm.md` | clarify = yes |
+| design | `stages/design.md` | design = yes |
+| plan | `stages/plan.md` | always |
+| execute | `stages/execute.md` | always |
+| quality | `stages/quality.md` | always |
+| review | `stages/review.md` | risk = yes |
+| insight | `stages/insight.md` | always |

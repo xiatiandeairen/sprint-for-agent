@@ -8,7 +8,11 @@
   2. Any custom checks needed?
   3. Did it break anything else?
 
-Integration verification after execute completes. Focuses on **cross-task regression** — single-task verification was already done in execute.
+Cross-task regression verification after execute. Single-task verification was done in execute.
+
+## Hard Rules
+
+No stage-specific rules. SKILL.md Hard Rules apply.
 
 ## Input
 
@@ -22,43 +26,37 @@ Integration verification after execute completes. Focuses on **cross-task regres
 
 Model: sonnet
 
-Gate: 自动执行 — 此步骤始终运行，不可跳过。
+Gate (always): 始终运行，不可跳过。
 
-Detect and run build/test commands. **First**: check if CLAUDE.md defines build/test commands. If yes, use those directly — skip scanning.
+Detect build/test commands. **First**: check CLAUDE.md for defined commands. If found, use directly.
 
-Only if CLAUDE.md has no build/test commands defined, scan project root for toolchain signals:
+Only if CLAUDE.md has none, scan project root:
 
-| Signal | Build command | Test command |
-|--------|-------------|-------------|
+| Signal | Build | Test |
+|--------|-------|------|
 | Package.swift | `swift build` | `swift test` |
-| package.json | `npm run build` / `bun run build` | `npm test` / `bun test` |
+| package.json | `npm run build` | `npm test` |
 | Cargo.toml | `cargo build` | `cargo test` |
 | Makefile | `make` | `make test` |
-| pyproject.toml / setup.py | `pip install -e .` | `pytest` |
+| pyproject.toml | `pip install -e .` | `pytest` |
 | go.mod | `go build ./...` | `go test ./...` |
 | Gemfile | `bundle exec rake build` | `bundle exec rake test` |
 
-If multiple detected (e.g. monorepo), run all relevant ones.
-
-Run detected build command, then test command. Both must pass before Step 2.
-
-Fail → return to execute to fix.
+Multiple detected → run all. Both must pass. Fail → return to execute.
 
 ## Step 2: Custom Scripts
 
 Model: sonnet
 
-Gate: 自动检测 — anchors.txt 存在或 scripts/quality/*.sh 目录非空时执行，否则跳过。
-
-Run project-specific quality scripts from convention directory:
+Gate (auto): anchors.txt 存在或 `scripts/quality/*.sh` 非空 → 执行。否则跳过。
 
 ```bash
-# [RUN] anchor check (if anchors exist)
+# [RUN] anchor check
 [ -s ".sprint/{id}/anchors.txt" ] && bash "$ANCHOR_CHECK" "{sprint_id}" || echo "no anchors"
 ```
 
 ```bash
-# [RUN] scripts/quality/*.sh — execute all .sh files in alphabetical order
+# [RUN] quality scripts
 if [ -d scripts/quality ] && ls scripts/quality/*.sh 2>/dev/null | grep -q .; then
   for f in $(ls scripts/quality/*.sh | sort); do bash "$f" || exit 1; done
 else
@@ -66,72 +64,53 @@ else
 fi
 ```
 
-All pass → Step 3. Any fail → return to execute to fix.
+All pass → Step 3. Any fail → return to execute.
 
 ## Step 3: Impact Verification
 
 Model: opus
 
-Gate: sprint 是否包含多个任务且任务间有文件交叉？
+Gate (auto): plan handoff 任务数 >1 且任务间有共享文件或模块依赖 → 执行。否则跳过。
 
-💡 如果只有单个任务，跳过跨任务影响检查。如果多个任务修改了相关联的文件或模块，需要验证交叉影响。
+Do NOT repeat single-task checks from execute.
 
-Focuses on **cross-task integration** only. Do NOT repeat single-task checks from execute.
+### 3a: Automated Analysis
 
-### 3a: Automated Change Impact Analysis
+1. **Public interface changes** — identify consuming modules for each changed API/protocol/type
+2. **New dependencies** — verify acyclic dependency graph, lower modules don't depend on higher
+3. **Deletions / renames** — scan for stale references
 
-Based on files changed in execute handoff, analyze:
-
-1. **Public interface changes** — identify consuming modules for each changed public API/protocol/type
-2. **New dependencies** — verify they don't violate module dependency direction (dependency graph must remain acyclic, lower-level modules must not depend on higher-level)
-3. **Deletions / renames** — scan for stale references across the codebase
-
-Present findings before the manual checklist.
-
-### 3b: Manual Cross-Task Checklist
-
-Generate checklist covering:
-- **Task interactions**: do changes in task A break assumptions in task B?
-- **Module boundary integrity**: do cross-module interfaces still work end-to-end?
-- **End-to-end flow**: does the full user-facing flow still work?
+### 3b: Cross-Task Checklist
 
 ```
-### Quality — PASS ✓
+### Quality — PASS ✓ / FAIL ✗
 
 **自动检查**
-- Build: ✓
-- Tests: {N} pass / 0 fail
-- Anchor: {N}/{N} ✓ (or: skipped)
-- Custom scripts: {results}
+- Build: ✓ | Tests: {N} pass / 0 fail | Anchor: {N}/{N} ✓ | Custom scripts: {results}
 
 **变更影响分析**
-- 接口变更: {list affected consumers, or "无"}
-- 依赖方向: ✓ (or: 发现违规)
-- 残留引用: 无 (or: {list})
+- 接口变更: {affected consumers or "无"}
+- 依赖方向: ✓ / 发现违规
+- 残留引用: 无 / {list}
 
 **需要你确认**
-- [ ] {task A × task B}: {interaction to verify}
-- [ ] {module boundary}: {interface to verify}
-- [ ] {end-to-end flow}: {what to check, how to check}
-
----
+- [ ] {task A × task B}: {interaction}
+- [ ] {module boundary}: {interface}
+- [ ] {end-to-end flow}: {what + how to check}
 ```
 
-Wait for user to confirm all checks pass. Confirmed → next stage.
+Confirmed → next stage.
 
 ---
 
 ## Completion
 
-- Build passes (CLAUDE.md commands or auto-detected toolchain)
-- Tests pass
-- Custom scripts pass (or skipped if `scripts/quality/` is absent or empty)
-- User confirmed cross-task impact verification
+- Build + tests pass
+- Custom scripts pass (or skipped)
+- User confirmed cross-task impact
 
 ## Recovery
 
-- Build fails → return to execute stage, fix build errors in the failing task, re-run quality from Step 1
-- Test fails → return to execute stage, fix failing test in the relevant task, re-run quality from Step 1
-- Anchor check fails → return to execute stage, fix anchor violation, re-run quality from Step 2
-- Custom script fails → read script output, return to execute to fix the issue, re-run quality from Step 2
-- User finds cross-task issue in impact check → return to execute to fix the interaction, re-run quality from Step 3
+- Build/test fail → return to execute, fix, re-run from Step 1
+- Anchor/script fail → return to execute, fix, re-run from Step 2
+- Cross-task issue → return to execute, fix, re-run from Step 3

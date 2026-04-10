@@ -9,312 +9,131 @@ description: Lightweight task executor. Run tasks immediately, resume deferred s
 
 ## Rules
 
-- All Rules and Hard Rules from sprint SKILL.md apply. Do not duplicate — refer to them.
-- Additionally: do not create sprint tracking for tasks that change 1 file and <20 lines (one-liner). Execute directly.
-- Script paths: Set `SPRINT_BASE` from "Base directory for this skill: {path}" — navigate up two levels from `skills/todo/` to reach plugin root. `SPRINT_CTL="$SPRINT_BASE/scripts/sprint-ctl.sh"`, `ANCHOR_CHECK="$SPRINT_BASE/scripts/anchor-check.sh"`.
+- All Rules and Hard Rules from sprint SKILL.md apply.
+- 1 file + <20 lines change → execute directly without sprint tracking.
+- Script paths: Set `SPRINT_BASE` from "Base directory for this skill: {path}" — navigate up two levels from `skills/todo/`. `SPRINT_CTL="$SPRINT_BASE/scripts/sprint-ctl.sh"`, `ANCHOR_CHECK="$SPRINT_BASE/scripts/anchor-check.sh"`.
 
----
+## Default Behaviors
 
-## Intent Routing
+| Situation | Default |
+|-----------|---------|
+| Input matches no routing pattern | Immediate mode. |
+| Input is ambiguous between two modes | Ask user: "Do you want to run this now or save it for later?" |
+| One-liner assessment borderline (1 file, ~20 lines) | Treat as one-liner. Err toward less tracking. |
+| Trigger time is in the past | Report error: "Time is in the past. Enter a future time." |
+| `.sprint/triggers.json` missing or malformed | Initialize as `[]` and continue. |
+| Resume target sprint has no incomplete stages | Report "Sprint already completed" and stop. |
 
-Parse user input and route to the correct mode:
+## Input Normalization
+
+| Input pattern | Route |
+|---------------|-------|
+| `YYYYMMDD-HHMMSS-NNN` | Resume mode |
+| Path ending `.md` that exists on disk | Plan-driven mode |
+| Contains time words (明天, tonight, at 10am, ISO datetime) | Deferred mode (at) |
+| Contains deferral words (记下, later, save, remind) | Deferred mode (manual) |
+| `list` | Trigger management: list |
+| `cancel {id}` | Trigger management: cancel |
+| Everything else | Immediate mode |
+
+## Workflow
+
+### Intent Routing
 
 ```
 /todo {input}
-
-1. Is input a sprint ID (matches pattern YYYYMMDD-HHMMSS-NNN)?
-   → Resume mode
-
-2. Is input a file path ending in .md that exists?
-   → Plan-driven mode
-
-3. Does input contain time signals?
-   ("明天", "下周", "tonight", "at 10am", ISO datetime, etc.)
-   → Deferred mode
-
-4. Does input contain deferral signals?
-   ("记下", "待办", "之后做", "save", "later", "remind me")
-   → Deferred mode (manual trigger)
-
-5. Otherwise
-   → Immediate mode
+1. Matches YYYYMMDD-HHMMSS-NNN?       → Resume mode
+2. .md file path that exists?          → Plan-driven mode
+3. Time signals (明天, tonight, at 10am)? → Deferred mode
+4. Deferral signals (记下, later, save)?  → Deferred mode (manual)
+5. Otherwise                           → Immediate mode
 ```
 
----
+### Resume Mode
 
-## Resume Mode
+1. Read `.sprint/{id}/state.json` → get `stages`, `current_stage`
+2. Read completed handoffs in stage order + `anchors.txt` for context
+3. Find first stage without `stage_end` in `metrics.log` → resume point
+4. Continue pipeline from resume stage, executing each remaining stage normally
+5. Remove trigger entry from `.sprint/triggers.json` if exists
 
-Resume a deferred or interrupted sprint.
+### Plan-driven Mode
 
-### Step 1: Load context
+1. Read plan file, validate actionable content
+2. Create sprint:
+   ```bash
+   # [RUN]
+   bash "$SPRINT_CTL" create "todo" "{desc_from_plan_title}" "execute,insight"
+   bash "$SPRINT_CTL" activate "{id}"
+   ```
+3. Treat plan document as plan handoff → enter execute stage directly
+4. `bash "$SPRINT_CTL" end "{id}"`
 
-```bash
-# [RUN]
-cat .sprint/{id}/state.json
-```
+### Immediate Mode
 
-Read `state.json` to get:
-- `stages`: the full stage list
-- `current_stage`: where it stopped
+**One-liner** (1 file, <20 lines): skip tracking, execute, report result.
 
-### Step 2: Build upstream context
-
-Read all completed handoffs in stage order:
-```
-.sprint/{id}/handoffs/brainstorm.md  (if exists)
-.sprint/{id}/handoffs/design.md      (if exists)
-.sprint/{id}/handoffs/plan.md        (if exists)
-```
-
-Also read:
-```
-.sprint/{id}/anchors.txt
-```
-
-These handoffs ARE the context. No transformation needed.
-
-### Step 3: Determine resume point
-
-Find the first stage in `stages` that has no `stage_end` entry in `metrics.log`. That is the resume stage.
-
-### Step 4: Execute
-
-Continue the sprint pipeline from the resume stage. For each remaining stage:
-1. Read the stage file from `$SPRINT_BASE/stages/{stage}.md`
-2. Execute per stage instructions
-3. Write handoff, update metrics
-
-### Step 5: Clean trigger
-
-After execution completes, remove the trigger entry from `.sprint/triggers.json` (if one exists for this sprint).
-
----
-
-## Plan-driven Mode
-
-Execute from an existing plan document.
-
-### Step 1: Read plan
-
-Read the plan file at the given path. Validate it has actionable content (steps, tasks, or checklist).
-
-### Step 2: Create sprint
-
-```bash
-# [RUN]
-bash "$SPRINT_CTL" create "todo" "{desc_from_plan_title}" "execute,insight"
-bash "$SPRINT_CTL" activate "{id}"
-```
-
-### Step 3: Execute
-
-Treat the plan document as the plan handoff. Enter execute stage directly:
-- Read `$SPRINT_BASE/stages/execute.md`
-- Use step-by-step mode
-- Each section/step in the plan becomes a task
-
-### Step 4: Complete
-
-```bash
-# [RUN]
-bash "$SPRINT_CTL" end "{id}"
-```
-
----
-
-## Immediate Mode
-
-Lightweight single-task execution.
-
-### Step 1: Assess
-
-Route check:
-- Does it involve exactly 1 file and <20 lines of change? → one-liner: skip sprint tracking, just do it, report result.
-- Otherwise → multi-step: create sprint and track.
-
-### Step 2: Execute (multi-step)
-
+**Multi-step:**
 ```bash
 # [RUN]
 bash "$SPRINT_CTL" create "todo" "{english_desc}" "execute,insight"
 bash "$SPRINT_CTL" activate "{id}"
 ```
+Break into tasks → TaskCreate per task → execute → anchor check → `bash "$SPRINT_CTL" end "{id}"`.
 
-Execute directly:
-- Break into tasks
-- TaskCreate per task
-- Execute each, TaskUpdate completed
-- Anchor check if applicable
+### Deferred Mode
 
-### Step 3: Complete
+**1. Determine trigger type:**
+
+| Signal | Type | Spec |
+|--------|------|------|
+| Time present | `at` | ISO 8601 datetime |
+| Sprint ID referenced | `after` | sprint ID |
+| Deferral only | `manual` | null |
+
+Ambiguous → ask: A) Specific time B) After sprint {recent_id} C) Manual.
+
+**2. Create sprint:**
+
+- Needs planning → stages `plan,execute,insight`, run plan now, defer execute.
+- Already well-defined → stages `execute,insight`, write description as `plan.md` directly.
 
 ```bash
 # [RUN]
-bash "$SPRINT_CTL" end "{id}"
-```
-
----
-
-## Deferred Mode
-
-Save plan and set up a trigger for later execution.
-
-### Step 1: Determine trigger type
-
-From user input:
-- Time signal present → `at` trigger. Parse the time to ISO 8601.
-- Sprint ID referenced → `after` trigger.
-- Deferral signal only → `manual` trigger.
-
-If ambiguous, ask:
-
-```
-When should this run?
-
-A) At a specific time — tell me when
-B) After sprint {recent_id} completes
-C) Manual — run /todo {id} when ready
-```
-
-[STOP:choose]
-
-### Step 2: Create sprint with plan stages
-
-If the task needs planning:
-```bash
-# [RUN]
-bash "$SPRINT_CTL" create "todo" "{english_desc}" "plan,execute,insight"
+bash "$SPRINT_CTL" create "todo" "{english_desc}" "{stages}"
 bash "$SPRINT_CTL" activate "{id}"
 ```
 
-Run plan stage now (so context is captured while the conversation is active), then defer execute.
+**3. Write trigger** to `.sprint/triggers.json`:
 
-If the task is already well-defined (user described concrete steps):
-```bash
-# [RUN]
-bash "$SPRINT_CTL" create "todo" "{english_desc}" "execute,insight"
-bash "$SPRINT_CTL" activate "{id}"
+```json
+{
+  "sprint_id": "{id}",
+  "type": "{at|after|manual}",
+  "spec": "{ISO time or sprint id or null}",
+  "resume_stage": "execute",
+  "created_at": "{ISO timestamp}"
+}
 ```
 
-Write the user's description as `.sprint/{id}/handoffs/plan.md` directly.
+**4. Set up mechanism:**
 
-### Step 3: Write trigger
+| Type | Setup |
+|------|-------|
+| `at` | Create macOS launchd plist at `~/Library/LaunchAgents/com.loppy.trigger-{id}.plist` with `claude -p "/todo {id}"`, load with `launchctl load` |
+| `after` | No setup — `sprint-ctl.sh end` checks triggers.json |
+| `manual` | No setup — user runs `/todo {id}` |
 
-Read or initialize `.sprint/triggers.json`:
-
-```bash
-# [RUN] initialize if not exists
-[[ -f .sprint/triggers.json ]] || echo '[]' > .sprint/triggers.json
-```
-
-Append trigger entry:
-
-```python
-# [RUN]
-python3 -c "
-import json
-with open('.sprint/triggers.json') as f:
-    triggers = json.load(f)
-triggers.append({
-    'sprint_id': '{id}',
-    'type': '{at|after|manual}',
-    'spec': '{ISO time or sprint id or null}',
-    'resume_stage': 'execute',
-    'created_at': '{ISO timestamp}'
-})
-with open('.sprint/triggers.json', 'w') as f:
-    json.dump(triggers, f, indent=2)
-"
-```
-
-### Step 4: Set up trigger mechanism
-
-**For `at` triggers:**
-
-Create macOS launchd plist:
-
-```bash
-# [RUN]
-cat > ~/Library/LaunchAgents/com.loppy.trigger-{id}.plist << 'PLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.loppy.trigger-{id}</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>claude</string>
-        <string>-p</string>
-        <string>/todo {id}</string>
-    </array>
-    <key>StartCalendarInterval</key>
-    <dict>
-        <key>Year</key><integer>{year}</integer>
-        <key>Month</key><integer>{month}</integer>
-        <key>Day</key><integer>{day}</integer>
-        <key>Hour</key><integer>{hour}</integer>
-        <key>Minute</key><integer>{minute}</integer>
-    </dict>
-    <key>WorkingDirectory</key>
-    <string>{project_root}</string>
-</dict>
-</plist>
-PLIST
-launchctl load ~/Library/LaunchAgents/com.loppy.trigger-{id}.plist
-```
-
-If in an active session, also mention user can use `/loop` to poll.
-
-**For `after` triggers:**
-No extra setup. `sprint-ctl.sh end` automatically checks triggers.json.
-
-**For `manual` triggers:**
-No extra setup.
-
-### Step 5: Confirm
-
+**5. Confirm:**
 ```
 > Sprint #{id} saved. Trigger: {type}
-> {type=at}: scheduled for {time}. launchd plist installed.
-> {type=after}: will trigger when sprint {spec} completes.
-> {type=manual}: run /todo {id} when ready.
+> {at}: scheduled for {time}. launchd plist installed.
+> {after}: triggers when sprint {spec} completes.
+> {manual}: run /todo {id} when ready.
 ```
-
----
 
 ## Trigger Management
 
-### /todo list
+**`/todo list`**: Read `.sprint/triggers.json`, display as table (Sprint ID | Type | Spec | Resume Stage | Created).
 
-Show all pending triggers:
-
-```bash
-# [RUN]
-cat .sprint/triggers.json 2>/dev/null || echo "No triggers."
-```
-
-Format as table:
-```
-| Sprint ID | Type | Spec | Resume Stage | Created |
-|-----------|------|------|-------------|---------|
-```
-
-### /todo cancel {id}
-
-Remove a trigger and its launchd plist (if any):
-
-```bash
-# [RUN]
-python3 -c "
-import json
-with open('.sprint/triggers.json') as f:
-    triggers = json.load(f)
-triggers = [t for t in triggers if t['sprint_id'] != '{id}']
-with open('.sprint/triggers.json', 'w') as f:
-    json.dump(triggers, f, indent=2)
-"
-# Remove launchd plist if exists
-launchctl unload ~/Library/LaunchAgents/com.loppy.trigger-{id}.plist 2>/dev/null || true
-rm -f ~/Library/LaunchAgents/com.loppy.trigger-{id}.plist
-```
+**`/todo cancel {id}`**: Remove from `triggers.json` + unload/delete launchd plist if exists.

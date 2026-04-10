@@ -9,34 +9,23 @@
   3. Build in parallel
   4. Record results
 
-Run tasks from plan handoff. Each unit follows: coding → build verify → anchor → test → review.
+Run tasks from plan handoff. Each task: coding → build → anchor → test → review.
 
-Default Model: sonnet (override to opus when task changes public interface or touches 3+ modules)
+Default Model: sonnet (override to opus for cross-module / interface tasks)
 
 ## Hard Rules
 
-- Do not modify files outside the task's declared file list. If an unlisted file needs changes, stop and report.
-- Do not skip anchor check even if all tests pass. Anchors verify structural constraints that tests don't cover.
-- Do not proceed to the next task if the current task's anchor check fails. Fix first.
+- (extends SKILL.md file modification rule) Unlisted file needs change → **stop and report**, do not continue.
+- Do not proceed to next task if current anchor check fails. Fix first.
 
 ## Default Anchors
 
-If anchors.txt does not already contain `MUST_BUILD`, add it automatically:
-
-- `MUST_BUILD` — full project build must pass after each task
-
-For typed languages (Swift, Kotlin, TypeScript, Rust, Go, Java): build verification is mandatory after each task, not optional.
+If anchors.txt lacks `MUST_BUILD`, add it. For typed languages (Swift, Kotlin, TypeScript, Rust, Go, Java): build verification mandatory after each task.
 
 ## Input
 
 - plan handoff: execution mode, task list, verify criteria, expected files
 - anchors.txt
-
-## Mode
-
-Determined in plan stage by user choice:
-- **step-by-step:** Run tasks serially in current session. Verify each with user before next.
-- **subagent-driven:** Dispatch tasks to subagents in parallel. Unified verification after all complete.
 
 ---
 
@@ -44,37 +33,23 @@ Determined in plan stage by user choice:
 
 Model: sonnet
 
-At the start of execute stage, before any coding begins:
-
-1. Create a `TaskCreate` for each task from the plan handoff
-2. When starting a task → `TaskUpdate` status: `in_progress`
-3. When a task completes and is verified → `TaskUpdate` status: `completed`
-
-This gives the user live visibility into overall sprint progress throughout execution.
+Before coding: TaskCreate per task from plan. Start → `in_progress`. Verified → `completed`.
 
 ---
 
 ## Step-by-step Mode
 
-Model: per task (sonnet default; opus for cross-module/interface tasks)
+Model: per task (sonnet default; opus for cross-module/interface)
 
-For each task in plan handoff:
+For each task:
 
 ### 1. Coding
 
-Adapt by task type:
-
-- **Code tasks** → TDD:
-  - Write test
-  - Run test → confirm FAIL
-  - Implement
-  - Run test → confirm PASS
-  - Build verify (if typed language: run project build command, must pass before proceeding)
-  - Commit
-- **Doc/config tasks** → write directly + format validation (no TDD cycle needed)
-- **Refactor tasks** → run existing tests first → refactor → run tests again (confirm no regression)
-
-Use the model specified in the task (sonnet/opus).
+| Task type | Process |
+|-----------|---------|
+| Code | TDD: write test → run (FAIL) → implement → run (PASS) → build verify → commit |
+| Doc/config | Write directly + format validation |
+| Refactor | Run existing tests → refactor → run tests (no regression) |
 
 ### 2. Anchor Check
 
@@ -83,139 +58,86 @@ Use the model specified in the task (sonnet/opus).
 bash "$ANCHOR_CHECK" "{sprint_id}"
 ```
 
-If any anchor fails → fix before proceeding. Do not skip.
+Fail → fix before proceeding.
 
 ### 3. AI Test
 
-Run the AI verify commands specified in the task (build, test, lint, etc).
-
-Also check implementation consistency:
-- Does the code match the design handoff's stated approach (not freestyle)?
-- Are interfaces consistent with the definitions in the plan?
-- Are there changes outside the plan's stated scope?
-
-Output: build/test results + implementation consistency check + deviations (if any).
+Run AI verify commands from task. Also check:
+- Code matches design handoff approach (not freestyle)?
+- Interfaces consistent with plan definitions?
+- Changes outside plan scope?
 
 ### 4. User Review
 
-Output the task's user verify checklist. For **S-size tasks**, multiple consecutive S-size completions may be batched into a single confirmation prompt. M/L tasks always get individual confirmation.
-
 ```
-### Task {N}: {title} — PASS ✓
+### Task {N}: {title} — PASS ✓ / FAIL ✗
 
 **自动检查**
-- Build: ✓
-- Anchor: {N}/{N} ✓
-- 实现一致性: 与 plan 一致 ✓ (or: 偏差 — {detail})
+- Build: ✓ | Anchor: {N}/{N} ✓ | 实现一致性: 与 plan 一致 ✓
 
 **文件变更**
 - {path}: {what changed}
 
 **需要你确认**
-- [ ] {concrete check 1}
-- [ ] {concrete check 2}
-
----
+- [ ] {check 1}
+- [ ] {check 2}
 ```
 
-If any auto check fails, the header should be `— FAIL ✗` instead of `— PASS ✓`.
+S-size tasks may batch consecutive completions into single confirmation. M/L get individual confirmation.
 
-Wait for user to confirm all checks pass. If issues found → fix and re-verify. Confirmed → next task.
-
-### Loop
-
-Repeat 1-4 for each task until all tasks complete.
+Confirmed → next task. Issues → fix and re-verify.
 
 ---
 
-## Subagent-driven Mode
+## Parallel Mode
 
-Model: per task (sonnet default; opus for cross-module/interface tasks)
+Model: per task (sonnet default; opus for cross-module/interface)
 
 ### Worktree Isolation
 
-Execute creates exactly **1 worktree** at the start of subagent-driven mode. All subagent tasks work within this single shared worktree — they must operate on different files, which is guaranteed by the plan's task splitting strategy.
+1. `EnterWorktree` — create 1 shared worktree at start
+2. All tasks execute in shared worktree (different files guaranteed by plan splitting)
+3. Quality stage also runs in worktree
+4. All pass → rebase onto trunk. Conflict → stop, report to user.
+5. `ExitWorktree`
 
-1. Create worktree via `EnterWorktree`
-2. **All** tasks execute inside this shared worktree
-3. Quality stage also runs inside the worktree
-4. After all tasks pass quality → rebase worktree onto trunk for linear history
-   - Rebase conflict → stop, report to user with conflict details
-5. `ExitWorktree` to clean up
-
-This allows the user to start a new `/sprint` in the main trunk while this sprint executes in the background.
-
-Step-by-step mode does NOT use worktree — it runs directly on trunk.
+Step-by-step does NOT use worktree.
 
 ### 1. Dispatch
 
-For each task in plan handoff:
-- Independent tasks → dispatch in parallel as subagents
-- Dependent tasks → dispatch sequentially after dependencies complete
-- **Upstream failure blocks downstream:** if a task fails, all tasks that depend on it are paused and not dispatched until the upstream is fixed and verified
-- Each subagent prompt includes: task files, steps, code, model specification
+- Independent tasks → parallel subagents
+- Dependent tasks → sequential after dependencies complete
+- Upstream failure blocks downstream tasks
 
-Subagent TDD adaptation follows the same rules as step-by-step mode (code → TDD, doc/config → direct write, refactor → test-refactor-test).
+Each subagent: coding (same TDD rules) → anchor-check → AI test → self-review.
 
-After dispatching, show the initial status of all tasks:
-```
-- Task 1 ✓ complete
-- Task 2 ● running
-- Task 3 ○ waiting (depends on Task 1)
-```
-
-Update this display as each task completes. After ALL tasks complete, proceed to Collect Results.
-
-Subagent execution per task: coding → anchor-check → AI test (including implementation consistency check) → self-review.
+Display: `✓ complete | ● running | ○ waiting (depends on Task N)`
 
 ### 2. Collect Results
 
-Wait for all subagents to complete. Collect:
-- Changed files per task
-- Anchor check results
-- Test results (build/test/lint + implementation consistency)
-- Any errors, deviations, or concerns raised by subagents
+All complete → collect: files changed, anchor results, test results, errors/deviations.
 
 ### 3. Unified Review
 
-Output combined verification:
-
 ```
-### 全部完成 — PASS ✓
+### 全部完成 — PASS ✓ / FAIL ✗
 
 **任务状态**
 | Task | 状态 |
-|------|------|
-| {title} | ✓ |
-| {title} | ✓ |
 
 **自动检查**
-- Build: ✓
-- Tests: {N} pass / {N} fail
-- Anchor: {N}/{N} ✓
-- 实现一致性: 与 plan 一致 ✓ (or: 偏差 — {list})
+- Build: ✓ | Tests: {N} pass / {N} fail | Anchor: {N}/{N} ✓ | 实现一致性: ✓
 
 **需要你确认**
-- [ ] {check from task 1}
-- [ ] {check from task 2}
-- [ ] {overall integration check}
-
----
+- [ ] {checks from tasks}
+- [ ] {integration check}
 ```
 
-If any auto check fails or any task failed, header should be `— FAIL ✗`.
-
-Wait for user to confirm. Issues → dispatch fix subagent for specific task, re-verify.
+Issues → dispatch fix subagent, re-verify.
 
 ### Recovery (Subagent Failures)
 
-When a subagent task fails:
-
-1. **1st failure** → retry with same model, include full error context in the prompt
-2. **2nd failure** → upgrade model (sonnet → opus), retry
-3. **3rd failure** → stop, report to user with error details for decision
-
-If the failed task is upstream of other tasks, those downstream tasks remain paused until the upstream task succeeds.
+1st failure → retry with error context. 2nd → upgrade model (sonnet → opus). 3rd → stop, report to user.
 
 ---
 
@@ -223,53 +145,29 @@ If the failed task is upstream of other tasks, those downstream tasks remain pau
 
 Model: sonnet
 
-After all tasks verified, write `.sprint/{id}/handoffs/execute.md`:
+Write `.sprint/{id}/handoffs/execute.md`:
 
 ```markdown
-# execute Handoff
-
 ## Summary
-- Mode: {step-by-step / subagent-driven}
-- Tasks completed: {N}
-- Commits: {N}
-
+- Mode / Tasks completed / Commits
 ## Tasks
 ### Task 1: {title}
-- Status: complete
-- Files changed: {list}
-- Anchor: pass
-- Implementation: consistent with plan
-- User verified: yes
-
-### Task N: ...
-
+- Status / Files changed / Anchor / Implementation / User verified
 ## Anchor Results
-- {N} pass / {N} fail
-- Details: {any notable results}
-
 ## Test Scope for Quality
-- Build: full rebuild needed
-- Tests: {which test suites to run}
-- Additional checks: {any manual verification}
-
 ## Files Changed
-- {path}
-- {path}
 ```
 
 ---
 
 ## Completion
 
-- All tasks executed
-- All anchor checks passed
-- All AI tests passed (build/test/lint + implementation consistency)
-- User verified each task (step-by-step) or all tasks (subagent-driven)
-- Handoff written with test scope for quality stage
+- All tasks executed, anchors passed, AI tests passed, user verified
+- Handoff written with test scope for quality
 
 ## Recovery
 
-- Anchor failure → fix in current task, re-check
+- Anchor failure → fix, re-check
 - Test failure → debug, fix, re-test
-- Subagent failure → see Recovery section under Subagent-driven Mode
-- User rejects verification → identify issue, fix, re-present verification
+- Subagent failure → see Recovery above
+- User rejects → fix, re-present
