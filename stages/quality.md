@@ -88,24 +88,20 @@ Generate checklist covering:
 - **End-to-end flow**: does the full user-facing flow still work?
 
 ```
-### 🔬 Impact Verification
+### Quality — PASS ✓
 
-**Automated checks**: PASS ✓
+**自动检查**
 - Build: ✓
 - Tests: {N} pass / 0 fail
-- Anchor: {N} pass / 0 fail (or skipped)
-- Custom: {results}
+- Anchor: {N}/{N} ✓ (or: skipped)
+- Custom scripts: {results}
 
-**Change impact analysis**
-- Interface changes: {list affected consumers, or "none"}
-- Dependency direction: {pass / violations found}
-- Stale references: {none found / list}
+**变更影响分析**
+- 接口变更: {list affected consumers, or "无"}
+- 依赖方向: ✓ (or: 发现违规)
+- 残留引用: 无 (or: {list})
 
-**Files changed**
-- {path}
-- {path}
-
-**Cross-task integration checks** (manual):
+**需要你确认**
 - [ ] {task A × task B}: {interaction to verify}
 - [ ] {module boundary}: {interface to verify}
 - [ ] {end-to-end flow}: {what to check, how to check}
