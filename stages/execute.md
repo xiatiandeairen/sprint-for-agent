@@ -91,22 +91,24 @@ Output: build/test results + implementation consistency check + deviations (if a
 Output the task's user verify checklist. For **S-size tasks**, multiple consecutive S-size completions may be batched into a single confirmation prompt. M/L tasks always get individual confirmation.
 
 ```
-### ✅ Task {N} Complete: {title}
+### Task {N}: {title} — PASS ✓
 
-**Files changed**
+**自动检查**
+- Build: ✓
+- Anchor: {N}/{N} ✓
+- 实现一致性: 与 plan 一致 ✓ (or: 偏差 — {detail})
+
+**文件变更**
 - {path}: {what changed}
 
-**AI verify**: PASS ✓
-**Anchor**: {N} pass / {N} fail
-**Implementation**: consistent with plan ✓ (or: deviation — {detail})
-
-**User verify**:
+**需要你确认**
 - [ ] {concrete check 1}
 - [ ] {concrete check 2}
-- [ ] {concrete check 3}
 
 ---
 ```
+
+If any auto check fails, the header should be `— FAIL ✗` instead of `— PASS ✓`.
 
 Wait for user to confirm all checks pass. If issues found → fix and re-verify. Confirmed → next task.
 
@@ -167,23 +169,29 @@ Wait for all subagents to complete. Collect:
 Output combined verification:
 
 ```
-### ✅ All Tasks Complete
+### 全部完成 — PASS ✓
 
-**Task 1**: {title} — {status} ✓
-**Task 2**: {title} — {status} ✓
+**任务状态**
+| Task | 状态 |
+|------|------|
+| {title} | ✓ |
+| {title} | ✓ |
 
-**Anchor**: {N} pass / {N} fail
-**Build**: PASS ✓
-**Tests**: {N} pass / {N} fail
-**Implementation**: consistent with plan ✓ (or: deviations — {list})
+**自动检查**
+- Build: ✓
+- Tests: {N} pass / {N} fail
+- Anchor: {N}/{N} ✓
+- 实现一致性: 与 plan 一致 ✓ (or: 偏差 — {list})
 
-**User verify**:
+**需要你确认**
 - [ ] {check from task 1}
 - [ ] {check from task 2}
 - [ ] {overall integration check}
 
 ---
 ```
+
+If any auto check fails or any task failed, header should be `— FAIL ✗`.
 
 Wait for user to confirm. Issues → dispatch fix subagent for specific task, re-verify.
 
