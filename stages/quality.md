@@ -4,9 +4,9 @@
 
 - total: 3
 - steps:
-  1. 构建和测试验证
-  2. 自定义检查
-  3. 跨任务影响检查
+  1. Does it build and pass tests?
+  2. Any custom checks needed?
+  3. Did it break anything else?
 
 Integration verification after execute completes. Focuses on **cross-task regression** — single-task verification was already done in execute.
 
@@ -18,9 +18,13 @@ Integration verification after execute completes. Focuses on **cross-task regres
 
 ---
 
-## Step 1: Detect Build & Test
+## Step 1: Build & Test
 
-**First**: check if CLAUDE.md defines build/test commands. If yes, use those directly — skip scanning.
+Model: sonnet
+
+Gate: 自动执行 — 此步骤始终运行，不可跳过。
+
+Detect and run build/test commands. **First**: check if CLAUDE.md defines build/test commands. If yes, use those directly — skip scanning.
 
 Only if CLAUDE.md has no build/test commands defined, scan project root for toolchain signals:
 
@@ -41,6 +45,8 @@ Run detected build command, then test command. Both must pass before Step 2.
 Fail → return to execute to fix.
 
 ## Step 2: Custom Scripts
+
+Model: sonnet
 
 Gate: 自动检测 — anchors.txt 存在或 scripts/quality/*.sh 目录非空时执行，否则跳过。
 
@@ -63,6 +69,8 @@ fi
 All pass → Step 3. Any fail → return to execute to fix.
 
 ## Step 3: Impact Verification
+
+Model: opus
 
 Gate: sprint 是否包含多个任务且任务间有文件交叉？
 
@@ -122,5 +130,8 @@ Wait for user to confirm all checks pass. Confirmed → next stage.
 
 ## Recovery
 
-- Build/test fail → execute fixes
-- User finds issue in impact check → execute fixes, re-run quality
+- Build fails → return to execute stage, fix build errors in the failing task, re-run quality from Step 1
+- Test fails → return to execute stage, fix failing test in the relevant task, re-run quality from Step 1
+- Anchor check fails → return to execute stage, fix anchor violation, re-run quality from Step 2
+- Custom script fails → read script output, return to execute to fix the issue, re-run quality from Step 2
+- User finds cross-task issue in impact check → return to execute to fix the interaction, re-run quality from Step 3

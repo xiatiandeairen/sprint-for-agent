@@ -9,10 +9,8 @@ description: Lightweight task executor. Run tasks immediately, resume deferred s
 
 ## Rules
 
-- Bash commands marked `# [RUN]` must be executed with Bash tool.
-- `[TASK] xxx` triggers TaskCreate. Mark TaskUpdate completed when done.
-- Wait for user at `[STOP:confirm]` and `[STOP:choose]` per sprint conventions.
-- Match user's language. Chinese → Chinese. English → English.
+- All Rules and Hard Rules from sprint SKILL.md apply. Do not duplicate — refer to them.
+- Additionally: do not create sprint tracking for tasks that change 1 file and <20 lines (one-liner). Execute directly.
 - Script paths: Set `SPRINT_BASE` from "Base directory for this skill: {path}" — navigate up two levels from `skills/todo/` to reach plugin root. `SPRINT_CTL="$SPRINT_BASE/scripts/sprint-ctl.sh"`, `ANCHOR_CHECK="$SPRINT_BASE/scripts/anchor-check.sh"`.
 
 ---
@@ -130,9 +128,9 @@ Lightweight single-task execution.
 
 ### Step 1: Assess
 
-Quick assessment — is this a one-liner or multi-step?
-- One-liner: skip sprint tracking, just do it, report result.
-- Multi-step: create sprint and track.
+Route check:
+- Does it involve exactly 1 file and <20 lines of change? → one-liner: skip sprint tracking, just do it, report result.
+- Otherwise → multi-step: create sprint and track.
 
 ### Step 2: Execute (multi-step)
 

@@ -4,15 +4,21 @@
 
 - total: 7
 - steps:
-  1. 确定解决方案的形式
-  2. 收敛方向
-  3. 参考行业实践
-  4. 确定具体方案
-  5. 确认功能清单
-  6. 确认技术方向
-  7. 输出设计文档
+  1. What form should the output take?
+  2. What technical decisions need to be made?
+  3. How do others solve this?
+  4. Does this solution fit your needs?
+  5. What to build first?
+  6. How does it all fit together?
+  7. Lock the design
 
 From confirmed demand to concrete solution design. Goal: plan stage can split tasks directly from design output.
+
+## Hard Rules
+
+- Do not present more than 3 candidates per need. If more than 3 pass the filter, drop the weakest.
+- Do not generate candidates for forms that fail Q1 or Q2 filter — check adjacent forms only, not all 7.
+- Do not leave Decision Register entries as `open` when moving to the next step. Resolve or mark as `direction`.
 
 ## Input
 
@@ -21,7 +27,7 @@ From confirmed demand to concrete solution design. Goal: plan stage can split ta
 
 ---
 
-## Step 1: Demand Modeling
+## Step 1: Delivery Form Classification
 
 Model: opus
 
@@ -59,19 +65,15 @@ if multiple parties misalign     → Collaboration
 
 For each need from brainstorm handoff:
 
-1. Classify using the classifier above
-2. Generate candidates across multiple forms (not just the classified one):
-   - 1 feature candidate
-   - 1 workflow candidate
-   - 1 decision policy candidate
-   - (optional) automation / data / asset / collaboration
+1. Classify using the classifier above → primary form
+2. Check the 2 adjacent forms (one row above, one below in the 7 Delivery Forms table) for fit
+3. For each candidate (primary + up to 2 adjacent), filter with these questions:
+   - Does it solve the user's stated problem directly? (must be yes to proceed)
+   - Can it be built within the sprint's scope? (must be yes to proceed)
+   - Does it create reusable value beyond this sprint? (prefer yes, not required)
+4. Eliminate candidates failing Q1 or Q2. Rank survivors: Q3 yes first, then primary form preference.
 
-3. Score each candidate:
-```
-score = outcome_impact + coverage + reusability - complexity - implementation_cost
-```
-
-4. Present top 3 ranked by score. For each, state the delivery form and why it fits:
+Present top 3 (or fewer if candidates were eliminated). For each, state the delivery form and why it fits:
 
 ```
 Your need "{need}" could be solved as:
@@ -241,7 +243,7 @@ Produce concrete design artifacts matched to the delivery form. User must be abl
 
 - Interface definitions (public API, before/after for changes)
 - Dependency direction (allowed + forbidden)
-- Architecture diagram / sequence diagram / data flow as needed
+- Architecture diagram (when >2 layers), sequence diagram (when >3 components interact), data flow (when data transforms across boundaries)
 
 ### Present to user:
 
@@ -264,6 +266,36 @@ Produce concrete design artifacts matched to the delivery form. User must be abl
 ```
 
 Wait for user confirmation. Corrections → update and re-present.
+
+### Few-shot: Solution Design
+
+Good (concrete, verifiable):
+```
+### Solution Design
+**Form**: Automation
+**Trigger**: User runs /deploy → script auto-checks env vars, runs build, pushes to staging
+**Before**: 5 manual steps, easy to forget env check
+**After**: 1 command, env check enforced
+**File Impact**: create scripts/deploy.sh, modify package.json (add script alias)
+```
+
+Bad (vague, not implementable):
+```
+### Solution Design
+**Form**: Feature
+**Description**: Improve the deployment process to make it more automated and reliable
+**File Impact**: various files
+```
+
+### Build Decision Register
+
+After user confirms Solution Design, compile all decisions from Steps 1-4 into the Decision Register:
+- Step 1: delivery form selection per need → `core`
+- Step 2: task goal selections → `core`
+- Step 4: key design decisions (architecture, interface, trade-offs) → `core`
+- Implementation details surfaced during discussion → `detail`
+
+Present the register to user for review before proceeding to Step 5.
 
 ---
 

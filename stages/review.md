@@ -4,13 +4,18 @@
 
 - total: 5
 - steps:
-  1. 生成代码评审
-  2. 设计对齐和代码质量
-  3. 呈现评审结果
-  4. 输出评审文档
-  5. 收集用户反馈
+  1. Analyze the changes
+  2. Does it match the design?
+  3. Here's what I found
+  4. Record review results
+  5. Your call on the findings
 
 Write a human-readable explanation of what changed, why, and what to watch out for. Only runs when guardrail=2.
+
+## Hard Rules
+
+- Do not flag style issues in files outside the changed file list.
+- Do not summarize what each line of code does. Focus on decisions and data flow.
 
 ## Input
 
@@ -20,6 +25,12 @@ Write a human-readable explanation of what changed, why, and what to watch out f
 ---
 
 ## Step 1: Generate Review
+
+Model: opus
+
+Gate: execute handoff 是否包含已完成的任务？
+
+💡 如果 execute 没有完成任何任务，跳过整个 review stage。
 
 Read execute handoff and git diff. Write a single unified review:
 
@@ -41,20 +52,26 @@ Read execute handoff and git diff. Write a single unified review:
 
 ## Step 2: Design Alignment + Code Quality Scan
 
+Model: opus
+
 **Design Alignment** — compare final implementation against design handoff:
 - Does implementation follow the chosen approach?
 - Any deviations from design? If yes, are they justified?
 
-**Code Quality Scan** — quick check within changed files:
-- Naming consistency within changed files
-- Obvious duplication in changed code
-- Complexity concerns (deeply nested logic, overly long functions)
+**Code Quality Checklist** — check each item within changed files, report only failures:
+- [ ] Any new public function/type missing documentation?
+- [ ] Any function >50 lines or >3 nesting levels?
+- [ ] Any duplicated block (>5 lines identical or near-identical)?
+- [ ] Any inconsistent naming within the changed files (mixed camelCase/snake_case, abbreviated vs full)?
+- [ ] Any TODO/FIXME/HACK comment added without a tracking issue?
 
-Output any deviations or concerns found. User decides if they need fixing.
+Output: list of failed checks with file:line references. "All checks pass" if none fail.
 
 ---
 
 ## Step 3: Present
+
+Model: sonnet
 
 ```
 ### 📝 Review
@@ -89,6 +106,8 @@ Output any deviations or concerns found. User decides if they need fixing.
 
 ## Step 4: Write Handoff
 
+Model: sonnet
+
 Write `.sprint/{id}/handoffs/review.md`:
 
 ```markdown
@@ -121,9 +140,13 @@ Write `.sprint/{id}/handoffs/review.md`:
 
 ## Step 5: User Feedback
 
-Anything to adjust before closing? If there are issues to fix, I'll go back to execute.
+Model: sonnet
 
-If user has feedback → update handoff with user's notes. If fix needed → return to execute.
+Present review to user and ask: "有需要调整的地方吗？"
+
+- User confirms no issues → mark review complete
+- User identifies issue → update handoff with user's notes, return to execute to fix
+- User requests handoff change only (no code fix) → update handoff directly
 
 ---
 
@@ -131,7 +154,14 @@ If user has feedback → update handoff with user's notes. If fix needed → ret
 
 - Review covers all tasks from execute
 - Key decisions documented with rationale
-- Change table complete
-- Design alignment and code quality checked
+- Change table complete (every changed file has an entry)
+- Design alignment checked against design handoff
+- Code quality checklist run on changed files, failures listed with file:line
 - User feedback collected
 - Handoff written
+
+## Recovery
+
+- Design alignment finds deviation → return to execute to fix or document as intentional in handoff
+- Code quality finds >50-line function or >3 nesting levels → return to execute to refactor
+- User requests changes → return to execute, fix, re-run review from Step 1

@@ -1,21 +1,34 @@
 # long
 
+## Progress
+
+- total: 7
+- steps:
+  1. Value Diverge
+  2. Value Converge & Rank
+  3. Difficulty Annotation
+  4. Blind Spot Prompting
+  5. Sprint Splitting
+  6. Write Handoffs
+  7. Confirm & Lock
+
 Discover value, map difficulty, scan blind spots, and split a large task into ordered sub-sprints ready for automatic execution.
 
 Pure conversation. Do NOT read code, files, or docs. All evidence comes from the user.
 
 ## Hard Rules
 
-- Never ask broad open-ended exploratory questions.
-- Ask at most one question per round.
-- Prefer multiple-choice questions (always 3 options).
-- Each question must state why it is being asked.
-- Only expand from confirmed answers.
-- If user confirms a split plan, the direction anchor is immutable — do not re-open it.
+- Ask at most 1 question per round. Each question must state why it is being asked.
+- Provide 3 options (A/B/C) for single-dimension clarification. Multi-dimensional choices use recommendation-first table.
+- Only expand from confirmed answers. Do not generate follow-ups from unconfirmed hypotheses.
+- After user confirms a split plan, the direction anchor is immutable — do not re-open it in subsequent stages.
+- Do not ask questions whose answer does not change any downstream output. If all slots are filled, converge.
 
 ---
 
 ## A1. Value Discovery
+
+Model: opus
 
 Turn a large ambiguous task into an ordered list of independent value propositions.
 
@@ -90,6 +103,8 @@ User confirms → value list locked. Corrections → update and re-confirm.
 
 ## A2. Difficulty Annotation
 
+Model: opus
+
 Per must-have value point, surface concerns before splitting.
 
 ### Step 4
@@ -103,36 +118,41 @@ What's the hardest part? Any concerns?
 (technical unknowns, risky dependencies, things you're unsure about)
 ```
 
-After the user answers, AI supplements potential technical difficulties not mentioned. Then tag the value point: **low / medium / high** difficulty.
+After the user answers, AI supplements potential technical difficulties not mentioned. Then assess difficulty using these criteria:
 
-Keep it conversational. Not a checklist. One exchange per value point.
+- Does it require changes to >3 files? → +1
+- Does it touch a public interface or shared data structure? → +1
+- Are there unknowns the user couldn't answer? → +1
+
+Score 0 → **low**, 1 → **medium**, 2-3 → **high**.
+
+Keep it conversational. One exchange per value point.
 
 ---
 
 ## A3. Blind Spot Prompting
 
-Based on the full value list and difficulty tags, AI proactively raises commonly missed concerns.
+Model: sonnet
+
+Based on the full value list and difficulty tags, run diagnostic questions to surface missed concerns.
 
 ### Step 5
 
-Present 3–5 blind spot prompts the user may not have considered. Examples of categories to check (pick relevant ones):
+For each must-have value point, run these diagnostic questions internally:
 
-- Migration / data compatibility
-- Edge cases and error states
-- Backward compatibility
-- Testing strategy
-- Operational concerns (deployment, rollback, monitoring)
-- User-facing breakage or friction
-- Cross-module impact
+1. Does this change existing data formats or storage? → migration risk
+2. Can this fail without the user noticing? → silent failure risk
+3. Does this change behavior that other modules depend on? → cross-module impact
+4. How would you roll this back? If no clear answer → rollback risk
+5. Does this need new tests, or do existing tests cover it? → test gap
 
-Format:
+Present only questions answered "yes" or "no clear answer" as blind spots:
 
 ```
 A few things that are easy to miss:
 
-1. {blind spot} — affects {value point}
-2. {blind spot} — affects {value point}
-3. {blind spot} — affects {value point}
+1. {specific blind spot from diagnostic} — affects {value point}
+2. {specific blind spot from diagnostic} — affects {value point}
 
 Which need attention? Any / none / others?
 ```
@@ -141,7 +161,9 @@ Tag confirmed blind spots onto corresponding value points. Rejected → discard.
 
 ---
 
-## A4. Sprint Splitting [STOP:confirm]
+## A4. Sprint Splitting
+
+Model: opus
 
 Split the ordered value list into executable sub-sprints.
 

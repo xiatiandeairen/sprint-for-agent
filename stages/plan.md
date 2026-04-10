@@ -4,14 +4,19 @@
 
 - total: 6
 - steps:
-  1. 确认实现偏好
-  2. 识别风险点
-  3. 设定验证规则
-  4. 拆分任务
-  5. 确认任务和执行方式
-  6. 输出计划文档
+  1. How detailed should the spec be?
+  2. Any open questions before coding?
+  3. What must be true when done?
+  4. How to break this into tasks?
+  5. Ready to execute?
+  6. Lock the plan
 
 From design handoff to executable task list. Determine specs, identify risks, generate anchors, split tasks.
+
+## Hard Rules
+
+- Every task must have a non-empty AI verify section. If no build/test applies, specify a file existence or content check.
+- Do not create tasks that mix adding new functionality with refactoring existing code.
 
 ## Input
 
@@ -196,6 +201,28 @@ Per task:
 - [ ] {concrete check 2}
 
 ---
+```
+
+### Few-shot: Task Split
+
+Good (independent, verifiable, single concern):
+```
+Task 1: Add UserProfile model — S — 1 file
+  create: src/models/UserProfile.swift
+  verify: file exists, compiles, contains required fields
+
+Task 2: Add UserProfile API endpoint — M — 2 files
+  create: src/api/userProfile.swift
+  modify: src/api/router.swift
+  verify: build passes, endpoint responds to GET /profile
+```
+
+Bad (mixed concerns, not independently verifiable):
+```
+Task 1: Add user profile and refactor auth — L — 5 files
+  create: src/models/UserProfile.swift
+  modify: src/auth/login.swift, src/auth/session.swift, src/api/router.swift, src/views/settings.swift
+  verify: it works
 ```
 
 ### Expected Files

@@ -1,7 +1,7 @@
 ---
-
-## name: sprint
+name: sprint
 description: Task execution workflow. Evaluates complexity, trims stages, executes step by step with anchor verification.
+---
 
 # Sprint
 
@@ -16,8 +16,21 @@ description: Task execution workflow. Evaluates complexity, trims stages, execut
 - Questions that ask user to choose must always list explicit options (A/B/C). Never ask a choice question without options.
 - Questions that ask user to confirm must always show the content being confirmed. Never ask "confirm?" without showing what to confirm.
 - Never expose internal concepts to user: mark names, layer/step/level numbers, evidence levels, algorithm terms, execution mode names. User sees natural conversation and formatted output blocks only.
-- Match user's language. Chinese input → Chinese response. English input → English response. Internal docs (skill files, handoffs) stay in English.
+- Match user's language. Chinese input → Chinese response. English input → English response. Internal docs (skill files, handoffs) stay in English. Template strings in stage files are structural guides — translate to user's language when outputting.
 - Script paths are relative to this skill's base directory (provided by Claude Code as "Base directory for this skill: {path}"). Set `SPRINT_BASE` to that path, then: `SPRINT_CTL="$SPRINT_BASE/scripts/sprint-ctl.sh"`, `ANCHOR_CHECK="$SPRINT_BASE/scripts/anchor-check.sh"`, stage files at `$SPRINT_BASE/stages/{stage}.md`.
+
+---
+
+## Hard Rules
+
+These apply to ALL stages. Stage files may add stage-specific rules but must not contradict these.
+
+- Do not modify files outside the task's declared file list. If a change is needed elsewhere, flag it — do not silently edit.
+- Do not skip anchor checks, even if tests pass. Anchors and tests verify different things.
+- Do not mix "add feature" and "refactor existing code" in a single task. Split them.
+- Do not summarize code line by line. Explain decisions and data flow, not syntax.
+- Do not force output when there is nothing substantive to produce. "No issues found" / "No lessons" is a valid result.
+- Do not classify user-requested changes as "issues" in deviation analysis. User change-requests are neutral, not negative.
 
 ---
 

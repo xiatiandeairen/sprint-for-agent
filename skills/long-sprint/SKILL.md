@@ -9,10 +9,8 @@ description: Sprint orchestrator for long-duration tasks. One-round preparation,
 
 ## Rules
 
-- Bash commands marked `# [RUN]` must be executed with Bash tool, not described verbally.
-- `[TASK] xxx` triggers TaskCreate. Mark TaskUpdate completed when done.
-- Wait for user at `[STOP:confirm]` (only proceed on: ok/yes/continue/确认/好/可以), `[STOP:choose]` (user picks one option), `[STOP:respond]` (user gives substantive reply).
-- Match user's language. Chinese input → Chinese response. Internal docs stay in English.
+- All Rules and Hard Rules from sprint SKILL.md apply. Do not duplicate — refer to them.
+- Additionally: do not re-open the direction anchor after user confirmation; do not pause for human input during Phase B unless a blocking failure occurs.
 - Script paths: Set `SPRINT_BASE` from "Base directory for this skill: {path}" — navigate up two levels from `skills/long-sprint/` to reach plugin root. `SPRINT_CTL="$SPRINT_BASE/scripts/sprint-ctl.sh"`, stage file at `$SPRINT_BASE/stages/long.md`.
 
 ---
@@ -177,15 +175,15 @@ TaskUpdate completed for sub-sprint task.
 
 #### Step 5 — Direction check
 
-After each sub-sprint completes, read `anchors/direction.md` and verify:
+After each sub-sprint completes, read `anchors/direction.md` and verify with these specific checks:
 
-- Actual output vs value target → match?
-- Next sprint preconditions → still hold?
-- End-state heading → still on track?
+1. Does the sub-sprint's actual output match its declared value target? (compare expected output in split plan vs files actually changed)
+2. Are the next sub-sprint's dependencies satisfied? (check if required files/interfaces from this sprint exist)
+3. Has any work been done that contradicts the "Must Not" list in direction.md? (scan changed files against exclusions)
 
-All pass → continue to next sub-sprint.
+All three must be "yes, yes, no" respectively → pass, continue to next sub-sprint.
 
-Any fail → stop, report to user. [STOP:choose]:
+Any check fails → stop, report which check failed and why. [STOP:choose]:
 - A) Adjust — revise the split plan or direction anchor, then continue
 - B) Skip — skip the failed check's sub-sprint and continue
 - C) Abort — end the long-sprint now, go to Phase C
@@ -194,9 +192,14 @@ Any fail → stop, report to user. [STOP:choose]:
 
 After every sub-sprint once 3 or more are completed:
 
-- Compare total outputs so far vs direction anchor end-state
-- If end-state still far away → append warning to journal
-- If outputs contain work not in anchor → append scope creep flag to journal
+1. List all value targets marked as delivered so far (from journal completed entries)
+2. List all value targets still pending
+3. Are there any files changed that don't map to any value target? → scope creep flag
+4. Is the remaining work achievable in the remaining sub-sprints? → trajectory check
+
+Report to journal: `{N}/{total} value targets delivered, scope creep: {yes/no with files}, trajectory: {on track / at risk}`
+
+If scope creep detected or trajectory at risk → append warning to journal.
 
 ### Failure handling
 

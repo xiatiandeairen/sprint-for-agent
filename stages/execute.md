@@ -4,18 +4,24 @@
 
 - total: 4
 - steps:
-  1. 初始化任务追踪
-  2. 逐步执行
-  3. 并行执行
-  4. 输出执行报告
+  1. Set up tracking
+  2. Build it step by step
+  3. Build in parallel
+  4. Record results
 
 Run tasks from plan handoff. Each unit follows: coding → build verify → anchor → test → review.
 
-Model: sonnet (default for coding; opus for integration/interface changes)
+Default Model: sonnet (override to opus when task changes public interface or touches 3+ modules)
+
+## Hard Rules
+
+- Do not modify files outside the task's declared file list. If an unlisted file needs changes, stop and report.
+- Do not skip anchor check even if all tests pass. Anchors verify structural constraints that tests don't cover.
+- Do not proceed to the next task if the current task's anchor check fails. Fix first.
 
 ## Default Anchors
 
-Every sprint automatically includes these anchors unless explicitly removed:
+If anchors.txt does not already contain `MUST_BUILD`, add it automatically:
 
 - `MUST_BUILD` — full project build must pass after each task
 
@@ -36,6 +42,8 @@ Determined in plan stage by user choice:
 
 ## Stage Start: Task Tracking
 
+Model: sonnet
+
 At the start of execute stage, before any coding begins:
 
 1. Create a `TaskCreate` for each task from the plan handoff
@@ -47,6 +55,8 @@ This gives the user live visibility into overall sprint progress throughout exec
 ---
 
 ## Step-by-step Mode
+
+Model: per task (sonnet default; opus for cross-module/interface tasks)
 
 For each task in plan handoff:
 
@@ -119,6 +129,8 @@ Repeat 1-4 for each task until all tasks complete.
 ---
 
 ## Subagent-driven Mode
+
+Model: per task (sonnet default; opus for cross-module/interface tasks)
 
 ### Worktree Isolation
 
@@ -208,6 +220,8 @@ If the failed task is upstream of other tasks, those downstream tasks remain pau
 ---
 
 ## Write Handoff
+
+Model: sonnet
 
 After all tasks verified, write `.sprint/{id}/handoffs/execute.md`:
 

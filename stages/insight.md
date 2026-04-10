@@ -4,13 +4,18 @@
 
 - total: 5
 - steps:
-  1. 结束 Sprint
-  2. 计划 vs 实际对比
-  3. 流程效率评估
-  4. 经验总结
-  5. 检查未提交改动
+  1. Close the sprint
+  2. What went differently than planned?
+  3. Did the process work well?
+  4. What to remember next time?
+  5. Any uncommitted work left?
 
 Metrics summary + deviation analysis + process evaluation. Last stage, always runs.
+
+## Hard Rules
+
+- Do not force lessons when nothing notable happened. "No lessons" is valid.
+- Do not classify user-requested scope changes as "issues". They are "change-requests" (neutral).
 
 ## Input
 
@@ -23,6 +28,8 @@ Metrics summary + deviation analysis + process evaluation. Last stage, always ru
 
 ## Step 1: End Sprint
 
+Model: sonnet
+
 ```bash
 # [RUN]
 bash "$SPRINT_CTL" end "{id}"
@@ -31,6 +38,8 @@ bash "$SPRINT_CTL" end "{id}"
 This prints the metrics summary: per-stage duration, anchor results, scope creep count.
 
 ## Step 2: Deviation Analysis
+
+Model: opus
 
 Compare plan expectations vs actual execution. Read plan handoff and execute handoff.
 
@@ -66,12 +75,20 @@ If deviation is significant (>30% tasks reworked, or unexpected files > planned 
 
 ## Step 3: Process Evaluation
 
+Model: sonnet
+
 Read per-stage durations from metrics.log. Calculate each stage's share of total sprint time.
 
-For each stage that ran, give a 1-line verdict based on time ratio and output value:
-- Stage took >40% of total time → flag as potentially `too heavy`
-- Stage took <5% of total time → flag as possibly `could skip`
-- Otherwise → assess output value to determine `essential` / `helpful` / `could skip`
+For each stage that ran, determine verdict using time ratio thresholds first, then binary output-value questions for stages not flagged by time:
+
+**Time-based flags:**
+- Stage took >40% of total time → `too heavy`
+- Stage took <5% of total time → `too light`
+
+**Output-value questions (for stages not flagged by time):**
+- Did this stage's output change any downstream decision? → `essential`
+- Did this stage's output confirm an assumption without changing anything? → `helpful`
+- Was this stage's output ignored or redundant with another stage? → `could skip`
 
 ```
 ### 💡 Process Evaluation
@@ -94,21 +111,27 @@ Verdicts: `essential` / `helpful` / `could skip` / `too heavy` / `too light`
 
 ## Step 4: Lessons (optional)
 
-If any of these occurred during the sprint, note them:
-- Approach that failed before finding the right one
-- Unexpected constraint discovered during execution
-- Tool or command that didn't work as expected
-- Stage that should have been included but was skipped
+Model: opus
 
-Only output if genuinely useful. Do not force lessons.
+Answer each question. If "no", skip it. If "yes", record the finding as a lesson.
+
+1. Was there a task that needed >1 attempt? → What was wrong with the first approach?
+2. Did execution discover a constraint not mentioned in design/plan? → What was it?
+3. Did any tool/command fail unexpectedly? → What was the workaround?
+4. Looking back, should a skipped stage have been included? → Why?
+5. Did any task take significantly longer than its size estimate? → Why?
+
+Only output lessons where the answer is "yes". No findings = no lessons — do not force output.
 
 After generating lessons, check if any have universal or reusable value — applicable beyond this sprint or project context. If yes, prompt the user:
 
 This lesson may be valuable for future sprints. Want to persist it with `/know learn`?
 
-If user says yes, suggest the knowledge entry in the appropriate format (decision / trap / rule). If no lessons or none worth persisting, skip this prompt entirely.
+If user says yes, suggest the knowledge entry as one of: decision / trap / rule. If no lessons or none worth persisting, skip this prompt entirely.
 
 ## Step 5: Uncommitted Changes Check
+
+Model: sonnet
 
 Check for uncommitted changes:
 
@@ -145,3 +168,9 @@ Note: The primary commit strategy (per-task or unified) was decided in the plan 
 - Lessons noted; /know learn prompted if applicable
 - Uncommitted changes checked; commit proposed if needed
 - No handoff file (insight is terminal output only)
+
+## Recovery
+
+- metrics.log missing or empty → skip deviation analysis and process evaluation, report "no metrics available"
+- sprint-ctl end fails → report error, proceed with remaining steps using available handoff data
+- git status fails → skip uncommitted changes check, report "git not available"
