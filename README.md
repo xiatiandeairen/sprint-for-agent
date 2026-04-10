@@ -37,7 +37,7 @@
 - **Anchor verification** — Compile-time-like assertions (`MUST_EXIST`, `MUST_NOT_IMPORT`, `MUST_BUILD`, etc.) checked throughout execution
 - **Model routing** — Automatically selects opus/sonnet/haiku per stage and per chunk based on complexity
 - **3 skill modes** — `/sprint` (standard), `/long-sprint` (multi-sprint orchestration), `/todo` (lightweight quick tasks)
-- **Lifecycle tracking** — SQLite-backed state machine with metrics logging
+- **Lifecycle tracking** — Append-only metrics log with state machine
 
 ## Installation
 

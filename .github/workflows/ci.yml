@@ -42,15 +42,6 @@ jobs:
           print(f'Marketplace: {data[\"name\"]} ({len(data[\"plugins\"])} plugins)')
           "
 
-      - name: Validate hooks.json
-        run: |
-          python3 -c "
-          import json
-          with open('hooks/hooks.json') as f:
-              data = json.load(f)
-          assert 'hooks' in data
-          print(f'Hooks: {list(data[\"hooks\"].keys())}')
-          "
 
   lint:
     name: Lint

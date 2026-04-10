@@ -1,5 +1,5 @@
 {
   "name": "sprint",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "任务执行引擎 — 按任务类型路由，7 阶段流水线，anchor 验证"
 }
