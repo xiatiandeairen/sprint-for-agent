@@ -29,6 +29,7 @@ BASE_COMMIT=$(python3 -c "import json; s=json.load(open('$DIR/state.json')); pri
 
 PASS=0
 FAIL=0
+SKIP=0
 
 check() {
   local assertion="$1"
@@ -42,6 +43,68 @@ check() {
   fi
 }
 
+skip() {
+  local assertion="$1"
+  local reason="$2"
+  echo "SKIP: $assertion ($reason)"
+  SKIP=$(( SKIP + 1 ))
+}
+
+# ── Project type detection ──
+# Priority: CLAUDE.md user-defined commands > auto-detect from project root
+# Aligned with quality.md Step 1 signal table
+
+detect_build_cmd() {
+  # Check CLAUDE.md for user-defined build command
+  if [[ -f "$ROOT/CLAUDE.md" ]]; then
+    local cmd
+    cmd=$(grep -E '^\s*build_cmd\s*[:=]' "$ROOT/CLAUDE.md" 2>/dev/null | head -1 | sed 's/.*[:=]\s*//' | xargs)
+    if [[ -n "$cmd" ]]; then echo "$cmd"; return; fi
+  fi
+  # Auto-detect from project root
+  if [[ -f "$ROOT/Package.swift" ]]; then echo "swift build"
+  elif [[ -f "$ROOT/package.json" ]]; then echo "npm run build"
+  elif [[ -f "$ROOT/Cargo.toml" ]]; then echo "cargo build"
+  elif [[ -f "$ROOT/Makefile" ]]; then echo "make"
+  elif [[ -f "$ROOT/pyproject.toml" ]]; then echo "pip install -e ."
+  elif [[ -f "$ROOT/go.mod" ]]; then echo "go build ./..."
+  elif [[ -f "$ROOT/Gemfile" ]]; then echo "bundle exec rake build"
+  fi
+}
+
+detect_test_cmd() {
+  # Check CLAUDE.md for user-defined test command
+  if [[ -f "$ROOT/CLAUDE.md" ]]; then
+    local cmd
+    cmd=$(grep -E '^\s*test_cmd\s*[:=]' "$ROOT/CLAUDE.md" 2>/dev/null | head -1 | sed 's/.*[:=]\s*//' | xargs)
+    if [[ -n "$cmd" ]]; then echo "$cmd"; return; fi
+  fi
+  # Auto-detect from project root
+  if [[ -f "$ROOT/Package.swift" ]]; then echo "swift test"
+  elif [[ -f "$ROOT/package.json" ]]; then echo "npm test"
+  elif [[ -f "$ROOT/Cargo.toml" ]]; then echo "cargo test"
+  elif [[ -f "$ROOT/Makefile" ]]; then echo "make test"
+  elif [[ -f "$ROOT/pyproject.toml" ]]; then echo "pytest"
+  elif [[ -f "$ROOT/go.mod" ]]; then echo "go test ./..."
+  elif [[ -f "$ROOT/Gemfile" ]]; then echo "bundle exec rake test"
+  fi
+}
+
+detect_import_pattern() {
+  # Returns grep pattern for import statements by project type
+  local module="$1"
+  if [[ -f "$ROOT/Package.swift" ]]; then echo "^import ${module}"
+  elif [[ -f "$ROOT/go.mod" ]]; then echo "\"${module}\""
+  elif [[ -f "$ROOT/pyproject.toml" ]] || [[ -f "$ROOT/setup.py" ]] || [[ -f "$ROOT/requirements.txt" ]]; then echo "(import ${module}|from ${module})"
+  elif [[ -f "$ROOT/package.json" ]] || [[ -f "$ROOT/tsconfig.json" ]]; then echo "(import.*${module}|require.*${module})"
+  elif [[ -f "$ROOT/Cargo.toml" ]]; then echo "use ${module}"
+  elif [[ -f "$ROOT/Gemfile" ]]; then echo "require.*${module}"
+  fi
+}
+
+BUILD_CMD="$(detect_build_cmd)"
+TEST_CMD="$(detect_test_cmd)"
+
 while IFS= read -r line; do
   # Skip blank lines and comments
   [[ -z "$line" || "$line" == \#* ]] && continue
@@ -51,51 +114,99 @@ while IFS= read -r line; do
 
   case "$ASSERT" in
 
-    MUST_NOT_IMPORT)
-      TARGET="${PARTS[1]}"
-      MODULE="${PARTS[2]}"
-      grep -rq "^import ${MODULE}" "$ROOT/src/mac/Packages/${TARGET}/" 2>/dev/null
-      check "$line" $((! $?))
+    MUST_BUILD)
+      if [[ -z "$BUILD_CMD" ]]; then
+        skip "$line" "no project type detected and no build_cmd in CLAUDE.md"
+      else
+        OUTPUT=$(cd "$ROOT" && eval "$BUILD_CMD" 2>&1) && RC=0 || RC=$?
+        check "$line" $RC
+      fi
+      ;;
+
+    MUST_TEST)
+      if [[ -z "$TEST_CMD" ]]; then
+        skip "$line" "no project type detected and no test_cmd in CLAUDE.md"
+      else
+        OUTPUT=$(cd "$ROOT" && eval "$TEST_CMD" 2>&1) && RC=0 || RC=$?
+        check "$line" $RC
+      fi
       ;;
 
     MUST_IMPORT)
       TARGET="${PARTS[1]}"
       MODULE="${PARTS[2]}"
-      grep -rq "^import ${MODULE}" "$ROOT/src/mac/Packages/${TARGET}/" 2>/dev/null
-      check "$line" $?
+      PATTERN="$(detect_import_pattern "$MODULE")"
+      if [[ -z "$PATTERN" ]]; then
+        skip "$line" "no project type detected for import pattern"
+      elif [[ -d "$ROOT/$TARGET" ]]; then
+        if grep -rqE "$PATTERN" "$ROOT/$TARGET/" 2>/dev/null; then
+          check "$line" 0
+        else
+          check "$line" 1
+        fi
+      elif [[ -f "$ROOT/$TARGET" ]]; then
+        if grep -qE "$PATTERN" "$ROOT/$TARGET" 2>/dev/null; then
+          check "$line" 0
+        else
+          check "$line" 1
+        fi
+      else
+        echo "FAIL: $line (target path not found: $TARGET)"
+        FAIL=$(( FAIL + 1 ))
+      fi
+      ;;
+
+    MUST_NOT_IMPORT)
+      TARGET="${PARTS[1]}"
+      MODULE="${PARTS[2]}"
+      PATTERN="$(detect_import_pattern "$MODULE")"
+      if [[ -z "$PATTERN" ]]; then
+        skip "$line" "no project type detected for import pattern"
+      elif [[ -d "$ROOT/$TARGET" ]]; then
+        if grep -rqE "$PATTERN" "$ROOT/$TARGET/" 2>/dev/null; then
+          check "$line" 1
+        else
+          check "$line" 0
+        fi
+      elif [[ -f "$ROOT/$TARGET" ]]; then
+        if grep -qE "$PATTERN" "$ROOT/$TARGET" 2>/dev/null; then
+          check "$line" 1
+        else
+          check "$line" 0
+        fi
+      else
+        check "$line" 0
+      fi
       ;;
 
     MUST_NOT_EXIST)
       PATH_ARG="${PARTS[1]}"
-      test -f "$ROOT/$PATH_ARG" 2>/dev/null
-      check "$line" $((! $?))
+      if test -e "$ROOT/$PATH_ARG" 2>/dev/null; then
+        check "$line" 1
+      else
+        check "$line" 0
+      fi
       ;;
 
     MUST_EXIST)
       PATH_ARG="${PARTS[1]}"
-      test -f "$ROOT/$PATH_ARG" 2>/dev/null
-      check "$line" $?
-      ;;
-
-    MUST_BUILD)
-      OUTPUT=$(cd "$ROOT/src/mac/Packages" && swift build 2>&1 | tail -1)
-      echo "$OUTPUT" | grep -q "Build complete"
-      check "$line" $?
-      ;;
-
-    MUST_TEST)
-      OUTPUT=$(cd "$ROOT/src/mac/Packages" && swift test 2>&1)
-      echo "$OUTPUT" | grep -q "0 failures"
-      check "$line" $?
+      if test -e "$ROOT/$PATH_ARG" 2>/dev/null; then
+        check "$line" 0
+      else
+        check "$line" 1
+      fi
       ;;
 
     FILE_NOT_MODIFIED)
       PATH_ARG="${PARTS[1]}"
       if [[ -n "$BASE_COMMIT" ]]; then
-        git diff "$BASE_COMMIT" --name-only 2>/dev/null | grep -qF "$PATH_ARG"
-        check "$line" $((! $?))
+        if git diff "$BASE_COMMIT" --name-only 2>/dev/null | grep -qF "$PATH_ARG"; then
+          check "$line" 1
+        else
+          check "$line" 0
+        fi
       else
-        echo "SKIP: $line (no base_commit)"
+        skip "$line" "no base_commit"
       fi
       ;;
 
@@ -107,9 +218,9 @@ while IFS= read -r line; do
 done < "$ANCHORS"
 
 echo ""
-echo "Anchor check: $PASS pass / $FAIL fail"
+echo "Anchor check: $PASS pass / $FAIL fail / $SKIP skip"
 
 # Write to metrics.log
-echo "anchor_check|$(date +%s)|pass=$PASS|fail=$FAIL" >> "$DIR/metrics.log"
+echo "anchor_check|$(date +%s)|pass=$PASS|fail=$FAIL|skip=$SKIP" >> "$DIR/metrics.log"
 
 [[ $FAIL -eq 0 ]]
