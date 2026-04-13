@@ -243,4 +243,88 @@ PEOF
   rm -f "$ROOT/package.json" "$ROOT/CLAUDE.md"
 '
 
+# ── .sprint.json config ──
+
+run_test ".sprint.json build field → MUST_BUILD uses config" '
+  make_sprint "test-030" "MUST_BUILD"
+  rm -f "$ROOT/package.json" "$ROOT/CLAUDE.md"
+  cat > "$ROOT/.sprint.json" <<PEOF
+{"build": "echo sprint-json-build-ok"}
+PEOF
+  OUTPUT=$(cd "$ROOT" && bash "$ANCHOR_CHECK" "test-030" 2>&1)
+  assert_contains "PASS" "$OUTPUT"
+  rm -f "$ROOT/.sprint.json"
+'
+
+run_test ".sprint.json test field → MUST_TEST uses config" '
+  make_sprint "test-031" "MUST_TEST"
+  rm -f "$ROOT/package.json" "$ROOT/CLAUDE.md"
+  cat > "$ROOT/.sprint.json" <<PEOF
+{"test": "echo sprint-json-test-ok"}
+PEOF
+  OUTPUT=$(cd "$ROOT" && bash "$ANCHOR_CHECK" "test-031" 2>&1)
+  assert_contains "PASS" "$OUTPUT"
+  rm -f "$ROOT/.sprint.json"
+'
+
+run_test ".sprint.json takes priority over CLAUDE.md" '
+  make_sprint "test-032" "MUST_BUILD"
+  cat > "$ROOT/CLAUDE.md" <<PEOF
+build_cmd: exit 1
+PEOF
+  cat > "$ROOT/.sprint.json" <<PEOF
+{"build": "echo sprint-json-wins"}
+PEOF
+  OUTPUT=$(cd "$ROOT" && bash "$ANCHOR_CHECK" "test-032" 2>&1)
+  assert_contains "PASS" "$OUTPUT"
+  rm -f "$ROOT/.sprint.json" "$ROOT/CLAUDE.md"
+'
+
+run_test ".sprint.json missing field → fallback to CLAUDE.md" '
+  make_sprint "test-033" "MUST_BUILD"
+  cat > "$ROOT/.sprint.json" <<PEOF
+{"test": "echo only-test"}
+PEOF
+  cat > "$ROOT/CLAUDE.md" <<PEOF
+build_cmd: echo claude-md-fallback
+PEOF
+  OUTPUT=$(cd "$ROOT" && bash "$ANCHOR_CHECK" "test-033" 2>&1)
+  assert_contains "PASS" "$OUTPUT"
+  rm -f "$ROOT/.sprint.json" "$ROOT/CLAUDE.md"
+'
+
+run_test ".sprint.json missing field → fallback to auto-detect" '
+  make_sprint "test-034" "MUST_BUILD"
+  cat > "$ROOT/.sprint.json" <<PEOF
+{"lint": "echo only-lint"}
+PEOF
+  rm -f "$ROOT/CLAUDE.md"
+  cat > "$ROOT/package.json" <<PEOF
+{"scripts":{"build":"echo auto-detect-build"}}
+PEOF
+  OUTPUT=$(cd "$ROOT" && bash "$ANCHOR_CHECK" "test-034" 2>&1)
+  assert_contains "PASS" "$OUTPUT"
+  rm -f "$ROOT/.sprint.json" "$ROOT/package.json"
+'
+
+run_test "No .sprint.json → behavior unchanged (backward compat)" '
+  make_sprint "test-035" "MUST_BUILD"
+  rm -f "$ROOT/.sprint.json" "$ROOT/CLAUDE.md"
+  cat > "$ROOT/package.json" <<PEOF
+{"scripts":{"build":"echo compat-ok"}}
+PEOF
+  OUTPUT=$(cd "$ROOT" && bash "$ANCHOR_CHECK" "test-035" 2>&1)
+  assert_contains "PASS" "$OUTPUT"
+  rm -f "$ROOT/package.json"
+'
+
+run_test ".sprint.json invalid JSON → error exit 1" '
+  make_sprint "test-036" "MUST_BUILD"
+  echo "not valid json{{{" > "$ROOT/.sprint.json"
+  OUTPUT=$(cd "$ROOT" && bash "$ANCHOR_CHECK" "test-036" 2>&1) || true
+  RC=0; cd "$ROOT" && bash "$ANCHOR_CHECK" "test-036" >/dev/null 2>&1 || RC=$?
+  [[ $RC -ne 0 ]]
+  rm -f "$ROOT/.sprint.json"
+'
+
 report

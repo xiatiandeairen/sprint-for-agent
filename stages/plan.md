@@ -86,8 +86,8 @@ Auto-extract from design handoff and write directly to `.sprint/{id}/anchors.txt
 | Constraints: do-not-touch | `FILE_NOT_MODIFIED {path}` | |
 | Dependencies: required imports | `MUST_IMPORT {target} {module}` | target = relative path from project root (file or dir) |
 | Dependencies: forbidden imports | `MUST_NOT_IMPORT {target} {module}` | target = relative path from project root (file or dir) |
-| Project has tests | `MUST_TEST` | SKIP if no project type detected |
-| Project is buildable | `MUST_BUILD` | SKIP if no project type detected |
+| Project has tests | `MUST_TEST` | Uses .sprint.json > CLAUDE.md > auto-detect. SKIP if none found |
+| Project is buildable | `MUST_BUILD` | Uses .sprint.json > CLAUDE.md > auto-detect. SKIP if none found |
 
 Also extract from spec preferences and decision point mitigations.
 

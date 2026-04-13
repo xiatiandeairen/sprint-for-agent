@@ -50,18 +50,42 @@ skip() {
   SKIP=$(( SKIP + 1 ))
 }
 
-# ── Project type detection ──
-# Priority: CLAUDE.md user-defined commands > auto-detect from project root
+# ── Project config & type detection ──
+# Priority: .sprint.json > CLAUDE.md > auto-detect from project root
 # Aligned with quality.md Step 1 signal table
 
+read_sprint_config() {
+  local field="$1"
+  if [[ -f "$ROOT/.sprint.json" ]]; then
+    local val
+    val=$(python3 -c "
+import json, sys
+try:
+    c = json.load(open('$ROOT/.sprint.json'))
+    print(c.get('$field', ''))
+except json.JSONDecodeError:
+    print('__INVALID_JSON__', file=sys.stderr)
+    sys.exit(1)
+" 2>/dev/null) || {
+      echo "Error: .sprint.json is not valid JSON" >&2
+      exit 1
+    }
+    if [[ -n "$val" ]]; then echo "$val"; return; fi
+  fi
+}
+
 detect_build_cmd() {
-  # Check CLAUDE.md for user-defined build command
+  # 1. .sprint.json
+  local cfg
+  cfg="$(read_sprint_config "build")"
+  if [[ -n "$cfg" ]]; then echo "$cfg"; return; fi
+  # 2. CLAUDE.md
   if [[ -f "$ROOT/CLAUDE.md" ]]; then
     local cmd
     cmd=$(grep -E '^\s*build_cmd\s*[:=]' "$ROOT/CLAUDE.md" 2>/dev/null | head -1 | sed 's/.*[:=]\s*//' | xargs)
     if [[ -n "$cmd" ]]; then echo "$cmd"; return; fi
   fi
-  # Auto-detect from project root
+  # 3. Auto-detect from project root
   if [[ -f "$ROOT/Package.swift" ]]; then echo "swift build"
   elif [[ -f "$ROOT/package.json" ]]; then echo "npm run build"
   elif [[ -f "$ROOT/Cargo.toml" ]]; then echo "cargo build"
@@ -73,13 +97,17 @@ detect_build_cmd() {
 }
 
 detect_test_cmd() {
-  # Check CLAUDE.md for user-defined test command
+  # 1. .sprint.json
+  local cfg
+  cfg="$(read_sprint_config "test")"
+  if [[ -n "$cfg" ]]; then echo "$cfg"; return; fi
+  # 2. CLAUDE.md
   if [[ -f "$ROOT/CLAUDE.md" ]]; then
     local cmd
     cmd=$(grep -E '^\s*test_cmd\s*[:=]' "$ROOT/CLAUDE.md" 2>/dev/null | head -1 | sed 's/.*[:=]\s*//' | xargs)
     if [[ -n "$cmd" ]]; then echo "$cmd"; return; fi
   fi
-  # Auto-detect from project root
+  # 3. Auto-detect from project root
   if [[ -f "$ROOT/Package.swift" ]]; then echo "swift test"
   elif [[ -f "$ROOT/package.json" ]]; then echo "npm test"
   elif [[ -f "$ROOT/Cargo.toml" ]]; then echo "cargo test"
@@ -88,6 +116,11 @@ detect_test_cmd() {
   elif [[ -f "$ROOT/go.mod" ]]; then echo "go test ./..."
   elif [[ -f "$ROOT/Gemfile" ]]; then echo "bundle exec rake test"
   fi
+}
+
+detect_lint_cmd() {
+  # Only from .sprint.json (no CLAUDE.md or auto-detect fallback)
+  read_sprint_config "lint"
 }
 
 detect_import_pattern() {

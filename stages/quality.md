@@ -28,9 +28,11 @@ Model: sonnet
 
 Gate (always): 始终运行，不可跳过。
 
-Detect build/test commands. **First**: check CLAUDE.md for defined commands. If found, use directly.
+Detect build/test commands by priority:
 
-Only if CLAUDE.md has none, scan project root:
+1. **`.sprint.json`** — project-level config (highest priority)
+2. **CLAUDE.md** — `build_cmd` / `test_cmd` (backward compatible)
+3. **Auto-detect** — scan project root:
 
 | Signal | Build | Test |
 |--------|-------|------|
@@ -43,6 +45,14 @@ Only if CLAUDE.md has none, scan project root:
 | Gemfile | `bundle exec rake build` | `bundle exec rake test` |
 
 Multiple detected → run all. Both must pass. Fail → return to execute.
+
+## Step 1.5: Lint
+
+Model: sonnet
+
+Gate (auto): `.sprint.json` 中有 `lint` 字段 → 执行。否则跳过。
+
+Run lint command from `.sprint.json`. Fail → return to execute.
 
 ## Step 2: Custom Scripts
 
