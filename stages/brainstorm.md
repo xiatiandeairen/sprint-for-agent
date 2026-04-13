@@ -52,11 +52,33 @@ Here's what I inferred — confirm, correct, or fill in the blanks:
 
 User confirms → Demand Lock locked. Corrections → update (max 1 follow-up).
 
-**Lock** — present final demand frame, then Gate question for Step 2:
+**Lock** — present final demand frame, then evaluate Gate for Step 2.
+
+Gate evaluation (internal, not shown to user):
+
+For each diagnostic below, answer yes/no based solely on the locked demand frame:
+
+| # | Question | yes signal |
+|---|----------|------------|
+| 1 | Will this task be done more than once? | Context mentions recurring trigger or pattern |
+| 2 | Is there a manual step that could be eliminated? | Goal includes manual workflow |
+| 3 | Could the result fail silently? | No validation in Success criteria |
+| 4 | Is the output reusable by other features? | Object touches shared module or produces artifact |
+| 5 | Does an implicit decision deserve to be explicit? | Constraint or Priority contains hidden assumption |
+
+Count yes answers. ≥2 → recommend enter. Otherwise → recommend skip.
+
+Present to user:
 
 ```
-你的需求背后是否有未发现的价值方向？
-💡 明确的功能点实现 → 直接进入结论；新方向或战略性需求 → 值得探索。
+Demand Lock ✓
+
+[If ≥2 yes — recommend enter]
+I noticed {convert top 2 "yes" items into plain-language observations, e.g. "this workflow will be repeated — templating opportunity" / "the output artifact is referenced by other modules"}.
+A) Explore these directions  B) Skip to conclusion
+
+[If <2 yes — recommend skip]
+Requirements are clear — proceeding to conclusion. Speak up if you see directions worth exploring.
 ```
 
 ### Few-shot
@@ -69,9 +91,7 @@ Bad: `Goal: Improve the app | Object: The codebase | Success: It works better`
 
 ## Step 2: Value Mining
 
-Gate (user): 你的需求背后是否有未发现的价值方向？
-
-💡 明确的功能点实现 → 跳过；新方向或战略性需求 → 进入。Default: skip.
+Gate: determined by Step 1 Gate evaluation (≥2 diagnostics "yes" → enter, otherwise skip). User can override. Default: skip.
 
 Model: opus
 
