@@ -9,3 +9,4 @@
 - [project-decoupling](.know/docs/sprint/requirements/project-decoupling/prd.md) | 2026-04-13 ← roadmap
 - [feedback-loop](.know/docs/sprint/requirements/feedback-loop/prd.md) | 2026-04-13 ← roadmap
   - [tech](.know/docs/sprint/requirements/feedback-loop/impl/tech.md) | 2026-04-13 ← prd
+- [quality-baseline](.know/docs/sprint/requirements/quality-baseline/prd.md) | 2026-04-13 ← roadmap
