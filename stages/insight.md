@@ -84,6 +84,15 @@ Per-stage duration from metrics.log. Calculate time share.
 **Recommendation**: {1 sentence — pipeline for next time}
 ```
 
+Then run historical comparison:
+
+```bash
+# [RUN]
+bash "$SPRINT_BASE/scripts/sprint-insight-stats.sh" "{sprint_id}"
+```
+
+If output contains a comparison table, present it to user. If insufficient data, skip silently.
+
 ## Step 4: Lessons (optional)
 
 Model: opus
