@@ -17,7 +17,7 @@ description: Sprint orchestrator for long-duration tasks. One-round preparation,
 
 - All Rules and Hard Rules from sprint SKILL.md apply.
 - Do not pause for human input during Phase B unless a blocking failure or direction check failure occurs.
-- Script paths: Set `SPRINT_BASE` from "Base directory for this skill: {path}" — navigate up two levels from `skills/long-sprint/`. `SPRINT_CTL="$SPRINT_BASE/scripts/sprint-ctl.sh"`, stage file at `$SPRINT_BASE/stages/long.md`.
+- Script paths: From "Base directory for this skill: {path}", strip `skills/long-sprint/` to get project root. `SPRINT_CTL="{project_root}/scripts/sprint-ctl.sh"`, stage file at `{project_root}/stages/long.md`.
 
 ## Default Behaviors
 

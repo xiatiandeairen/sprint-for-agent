@@ -11,7 +11,7 @@ description: Lightweight task executor. Run tasks immediately, resume deferred s
 
 - All Rules and Hard Rules from sprint SKILL.md apply.
 - 1 file + <20 lines change → execute directly without sprint tracking.
-- Script paths: Set `SPRINT_BASE` from "Base directory for this skill: {path}" — navigate up two levels from `skills/todo/`. `SPRINT_CTL="$SPRINT_BASE/scripts/sprint-ctl.sh"`, `ANCHOR_CHECK="$SPRINT_BASE/scripts/anchor-check.sh"`.
+- Script paths: From "Base directory for this skill: {path}", strip `skills/todo/` to get project root. `SPRINT_CTL="{project_root}/scripts/sprint-ctl.sh"`, `ANCHOR_CHECK="{project_root}/scripts/anchor-check.sh"`.
 
 ## Default Behaviors
 

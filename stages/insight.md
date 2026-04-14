@@ -88,7 +88,7 @@ Then run historical comparison:
 
 ```bash
 # [RUN]
-bash "$SPRINT_BASE/scripts/sprint-insight-stats.sh" "{sprint_id}"
+bash "{project_root}/scripts/sprint-insight-stats.sh" "{sprint_id}"
 ```
 
 If output contains a comparison table, present it to user. If insufficient data, skip silently.

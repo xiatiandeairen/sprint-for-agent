@@ -66,10 +66,10 @@ Never expose markers, step numbers, or algorithm terms to user. Match user's lan
 
 ### Script Paths
 
-From "Base directory for this skill: {path}":
+From "Base directory for this skill: {path}", strip `skills/sprint/` to get project root.
 ```
-SPRINT_CTL="$SPRINT_BASE/scripts/sprint-ctl.sh"
-ANCHOR_CHECK="$SPRINT_BASE/scripts/anchor-check.sh"
+SPRINT_CTL="{project_root}/scripts/sprint-ctl.sh"
+ANCHOR_CHECK="{project_root}/scripts/anchor-check.sh"
 ```
 
 ### Model Selection
