@@ -17,3 +17,4 @@
   - [tech](.know/docs/sprint/requirements/project-config/impl/tech.md) | 2026-04-13 ← prd
 - [data-aggregation](.know/docs/sprint/requirements/data-aggregation/prd.md) | 2026-04-14 ← roadmap
   - [tech](.know/docs/sprint/requirements/data-aggregation/impl/tech.md) | 2026-04-14 ← prd
+- [enhanced-insight](.know/docs/sprint/requirements/enhanced-insight/prd.md) | 2026-04-14 ← roadmap
