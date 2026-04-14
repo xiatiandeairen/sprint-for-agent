@@ -288,6 +288,172 @@ print(f\"{s['id']:<26} {s['type']:<10} {s['status']:<12} {s['desc']}\")
   if [[ $FOUND -eq 0 ]]; then echo "No sprints found."; fi
   ;;
 
+stats)
+  # Usage: sprint-ctl.sh stats [--last N] [--status STATUS]
+  if [[ ! -d "$SPRINT_DIR" ]]; then
+    echo "No sprints found."
+    exit 0
+  fi
+
+  LAST=""
+  FILTER_STATUS=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --last) LAST="$2"; shift 2 ;;
+      --status) FILTER_STATUS="$2"; shift 2 ;;
+      *) shift ;;
+    esac
+  done
+
+  python3 -c "
+import json, os, re, sys
+
+sprint_dir = '$SPRINT_DIR'
+last_n = int('$LAST') if '$LAST' else None
+filter_status = '$FILTER_STATUS' or None
+
+# Collect sprint data
+sprints = []
+for name in sorted(os.listdir(sprint_dir)):
+    state_path = os.path.join(sprint_dir, name, 'state.json')
+    if not os.path.isfile(state_path):
+        continue
+    try:
+        state = json.load(open(state_path))
+    except (json.JSONDecodeError, IOError):
+        continue
+    if filter_status and state.get('status') != filter_status:
+        continue
+    sprints.append((name, state))
+
+# Sort by created_at descending, take last N
+sprints.sort(key=lambda x: x[1].get('created_at', ''), reverse=True)
+if last_n:
+    sprints = sprints[:last_n]
+
+if not sprints:
+    print('No sprints found.')
+    sys.exit(0)
+
+total = len(sprints)
+completed = sum(1 for _, s in sprints if s['status'] == 'completed')
+
+# Parse metrics.log for each sprint
+total_duration = 0
+duration_count = 0
+stage_times = {}
+stage_counts = {}
+anchor_pass = 0
+anchor_total = 0
+
+for name, state in sprints:
+    metrics_path = os.path.join(sprint_dir, name, 'metrics.log')
+    if not os.path.isfile(metrics_path):
+        continue
+
+    sprint_start_ts = None
+    sprint_end_ts = None
+
+    with open(metrics_path) as f:
+        for line in f:
+            parts = line.strip().split('|')
+            if not parts:
+                continue
+            event = parts[0]
+
+            if event == 'sprint_start' and len(parts) >= 3:
+                sprint_start_ts = int(parts[2])
+            elif event == 'sprint_end' and len(parts) >= 3:
+                sprint_end_ts = int(parts[2])
+            elif event == 'stage_end' and len(parts) >= 5:
+                stage = parts[1]
+                dur_str = parts[4].rstrip('s')
+                try:
+                    dur = int(dur_str)
+                except ValueError:
+                    continue
+                stage_times[stage] = stage_times.get(stage, 0) + dur
+                stage_counts[stage] = stage_counts.get(stage, 0) + 1
+            elif event == 'anchor_check' and len(parts) >= 4:
+                for p in parts[2:]:
+                    if p.startswith('pass='):
+                        anchor_pass += int(p.split('=')[1])
+                        anchor_total += int(p.split('=')[1])
+                    elif p.startswith('fail='):
+                        anchor_total += int(p.split('=')[1])
+
+    if sprint_start_ts and sprint_end_ts:
+        total_duration += (sprint_end_ts - sprint_start_ts)
+        duration_count += 1
+
+# Parse execute handoffs for task completion
+tasks_completed = 0
+tasks_total = 0
+for name, state in sprints:
+    exec_path = os.path.join(sprint_dir, name, 'handoffs', 'execute.md')
+    if not os.path.isfile(exec_path):
+        continue
+    with open(exec_path) as f:
+        content = f.read()
+    # Match 'Tasks completed: N/M'
+    m = re.search(r'Tasks completed:\s*(\d+)/(\d+)', content)
+    if m:
+        tasks_completed += int(m.group(1))
+        tasks_total += int(m.group(2))
+
+# Scope creep from end output in metrics (count lines with 'creep')
+# Actually parse plan handoff Expected Files vs state base_commit
+# Simplified: count from metrics.log is not stored. Skip for now.
+
+# Output
+filter_desc = ''
+if filter_status:
+    filter_desc += f', status={filter_status}'
+if last_n:
+    filter_desc += f', last {last_n}'
+
+print(f'Sprint Stats ({total} sprints, {completed} completed{filter_desc})')
+print('─' * 40)
+
+# Efficiency
+print()
+print('Efficiency')
+if total > 0:
+    pct = completed * 100 // total
+    print(f'  Completion rate:  {pct}% ({completed}/{total})')
+if duration_count > 0:
+    avg_min = total_duration // duration_count // 60
+    print(f'  Avg duration:     {avg_min}m')
+
+if stage_times:
+    total_stage_time = sum(stage_times.values()) or 1
+    print('  Stage distribution:')
+    for stage in ['brainstorm','design','plan','execute','quality','review','insight']:
+        if stage in stage_times:
+            pct = stage_times[stage] * 100 // total_stage_time
+            cnt = stage_counts.get(stage, 0)
+            print(f'    {stage:<15} {pct:>3}%  ({cnt} sprints)')
+
+# Quality
+print()
+print('Quality')
+if anchor_total > 0:
+    apct = anchor_pass * 100 // anchor_total
+    print(f'  Anchor pass rate: {apct}% ({anchor_pass}/{anchor_total})')
+else:
+    print('  Anchor pass rate: N/A')
+
+# Value
+print()
+print('Value')
+if tasks_total > 0:
+    tpct = tasks_completed * 100 // tasks_total
+    print(f'  Task completion:  {tpct}% ({tasks_completed}/{tasks_total})')
+else:
+    print('  Task completion:  N/A')
+"
+  ;;
+
 *)
   echo "Usage: sprint-ctl.sh <command> [args]"
   echo "  evaluate <clarify> <design> <risk> [keywords]  Evaluate task dimensions"
@@ -296,6 +462,7 @@ print(f\"{s['id']:<26} {s['type']:<10} {s['status']:<12} {s['desc']}\")
   echo "  stage    <id> <stage> <status>            Update stage status"
   echo "  end      <id>                             Complete sprint"
   echo "  list                                      List sprints"
+  echo "  stats    [--last N] [--status STATUS]     Show aggregated statistics"
   exit 1
   ;;
 
