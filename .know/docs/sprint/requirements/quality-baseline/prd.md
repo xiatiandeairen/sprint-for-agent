@@ -1,64 +1,67 @@
 # 建立质量基线
 
+<!-- 核心问题: 需求到哪了、验收标准是什么？
+     定位: 需求级进度跟踪
+     不属于本文档: 产品全局规划（→ roadmap）、技术方案（→ tech）、系统架构（→ arch） -->
+
 ## 1. 问题
 
-sprint 的 2 个核心脚本（`sprint-ctl.sh`、`anchor-check.sh`）没有任何自动化测试。每次改动依赖手动验证，无法保证不破坏已有功能。M2 改动 `anchor-check.sh` 时发现 `set -e` 与 grep 的兼容性 bug，直到运行时才暴露——如果有回归测试，这类问题会在提交前被拦截。
+<!-- 为什么要做这个需求。回答"值不值得做"
+  - 3 要素，每要素 1-2 句: 用户痛点（具体困难）、影响范围（多少人/多频繁）、为什么现在做（触发事件）
+  - EXCLUDE: 技术实现原因、内部架构限制 -->
 
-随着里程碑推进（M4 配置机制、M5 反馈闭环），脚本复杂度会持续增长，缺少测试基线的风险也在放大。
+sprint 的 2 个核心脚本没有任何自动化测试，每次改动依赖手动验证，无法保证不破坏已有功能。M2 改动脚本时发现兼容性 bug 直到运行时才暴露。随着 M4/M5 持续改动脚本，缺少测试基线的风险在放大。
 
 ## 2. 目标用户
 
-sprint 的维护者和贡献者。修改核心脚本后需要快速验证改动没有破坏已有行为。当前替代方案是手动执行各种场景逐一检查，耗时且容易遗漏边界情况。
+<!-- 给谁做。回答"谁会用"
+  - 用户角色 + 使用场景 + 当前替代方案及其不足
+  - EXCLUDE: 系统内部组件名、数据模型 -->
+
+sprint 的维护者和贡献者。修改核心脚本后需要快速验证无回归。当前替代方案是手动逐场景检查，耗时且容易遗漏。
 
 ## 3. 核心假设
 
-**为核心脚本的关键路径建立自动化断言 → 后续改动可在 3 秒内确认无回归，减少手动验证时间和遗漏风险。**
+<!-- 做了之后会怎样。回答"在验证什么假设"
+  - 假设 = 1 句因果句（"做了 X → 用户会 Y"），验证方式 = 可执行的检查
+  - EXCLUDE: 多个假设混在一起、技术方案、实现细节 -->
 
-验证方式：测试脚本存在且 exit 0；每种 anchor 类型和每个 sprint-ctl 子命令至少有 1 个正向 + 1 个边界用例。
+**为核心脚本的关键路径建立自动化断言 → 后续改动可在 3 秒内确认无回归。**
+
+验证方式：测试脚本存在且 exit 0，覆盖每种 anchor 类型和每个 sprint-ctl 子命令。
 
 ## 4. 方案
 
-- **Before**: 改完 anchor-check.sh 后手动造一个 sprint 目录、写 anchors.txt、跑一遍看输出是否正确
-- **After**: 运行 `bash tests/test-anchor-check.sh`，15+ 断言自动验证所有 anchor 类型的正向和边界情况
+<!-- 做什么（不是怎么做）。回答"用户体验怎么变"
+  - 用 before → after 格式描述用户行为变化，每个变化点 1 句
+  - 任务拆分: 链接到每个 tech 文档（树状向下索引，不回指 roadmap）
+  - EXCLUDE: 操作流程图、交互细节、内部数据结构、存储格式、算法、文件路径 -->
 
-### 测试范围
-
-**anchor-check.sh（优先）：**
-- 7 种 anchor 类型：MUST_EXIST、MUST_NOT_EXIST、MUST_BUILD、MUST_TEST、MUST_IMPORT、MUST_NOT_IMPORT、FILE_NOT_MODIFIED
-- 每种类型的 PASS 和 FAIL 场景
-- 动态项目检测：detect_build_cmd / detect_test_cmd / detect_import_pattern
-- CLAUDE.md 优先读取逻辑
-- 未知项目类型 → SKIP 行为
-- 边界：空 anchors.txt、不存在的 sprint ID、注释行跳过
-
-**sprint-ctl.sh：**
-- 6 个子命令：create、activate、stage、end、evaluate、list
-- create：目录结构生成、state.json 字段完整性
-- activate：状态变更为 running、base_commit 记录
-- stage：running/completed/skipped 状态流转、metrics.log 记录
-- end：状态变更为 completed、统计输出、scope creep 检测
-- evaluate：3 参数组合 → 正确的 stage 列表、关键词覆盖 risk=1
-- list：有 sprint / 无 sprint 两种场景
-- 边界：无效子命令、缺少参数
+- **Before**: 改完脚本后手动造 sprint 目录逐一验证 → **After**: 运行测试脚本，42 个断言自动验证
 
 ### 任务
 
 | 任务 | 文档 | 进度 |
 |------|------|------|
-| 质量基线实现 | [tech](impl/tech.md) | 0/0 |
+| 回归测试套件实现 | [tech](impl/tech.md) | 1/1 |
 
 ## 5. 验收标准
 
-- `bash tests/test-anchor-check.sh` 运行通过（exit 0），覆盖 7 种 anchor 类型各自的 PASS + FAIL 场景
-- `bash tests/test-sprint-ctl.sh` 运行通过（exit 0），覆盖 6 个子命令的正向 + 边界场景
-- 测试在无外部依赖环境下可运行（纯 bash + git，不引入测试框架）
-- 测试使用临时目录，运行后自动清理，不污染项目状态
-- 每个测试用例有明确的断言描述（PASS/FAIL + 用例名称）
+<!-- 怎么算做完了。回答"验收标准"
+  - 条目列表，每条格式 = "用户做 X → 应看到 Y"，覆盖核心场景+关键边界，每条可独立验证
+  - EXCLUDE: 单元测试用例、代码覆盖率、内部接口断言 -->
+
+- 运行 `bash tests/test-anchor-check.sh` → exit 0，覆盖 7 种 anchor 类型
+- 运行 `bash tests/test-sprint-ctl.sh` → exit 0，覆盖 6 个子命令
+- 测试无外部依赖，使用临时目录，运行后自动清理
 
 ## 6. 排除项
 
-- CI 集成（GitHub Actions 等）— 先有测试，CI 后续接入
+<!-- 不做什么。回答"边界在哪"
+  - 格式 = "不支持 X" 或 "X 推迟到 vN"，只列容易被误认为在 scope 内的项
+  - EXCLUDE: 技术债、重构计划 -->
+
+- CI 集成（先有测试，CI 后续接入）
 - 覆盖率指标和报告
-- stage 文件（markdown）的测试 — 不是可执行脚本
-- 性能测试 / 压力测试
-- 测试框架依赖（bats、shunit2 等）
+- stage 文件的测试（markdown，不是可执行脚本）
+- 测试框架依赖
