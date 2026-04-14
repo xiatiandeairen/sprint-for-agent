@@ -41,9 +41,9 @@
 
 | # | 里程碑 | 验证点 | 进度 | 需求 |
 |---|--------|--------|------|------|
-| M6 | **建立数据聚合** — 跨 sprint 读取和聚合 metrics 数据 | `sprint-ctl stats` 输出聚合统计 | 🔲 | |
-| M7 | **内部流程优化** — 基于数据识别流程瓶颈并输出建议 | 阶段耗时分布 + evaluate 偏差率 + scope creep 率可查询 | 🔲 | |
-| M8 | **增强用户 insight** — insight 阶段展示跨 sprint 趋势 | insight 输出包含历史完成率、时间趋势、偏差频率 | 🔲 | |
+| M1 | **建立数据聚合** — 跨 sprint 读取和聚合 metrics 数据 | `sprint-ctl stats` 输出聚合统计 | 🔲 | |
+| M2 | **内部流程优化** — 基于数据识别流程瓶颈并输出建议 | 阶段耗时分布 + evaluate 偏差率 + scope creep 率可查询 | 🔲 | |
+| M3 | **增强用户 insight** — insight 阶段展示跨 sprint 趋势 | insight 输出包含历史完成率、时间趋势、偏差频率 | 🔲 | |
 
 ## 3. 当前版本
 
