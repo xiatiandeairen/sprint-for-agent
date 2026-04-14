@@ -109,6 +109,7 @@ Before evaluate, normalize user's description:
 | "add X" / "create X" | clarify=yes if description lacks Goal or Success slot; design=yes if >3 files or cross-module |
 | "refactor X" / "restructure X" | clarify=no, design=yes, risk=no |
 | "delete X" / "remove X" | clarify=no, design=no, risk=yes (override keyword) |
+| "写 PRD" / "write prd" / "写 tech" / "write tech" / "写文档" / "write doc" / "更新文档" / "roadmap" | type=doc, clarify=evaluate, design=evaluate, risk=no. **Doc mode**: skip plan + quality, no anchors.txt |
 | File path only (e.g., `src/foo.ts`) | Ask user to state intent before evaluate |
 | Sprint ID (YYYYMMDD-HHMMSS-NNN) | Route to `/todo` resume mode |
 | Mixed language input | Respond in dominant language of the description |
@@ -165,8 +166,11 @@ Override: description contains `delete/migrate/payment/production/permission` �
 
 Always-on: plan, execute, insight. Quality always runs; review only when risk=yes.
 
+**Doc mode** (type=doc from Input Normalization): plan and quality are **skipped**. No anchors.txt generated. Pipeline becomes: `[brainstorm] → [design] → execute → insight`. The 3 evaluate questions still apply for brainstorm/design/review.
+
 ```
 ### 评估: {description}
+- **类型**: {普通任务 | 文档任务}
 - **流水线**: {stage1} → {stage2} → ...
 - **跳过**: {stages}
 - **理由**: {stage}: {one-line justification}
