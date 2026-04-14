@@ -1,7 +1,10 @@
 ## 文档索引
 
-### v1
+### v1 ✅
 - [Roadmap](.know/docs/sprint/v1/roadmap.md)
+
+### v2
+- [Roadmap](.know/docs/sprint/v2/roadmap.md)
 
 ### Requirements
 - [core-pipeline](.know/docs/sprint/requirements/core-pipeline/prd.md) | 2026-04-10 ← roadmap
