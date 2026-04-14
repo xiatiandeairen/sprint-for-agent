@@ -42,7 +42,7 @@
 | # | 里程碑 | 验证点 | 进度 | 需求 |
 |---|--------|--------|------|------|
 | M1 | **建立数据聚合** — 跨 sprint 读取和聚合 metrics 数据 | `sprint-ctl stats` 输出聚合统计 | ✅ | [data-aggregation](../requirements/data-aggregation/prd.md) |
-| M2 | **增强用户 insight** — insight 阶段展示跨 sprint 趋势 | insight 输出包含历史完成率、时间趋势、偏差频率 | 🔲 | [enhanced-insight](../requirements/enhanced-insight/prd.md) |
+| M2 | **增强用户 insight** — insight 阶段展示跨 sprint 趋势 | insight 输出包含历史完成率、时间趋势、偏差频率 | ✅ | [enhanced-insight](../requirements/enhanced-insight/prd.md) |
 
 ## 3. 当前版本
 
