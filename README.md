@@ -15,8 +15,6 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/xiatiandeairen/sprint-for-agent/actions/workflows/ci.yml"><img src="https://github.com/xiatiandeairen/sprint-for-agent/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/xiatiandeairen/sprint-for-agent/releases"><img src="https://img.shields.io/github/v/release/xiatiandeairen/sprint-for-agent?include_prereleases" alt="Release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
 </p>
 
@@ -28,16 +26,19 @@
 
 **The problem:** AI agents often rush through complex tasks, skip validation, forget constraints mid-execution, and produce inconsistent quality.
 
-**The solution:** Sprint evaluates task complexity upfront, trims unnecessary stages, routes each stage to the right model tier (opus/sonnet/haiku), and verifies invariants (anchors) at every checkpoint.
+**The solution:** Sprint evaluates task complexity upfront (3 yes/no questions), trims unnecessary stages, routes each step to the right model tier (opus/sonnet/haiku), and verifies structural invariants (anchors) at every checkpoint.
 
 ### Key Features
 
-- **Complexity-aware pipeline** — Evaluates 4 dimensions (goal clarity, scope, risk, validation difficulty) to decide which stages to run
+- **Complexity-aware pipeline** — 3 yes/no questions (clarify/design/risk) determine which stages to run
 - **7-stage architecture** — brainstorm → design → plan → execute → quality → review → insight
-- **Anchor verification** — Compile-time-like assertions (`MUST_EXIST`, `MUST_NOT_IMPORT`, `MUST_BUILD`, etc.) checked throughout execution
-- **Model routing** — Automatically selects opus/sonnet/haiku per stage and per chunk based on complexity
+- **Doc-type trimming** — Document tasks auto-skip plan and quality stages
+- **Anchor verification** — Structural assertions (`MUST_EXIST`, `MUST_BUILD`, `MUST_IMPORT`, etc.) checked throughout execution
+- **Dynamic project detection** — Auto-detects 7 language types for build/test commands, with `.sprint.json` config override
+- **Model routing** — Selects opus/sonnet/haiku per step based on complexity
 - **3 skill modes** — `/sprint` (standard), `/long-sprint` (multi-sprint orchestration), `/todo` (lightweight quick tasks)
-- **Lifecycle tracking** — Append-only metrics log with state machine
+- **Observability** — `sprint-ctl stats` for cross-sprint metrics, insight stage shows historical comparison
+- **Regression tests** — 46 automated test cases covering all anchor types and CLI commands
 
 ## Installation
 
@@ -64,6 +65,20 @@ Register in your `.claude/settings.json`:
 }
 ```
 
+### Project Configuration (optional)
+
+Create `.sprint.json` in your project root to specify build/test/lint commands:
+
+```json
+{
+  "build": "npm run build",
+  "test": "npm test",
+  "lint": "eslint ."
+}
+```
+
+All fields are optional. Without this file, Sprint auto-detects project type from Package.swift, package.json, Cargo.toml, Makefile, pyproject.toml, go.mod, or Gemfile.
+
 ### Verify installation
 
 Once installed, the following slash commands become available in Claude Code:
@@ -80,13 +95,12 @@ Once installed, the following slash commands become available in Claude Code:
 > /sprint Add dark mode support to the settings panel
 
 # Sprint evaluates complexity:
-#   goal_clarity: 0 (actionable)
-#   scope_size: 1 (module)
-#   risk_level: 0 (low)
-#   validation_difficulty: 1 (medium)
+#   Clarify requirements? No (goal is clear)
+#   Need technical design? Yes (cross-module)
+#   High risk? No (local, reversible)
 #
-# Pipeline: plan → execute → quality → insight
-# (brainstorm, design, review skipped — low complexity)
+# Pipeline: design → plan → execute → quality → insight
+# (brainstorm, review skipped)
 ```
 
 The evaluate step produces a trimmed pipeline. You confirm, and Sprint runs each stage sequentially with handoff documents flowing downstream.
@@ -95,7 +109,7 @@ The evaluate step produces a trimmed pipeline. You confirm, and Sprint runs each
 
 ### `/sprint` — Standard Execution
 
-The core workflow. Evaluates task complexity across 4 dimensions, trims the stage pipeline, and executes with anchor verification at each gate.
+The core workflow. Evaluates task complexity with 3 yes/no questions, trims the stage pipeline, and executes with anchor verification at each gate.
 
 Best for: single-feature tasks, bug fixes, refactors, module-scoped changes.
 
@@ -116,26 +130,27 @@ Best for: quick tasks, sprint resume, plan execution.
 ```
 sprint-for-agent/
 ├── .claude-plugin/        # Plugin metadata
-│   ├── plugin.json        #   Name, version, description
-│   └── marketplace.json   #   Registry metadata
-├── hooks/
-│   └── hooks.json         # Pre/PostToolUse hooks for anchor compliance
 ├── scripts/
-│   ├── sprint-ctl.sh      # Lifecycle CLI (create, activate, stage, end, list)
-│   └── anchor-check.sh    # Anchor assertion runner
+│   ├── sprint-ctl.sh      # Lifecycle CLI (create, activate, stage, end, evaluate, list, stats)
+│   ├── anchor-check.sh    # Anchor assertion runner (7 types, 7 languages)
+│   └── sprint-insight-stats.sh  # Historical comparison for insight stage
 ├── skills/
 │   ├── sprint/SKILL.md    # Standard sprint skill definition
 │   ├── long-sprint/SKILL.md  # Multi-sprint orchestrator
 │   └── todo/SKILL.md      # Quick task executor
-└── stages/
-    ├── brainstorm.md      # Clarify requirements (clarity ≥ 1)
-    ├── design.md          # Technical design (design ≥ 1)
-    ├── plan.md            # Task breakdown + anchors (always)
-    ├── execute.md         # Implementation (always)
-    ├── quality.md         # Verification (guardrail ≥ 1)
-    ├── review.md          # Code review (guardrail ≥ 2)
-    ├── insight.md         # Retrospective (always)
-    └── long.md            # Long-sprint sub-sprint stage
+├── stages/
+│   ├── brainstorm.md      # Clarify requirements (clarify=yes)
+│   ├── design.md          # Technical design (design=yes)
+│   ├── plan.md            # Task breakdown + anchors (always)
+│   ├── execute.md         # Implementation (always)
+│   ├── quality.md         # Verification (always)
+│   ├── review.md          # Code review (risk=yes)
+│   ├── insight.md         # Retrospective + historical comparison (always)
+│   └── long.md            # Long-sprint sub-sprint stage
+└── tests/
+    ├── test-helpers.sh    # Shared assert functions + fixture management
+    ├── test-anchor-check.sh  # 28 test cases for anchor verification
+    └── test-sprint-ctl.sh    # 18 test cases for lifecycle CLI
 ```
 
 ### Data Flow
@@ -144,13 +159,13 @@ sprint-for-agent/
 User description
     │
     ▼
-┌─────────┐    evaluate    ┌──────────────┐
-│ Evaluate │──────────────▶│ Stage Config  │
-│ 4 dims   │               │ (trimmed)     │
-└─────────┘               └──────┬───────┘
-                                  │
-    ┌─────────────────────────────┼─────────────────────────┐
-    ▼              ▼              ▼              ▼           ▼
+┌──────────────────┐    3 yes/no     ┌──────────────┐
+│ Input Normalize   │───────────────▶│ Evaluate      │
+│ (detect patterns) │                │ (trim stages) │
+└──────────────────┘                └──────┬───────┘
+                                           │
+    ┌──────────────────────────────────────┼──────────────────┐
+    ▼              ▼              ▼              ▼              ▼
 ┌────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐  ┌─────────┐
 │ brain- │  │  design   │  │   plan   │  │ execute │  │ quality │ ...
 │ storm  │─▶│          │─▶│          │─▶│         │─▶│         │
@@ -172,42 +187,48 @@ Each sprint creates a working directory:
 └── metrics.log     # Append-only event log
 ```
 
-### Evaluate Dimensions
+### Evaluate Questions
 
-| Dimension | 0 | 1 | 2 |
-|-----------|---|---|---|
-| goal_clarity | Actionable | Directional | Vague |
-| scope_size | Point | Module | System |
-| risk_level | Low (local) | Medium (module) | High (data/auth/prod) |
-| validation_difficulty | Easy (automated) | Medium (partial) | Hard (subjective) |
+| Question | yes → enable | no → skip |
+|----------|-------------|----------|
+| Clarify requirements? | brainstorm | skip |
+| Need technical design? | design | skip |
+| High risk? | quality + review | quality only |
 
-### Model Routing
+Always-on: plan, execute, insight. Doc-type tasks auto-skip plan + quality.
 
-| Stage | Level 0 | Level 1 | Level 2 |
-|-------|---------|---------|---------|
-| brainstorm | — | sonnet | opus |
-| design | — | sonnet | opus |
-| plan | sonnet | sonnet | sonnet |
-| execute | sonnet | sonnet | per-chunk |
-| quality | sonnet | sonnet | sonnet |
-| review | — | sonnet | opus |
-| insight | sonnet | sonnet | sonnet |
+Override keywords: `delete`, `migrate`, `payment`, `production`, `permission` → risk=yes.
 
-Execute chunks at level 2 use: **opus** (cross-module/API changes), **sonnet** (clear spec), **haiku** (mechanical only).
+### Command Priority (build/test)
+
+```
+.sprint.json → CLAUDE.md → auto-detect (7 languages)
+```
 
 ### Anchor Types
-
-Anchors are compile-time-like assertions verified throughout execution:
 
 | Anchor | Checks |
 |--------|--------|
 | `MUST_EXIST <path>` | File/directory must exist |
 | `MUST_NOT_EXIST <path>` | File/directory must not exist |
-| `MUST_IMPORT <module> <file>` | File must import module |
-| `MUST_NOT_IMPORT <module> <file>` | File must not import module |
-| `MUST_BUILD` | Project must compile |
-| `MUST_TEST` | Tests must pass |
-| `FILE_NOT_MODIFIED <path>` | File must not be changed |
+| `MUST_IMPORT <target> <module>` | Target path must import module (language-aware) |
+| `MUST_NOT_IMPORT <target> <module>` | Target path must not import module |
+| `MUST_BUILD` | Project must compile (auto-detect or configured) |
+| `MUST_TEST` | Tests must pass (auto-detect or configured) |
+| `FILE_NOT_MODIFIED <path>` | File must not be changed from base commit |
+
+### Observability
+
+```bash
+# Cross-sprint aggregated metrics
+sprint-ctl.sh stats [--last N] [--status completed]
+
+# Output: Efficiency (completion rate, avg duration, stage distribution)
+#         Quality (anchor pass rate, scope creep)
+#         Value (task completion rate)
+```
+
+Insight stage auto-shows historical comparison (this sprint vs average).
 
 ## Contributing
 
@@ -215,20 +236,8 @@ Contributions are welcome! Please:
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feat/my-feature`)
-3. Make your changes
-4. Run the CI checks locally: `bash scripts/ci-lint.sh` (once available)
-5. Submit a pull request
-
-### Development
-
-```bash
-# Test sprint-ctl.sh
-bash scripts/sprint-ctl.sh evaluate 0 1 0 1
-
-# Test anchor checking
-echo "MUST_EXIST README.md" > /tmp/test-anchors.txt
-bash scripts/anchor-check.sh /tmp/test-anchors.txt
-```
+3. Run the tests: `bash tests/test-anchor-check.sh && bash tests/test-sprint-ctl.sh`
+4. Submit a pull request
 
 ## License
 
