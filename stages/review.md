@@ -53,6 +53,34 @@ Review runs when any of these hold:
 - risk=yes (from evaluate)
 - tasks >1 AND cross-module changes (detected from plan handoff)
 
+## Depth Selection
+
+Model: sonnet
+
+After Trigger fires, determine review depth before Step 0.
+
+**Change-type detection (auto)**:
+
+| Change type | Detection rule | Recommended depth |
+|-------------|---------------|-------------------|
+| delete-migrate | plan handoff has a delete task, OR `git diff` is net-negative with file removals | quick |
+| add-feature-single-module | net-positive lines within a single module directory | quick (user may upgrade to full) |
+| refactor-structural | changes span >1 module, OR changes touch architecture/interface files | **full (forced)** |
+
+Present recommendation:
+
+```
+Depth recommendation: {quick | full}
+Change type detected: {delete-migrate | add-feature-single-module | refactor-structural}
+Reason: {one-line evidence}
+
+Options:
+A) Accept recommendation
+B) Override to {full | quick}  (only available for add-feature-single-module; refactor-structural locks to full)
+```
+
+Selected depth flows into Step 2 as the branch switch.
+
 ## Step 0: Cross-Task Regression
 
 Model: sonnet
@@ -99,7 +127,12 @@ Do not read code line-by-line. Understand intent, strategy, and decision points.
 
 Model: opus
 
-Core analysis engine. Work through layers sequentially. Each layer has specific checks. Report only substantive findings — skip layers with nothing to flag.
+**Depth branch** (from Depth Selection):
+
+- If depth = quick: Run L1 and L4 only. Skip L2, L3, L5.
+- If depth = full: Run L1 through L5 as documented.
+
+Core analysis engine. Work through applicable layers sequentially. Each layer has specific checks. Report only substantive findings — skip layers with nothing to flag.
 
 ### L1: Task-Level Residual Risk
 
@@ -165,34 +198,36 @@ If nothing found → "L1: 无残留风险". Do not spend more than 10% of review
 
 **Bad pattern signals**:
 
-| Signal | Detection method | Example |
-|--------|-----------------|---------|
-| Duplication growth | Same logic in >1 place with minor variation | Two functions that parse config with slightly different field lists |
-| Special-case proliferation | if/switch branch added for one-off scenario | `if (type == "legacy_v2")` added to generic handler |
-| Temp-compat permanence | Compatibility code with no TODO/expiry/removal plan | Migration shim with no version check or deadline |
-| Implicit protocol | Behavior depends on undocumented call ordering or naming convention | Function must be called after init() but nothing enforces or documents this |
-| Abstraction bypass | Code reaches past existing abstraction to lower layer | Directly calling DB query when a repository method exists |
-| Config scatter | Constants/config values spread across files | Timeout value defined in 3 different files |
-| Error style drift | New error handling inconsistent with module's existing pattern | Returning error codes in a module that uses exceptions |
-| Type boundary weakening | Type becomes less specific (e.g., typed → any/object) | Parameter changed from `UserId` to `string` |
-| Shared mutable state growth | New globals, singletons, or unprotected shared mutation | Module-level variable modified by multiple functions |
-| Debt replication | Known bad pattern copied into new code | New code copies the same anti-pattern from legacy module |
-| Name-semantics decoupling | Name implies X, implementation does Y | `validateInput()` that also transforms and persists |
-| Layer violation | Domain logic placed in wrong architectural layer | Business rule inside HTTP handler or UI component |
+| Signal | Detection method | Example | Relevant when |
+|--------|-----------------|---------|---------------|
+| Duplication growth | Same logic in >1 place with minor variation | Two functions that parse config with slightly different field lists | any |
+| Special-case proliferation | if/switch branch added for one-off scenario | `if (type == "legacy_v2")` added to generic handler | modify-fn, refactor |
+| Temp-compat permanence | Compatibility code with no TODO/expiry/removal plan | Migration shim with no version check or deadline | add-api, modify-fn |
+| Implicit protocol | Behavior depends on undocumented call ordering or naming convention | Function must be called after init() but nothing enforces or documents this | add-api, refactor |
+| Abstraction bypass | Code reaches past existing abstraction to lower layer | Directly calling DB query when a repository method exists | any |
+| Config scatter | Constants/config values spread across files | Timeout value defined in 3 different files | add-api, modify-fn |
+| Error style drift | New error handling inconsistent with module's existing pattern | Returning error codes in a module that uses exceptions | add-api, modify-fn |
+| Type boundary weakening | Type becomes less specific (e.g., typed → any/object) | Parameter changed from `UserId` to `string` | add-api, modify-fn |
+| Shared mutable state growth | New globals, singletons, or unprotected shared mutation | Module-level variable modified by multiple functions | add-api, modify-fn |
+| Debt replication | Known bad pattern copied into new code | New code copies the same anti-pattern from legacy module | add-api, modify-fn |
+| Name-semantics decoupling | Name implies X, implementation does Y | `validateInput()` that also transforms and persists | add-api |
+| Layer violation | Domain logic placed in wrong architectural layer | Business rule inside HTTP handler or UI component | add-api, refactor |
 
 **Good pattern signals**:
 
-| Signal | Detection method | Example |
-|--------|-----------------|---------|
-| Abstraction convergence | Multiple ad-hoc approaches replaced by one | 3 different date parsers replaced by single utility |
-| Interface clarity | API semantics more explicit after change | Opaque `process(data)` → `validateAndStore(order)` |
-| Error handling unification | Multiple error strategies converged to one | Mixed exception/error-code replaced by consistent Result type |
-| State boundary tightening | Shared state reduced or ownership clarified | Global config replaced by injected dependency |
-| Dependency direction fix | Lower layer stops importing higher layer | Infrastructure module no longer imports domain types |
-| Reuse centralization | Scattered duplicates consolidated into single source | 4 copies of retry logic → shared retry utility |
-| Type/constraint strengthening | Types become more specific or validated | `string` → `EmailAddress` with validation |
-| Rule codification | Implicit convention made explicit and checkable | Undocumented ordering requirement → compile-time or runtime check |
-| Special-case normalization | One-off hack restored to general model | `if legacy` branch removed, legacy data migrated to standard format |
+| Signal | Detection method | Example | Relevant when |
+|--------|-----------------|---------|---------------|
+| Abstraction convergence | Multiple ad-hoc approaches replaced by one | 3 different date parsers replaced by single utility | refactor |
+| Interface clarity | API semantics more explicit after change | Opaque `process(data)` → `validateAndStore(order)` | add-api |
+| Error handling unification | Multiple error strategies converged to one | Mixed exception/error-code replaced by consistent Result type | refactor, modify-fn |
+| State boundary tightening | Shared state reduced or ownership clarified | Global config replaced by injected dependency | refactor |
+| Dependency direction fix | Lower layer stops importing higher layer | Infrastructure module no longer imports domain types | refactor, delete |
+| Reuse centralization | Scattered duplicates consolidated into single source | 4 copies of retry logic → shared retry utility | refactor |
+| Type/constraint strengthening | Types become more specific or validated | `string` → `EmailAddress` with validation | add-api, modify-fn |
+| Rule codification | Implicit convention made explicit and checkable | Undocumented ordering requirement → compile-time or runtime check | any |
+| Special-case normalization | One-off hack restored to general model | `if legacy` branch removed, legacy data migrated to standard format | modify-fn, refactor |
+
+**Signal filter (per Depth Selection)**: before scanning, filter the signal set — keep only signals whose `Relevant when` intersects the detected change-type (or is `any`). Omit non-matching signals entirely; do not render `N/A` placeholders.
 
 **Execution**: for each pattern finding, answer 4 questions:
 1. **Instance or systemic?** — Is this a one-off occurrence or does grep reveal the same pattern elsewhere?
@@ -352,7 +387,7 @@ Present the G section verdict with supporting evidence. Ask: "是否同意这个
 
 ## Completion
 
-- All 5 layers analyzed (or skipped with reason)
+- All layers analyzed per selected depth (quick: L1+L4; full: L1–L5)
 - Every finding uses 12-field problem template
 - Governance opportunities assessed
 - Net evolution judgment stated
