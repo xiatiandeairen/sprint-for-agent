@@ -22,6 +22,72 @@ Pure conversation. Do NOT read code, files, or docs. All evidence comes from the
 
 Model: opus
 
+### Pre-check: Sanity Gate
+
+This is a filter layer, not a full analysis. Deep market / feasibility / root-cause work happens in design stage when needed. Purpose: break AI sycophancy before demand modeling starts — surface false needs, unverified assumptions, and hidden alternatives.
+
+Run the 5 questions internally against the raw user description. Do NOT show the table to the user unless pushback fires.
+
+| # | Challenge | Pushback trigger |
+|---|-----------|------------------|
+| 1 | Is the real pain behind this request identifiable? | answer is `no` or `unclear` |
+| 2 | Does deleting the requirement entirely cause tangible harm? | answer is `no` |
+| 3 | Does an existing tool / feature / workflow already solve this? | answer is `yes` |
+| 4 | Is the minimum path here proportionally cheap vs. the value? | answer is `no` |
+| 5 | Are the description's assumptions all verifiable from user-provided evidence? | answer is `no` |
+
+**Algorithm**:
+
+1. For each of Q1–Q5, answer y/n + 1-line evidence (internal, not shown).
+2. Count pushback-triggering answers.
+3. If Q3 triggered → include the 3 market-probe sub-questions in the pushback output.
+4. If Q4 triggered → include the 3 feasibility-probe sub-questions in the pushback output.
+5. **0 triggers** → silently proceed to 6-slot demand modeling below. Do not mention the gate.
+6. **≥1 trigger** → render the pushback template. Stop. Wait for user response before continuing.
+
+**Q3 expansion sub-questions** (market):
+
+- Q3a: What existing solution, and why not use it?
+- Q3b: Key differentiator from that solution?
+- Q3c: Is this an implicit build-vs-buy decision?
+
+**Q4 expansion sub-questions** (feasibility):
+
+- Q4a: Largest technical risk or unknown?
+- Q4b: What is the minimum viable version?
+- Q4c: Can it be staged instead of done at once?
+
+**Pushback template** (render in user language):
+
+```
+Sanity Gate: {N} item(s) to clarify
+
+- Q{n} ({short label}): {1-line reason}
+  {if Q3 or Q4 triggered: list the 3 expansion sub-questions here}
+
+Please choose: A) clarify / supply info   B) insist with justification   C) revise the requirement
+```
+
+After user responds — if clarification resolves the triggers, proceed to 6-slot modeling. If user insists with justification, record the acknowledged risk in the Demand Frame `Context` slot and proceed. If requirement is revised, re-run the gate on the revised description.
+
+**Few-shot**:
+
+Good (0 triggers, silent passthrough):
+```
+User: "Add a sort-by-order-date descending filter to the order list"
+Q1 pain: yes (default sort inconvenient) | Q2 delete harm: yes | Q3 existing: no | Q4 cost: yes | Q5 assumptions: yes
+→ 0 triggers → proceed to 6-slot modeling, no user interaction
+```
+
+Bad (multi-trigger, full pushback):
+```
+User: "Build an AI assistant for the system"
+Q1 pain: unclear | Q2 delete harm: no | Q3 existing: yes | Q4 cost: no | Q5 assumptions: no
+→ 4 triggers (Q1, Q2, Q3, Q4) → pushback output includes Q3 and Q4 probe sub-questions
+```
+
+---
+
 Turn vague input into a 6-slot demand frame.
 
 | Slot | Captures |
