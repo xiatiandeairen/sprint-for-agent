@@ -239,7 +239,7 @@ while IFS= read -r line; do
       if [[ ! -f "$ROOT/$TARGET" ]]; then
         echo "FAIL: $line (file not found: $TARGET)"
         FAIL=$(( FAIL + 1 ))
-      elif grep -qF "$PATTERN" "$ROOT/$TARGET" 2>/dev/null; then
+      elif grep -qF -- "$PATTERN" "$ROOT/$TARGET" 2>/dev/null; then
         check "$line" 0
       else
         check "$line" 1
@@ -251,7 +251,7 @@ while IFS= read -r line; do
       PATTERN="${line#* * }"
       if [[ ! -f "$ROOT/$TARGET" ]]; then
         check "$line" 0
-      elif grep -qF "$PATTERN" "$ROOT/$TARGET" 2>/dev/null; then
+      elif grep -qF -- "$PATTERN" "$ROOT/$TARGET" 2>/dev/null; then
         check "$line" 1
       else
         check "$line" 0
