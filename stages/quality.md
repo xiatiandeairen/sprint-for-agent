@@ -2,11 +2,12 @@
 
 ## Progress
 
-- total: 3
+- total: 4
 - steps:
   1. Does it build and pass tests?
   2. Any custom checks needed?
   3. Did it break anything else?
+  4. Record results
 
 Cross-task regression verification after execute. Single-task verification was done in execute.
 
@@ -109,7 +110,32 @@ Do NOT repeat single-task checks from execute.
 - [ ] {end-to-end flow}: {what + how to check}
 ```
 
-Confirmed → next stage.
+Confirmed → write handoff → next stage.
+
+---
+
+## Write Handoff
+
+Model: sonnet
+
+Write `.sprint/{id}/handoffs/quality.md`:
+
+```markdown
+## Build & Test
+- Build: {pass/fail} | Tests: {N} pass / {N} fail
+## Lint
+- {pass/fail/skipped}
+## Anchor & Scripts
+- Anchor: {N}/{N} pass | Custom: {results or "skipped"}
+## Impact Analysis
+- Interface changes: {affected or "无"}
+- Dependency direction: {ok or violations}
+- Stale references: {none or list}
+## Cross-Task Checks
+- {confirmed items}
+## Downstream
+- review: {issues to watch, or "no issues flagged"}
+```
 
 ---
 
