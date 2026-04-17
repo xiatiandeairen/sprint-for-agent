@@ -52,7 +52,7 @@ jobs:
       - name: Check markdown files exist
         run: |
           echo "Checking required skill files..."
-          for f in skills/sprint/SKILL.md skills/long-sprint/SKILL.md skills/todo/SKILL.md; do
+          for f in skills/sprint/SKILL.md; do
             if [ ! -f "$f" ]; then
               echo "Missing: $f"
               exit 1

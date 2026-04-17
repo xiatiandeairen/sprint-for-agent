@@ -92,18 +92,6 @@ Evaluates task complexity, trims the pipeline, executes with anchor verification
 
 Best for: single features, bug fixes, refactors, module-scoped changes.
 
-### `/long-sprint` — Multi-Sprint Orchestration
-
-One preparation round with human-in-the-loop, then auto-executes multiple ordered sub-sprints with direction verification between each.
-
-Best for: large features, architecture changes, multi-module rewrites.
-
-### `/todo` — Quick Executor
-
-Lightweight routing: run a task immediately, resume a deferred sprint, or trigger a saved plan.
-
-Best for: quick tasks, sprint resume, plan execution.
-
 ## Architecture
 
 ```
@@ -113,9 +101,7 @@ sprint-for-agent/
 │   ├── anchor-check.sh         # Anchor assertion runner (9 types, 7 languages)
 │   └── sprint-insight-stats.sh # Historical comparison for insight stage
 ├── skills/
-│   ├── sprint/SKILL.md         # Standard sprint workflow
-│   ├── long-sprint/SKILL.md    # Multi-sprint orchestrator
-│   └── todo/SKILL.md           # Quick task executor
+│   └── sprint/SKILL.md         # Standard sprint workflow
 ├── stages/                     # 6 stage definitions (brainstorm → insight)
 ├── tests/                      # 53 automated test cases
 ├── install.sh                  # One-line installer

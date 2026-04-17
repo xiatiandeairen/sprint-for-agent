@@ -92,18 +92,6 @@ Sprint 通过 3 个是/否问题评估复杂度，裁剪不必要的阶段，各
 
 适用于：单个功能、bug 修复、重构、模块级改动。
 
-### `/long-sprint` — 多 Sprint 编排
-
-一轮准备（含人工确认），然后自动执行多个有序子 Sprint，每个之间进行方向验证。
-
-适用于：大型功能、架构变更、跨模块重写。
-
-### `/todo` — 快速执行器
-
-轻量路由：立即执行任务、恢复暂停的 Sprint、或触发已保存的计划。
-
-适用于：快速任务、Sprint 恢复、计划执行。
-
 ## 架构
 
 ```
@@ -113,9 +101,7 @@ sprint-for-agent/
 │   ├── anchor-check.sh         # Anchor 断言执行器（9 种类型，7 种语言）
 │   └── sprint-insight-stats.sh # insight 阶段历史对比
 ├── skills/
-│   ├── sprint/SKILL.md         # 标准 Sprint 工作流
-│   ├── long-sprint/SKILL.md    # 多 Sprint 编排器
-│   └── todo/SKILL.md           # 快速任务执行器
+│   └── sprint/SKILL.md         # 标准 Sprint 工作流
 ├── stages/                     # 6 个阶段定义（brainstorm → insight）
 ├── tests/                      # 53 个自动化测试用例
 ├── install.sh                  # 一键安装

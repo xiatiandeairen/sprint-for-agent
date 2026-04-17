@@ -23,7 +23,7 @@ description: Task execution workflow. Evaluates complexity, trims stages, execut
 | Step | Numbered progression within a stage (from stage file `## Progress`) |
 | Task | Independently verifiable work unit (plan splits, execute runs) |
 | Anchor | Structural assertion in `anchors.txt`: `MUST_BUILD`, `MUST_EXIST`, `MUST_TEST`, `MUST_IMPORT`, `MUST_NOT_IMPORT`, `MUST_NOT_EXIST`, `MUST_CONTAIN`, `MUST_NOT_CONTAIN`, `FILE_NOT_MODIFIED` |
-| Lock | Immutable decision point: Demand Lock, Value Lock (brainstorm), Direction Lock (long-sprint) |
+| Lock | Immutable decision point: Demand Lock, Value Lock (brainstorm) |
 | Handoff | Stage output document, structure defined by each stage file's template |
 | Gate | Step entry condition: `user` (yes/no), `auto` (system evaluates), `always` |
 
@@ -125,7 +125,6 @@ Execute override: cross-module → opus. Single file → sonnet. No logic → ha
 | "delete X" / "remove X" | clarify=no, design=no, risk=yes |
 | doc keywords: prd/tech/文档/doc/roadmap/写文档/write doc | **Doc mode**: skip plan + quality, no anchors |
 | File path only | Ask intent first |
-| Sprint ID | Route to `/todo` resume |
 
 ### Evaluate
 

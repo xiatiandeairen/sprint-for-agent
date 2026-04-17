@@ -81,5 +81,5 @@ fi
 
 echo ""
 info "sprint-for-agent installed successfully!"
-echo "  Available commands: /sprint  /long-sprint  /todo"
+echo "  Available commands: /sprint"
 echo "  Uninstall: bash $INSTALL_DIR/uninstall.sh"
