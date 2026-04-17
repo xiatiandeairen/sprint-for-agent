@@ -2,22 +2,19 @@
 
 ## Progress
 
-- total: 7
+- total: 5
 - steps:
-  1. What form should the output take?
-  2. What technical decisions need to be made?
-  3. How do others solve this?
-  4. Does this solution fit your needs?
-  5. What to build first?
-  6. How does it all fit together?
-  7. Lock the design
+  1. How should this be solved?
+  2. Does this solution fit your needs?
+  3. What to build first?
+  4. How does it all fit together?
+  5. Lock the design
 
 From confirmed demand to concrete solution design. Goal: plan stage can split tasks directly from design output.
 
 ## Hard Rules
 
-- Max 3 candidates per need. If more pass filter, drop the weakest.
-- Do not generate candidates for forms failing Q1/Q2 filter.
+- Max 3 candidates when presenting solution approaches.
 - No `open` Decision Register entries when moving to next step.
 
 ## Input
@@ -27,83 +24,44 @@ From confirmed demand to concrete solution design. Goal: plan stage can split ta
 
 ---
 
-## Step 1: Delivery Form Classification
+## Step 1: Solution Approach
 
 Model: opus
 
-Gate (user): 需求的解决方式是否不明确？
+Gate (user): 解决方式是否需要确定？
 
-💡 "做什么"清楚但"用什么形式做"不清楚 → 需要分类。形式已明确 → 跳过。Default: skip.
+💡 如何解决已经明确 → 跳过。存在多种可行方向或形式不清 → 进入。Default: skip.
 
-### 7 Delivery Forms
-
-| Form | Solves | Classifier |
-|------|--------|-----------|
-| Feature | Can't do X | user can't do it at all |
-| Workflow | Does steps wrong | user can but gets it wrong |
-| Decision Policy | Can't judge | user can but can't judge |
-| Automation | Repeats boring work | user can but doesn't want to |
-| Data Structure | Info disorganized | information is chaotic |
-| Asset/Template | Keeps being rebuilt | same thing built repeatedly |
-| Collaboration | People misaligned | multiple parties misalign |
+Determine how to solve the problem before designing the details.
 
 ### Execution
 
-Per need: classify → primary form + check 2 adjacent forms. Filter:
-- Q1: Solves user's problem directly? (must be yes)
-- Q2: Buildable within sprint scope? (must be yes)
-- Q3: Reusable value beyond this sprint? (prefer yes)
+1. **Infer** — from demand frame (Goal/Object), infer the most likely solution approach: form (what type of deliverable) + path (how to implement).
 
-Eliminate Q1/Q2 failures. Present top 3 with form + rationale. User confirms form per need.
+2. **Ambiguity check** — is there only one reasonable approach?
+   - Yes → present the approach, one-line rationale, user confirms.
+   - No → present 2-3 candidates:
+     ```
+     | # | Approach | Form | Trade-off |
+     |---|----------|------|-----------|
+     | 1 | {approach} | {Feature/Workflow/Automation/...} | {1 sentence} |
+     | 2 | {approach} | {form} | {1 sentence} |
+     ```
+     Recommend one. User picks.
 
-Then: "默认全部包含。要排除哪些？" — unselected needs logged as "out of scope".
+3. **Industry reference** (optional sub-action) — if user asks "业界怎么做?" or task involves tech selection / architecture pattern choice → quick WebSearch, present findings inline. Do not proactively offer.
 
----
+4. **Lock** — confirmed approach feeds into Step 2 (Solution Alignment).
 
-## Step 2: Decision Convergence
+### Few-shot
 
-Model: opus
+Good: `Approach: CLI script with subcommands | Form: Automation | Trade-off: fast to build, less discoverable than UI`
 
-Gate (user): 是否存在多个可行方案需要取舍？
-
-💡 技术路径唯一且明确 → 跳过。多种实现方式需要比较 → 进入。Default: skip.
-
-Binary tradeoff questions in batches of 3. Select most discriminating from pool:
-
-```
-1. Priority: fast result (A) vs better result (B)?
-2. Scope: one need (A) vs reusable capability (B)?
-3. Control: user drives (A) vs system guides (B)?
-4. Input: structured (A) vs freeform (B)?
-5. Flow: step-by-step (A) vs free exploration (B)?
-6. Form: standalone (A) vs integrated (B)?
-7. Automation: suggest (A) vs auto-execute (B)?
-8. Decision: user judges (A) vs system recommends (B)?
-9. Display: show all (A) vs filter first (B)?
-10. Optimize: current task (A) vs overall process (B)?
-```
-
-Present batch + "skip" option. Max 3 rounds. Answers converge → output 3 ranked task goals.
-
-"默认全部包含。要排除哪些？" — unselected goals logged as "deferred".
+Bad: `Approach: Improve the system | Form: Feature | Trade-off: better`
 
 ---
 
-## Step 3: Industry Insight
-
-Model: sonnet (with WebSearch)
-
-Gate (user): 是否涉及技术选型或架构模式选择？
-
-💡 内部逻辑实现 → 不需要外部参考。框架/架构/竞争方案选择 → 值得调研。Default: skip.
-
-Ask user first: "There may be relevant industry practices. Want me to research?" No → skip.
-
-If yes, research per task goal along: User problem → Mechanism → Industry patterns → Tradeoffs → Evolution. Present 4 perspectives: Frontier, Standard, Popular, Recommended (with project-context rationale).
-
----
-
-## Step 4: Solution Alignment
+## Step 2: Solution Alignment
 
 Model: opus
 
@@ -129,9 +87,9 @@ Present to user. Corrections → update and re-present.
 
 ### Build Decision Register
 
-After user confirms, compile all decisions from Steps 1-4:
-- Steps 1-2 selections → `core`
-- Step 4 design decisions → `core`
+After user confirms, compile all decisions from Steps 1-2:
+- Step 1 approach selection (if entered) → `core`
+- Step 2 design decisions → `core`
 - Implementation details → `detail`
 
 Present register for user review. Append: `如需对抗性审视，回复"审视"`
@@ -146,7 +104,7 @@ Bad: `Form: Feature | Description: Improve deployment to be more automated | Fil
 
 ---
 
-## Step 5: Implementation Priority Review
+## Step 3: Implementation Priority Review
 
 Model: sonnet
 
@@ -160,7 +118,7 @@ User says "skip" → remaining `detail` items stay at `direction` for plan/execu
 
 ---
 
-## Step 6: System Design
+## Step 4: System Design
 
 Model: opus
 
@@ -181,7 +139,7 @@ All "not applicable" → skip entirely. Present applicable outputs together for 
 
 ---
 
-## Step 7: Write Handoff
+## Step 5: Write Handoff
 
 Model: sonnet
 
@@ -189,9 +147,8 @@ Write `.sprint/{id}/handoffs/design.md`:
 
 ```markdown
 ## Conclusion
-## Delivery Form
-## Task Goals
-## Industry Context
+## Solution Approach
+{form + path, from Step 1 if entered; otherwise inferred in Step 2}
 ## Design Content
 {diagrams, tables, interface defs, flows}
 ## Key Decisions
@@ -224,5 +181,5 @@ Category: `core` (architecture/flow/system-level, must be confirmed before plan)
 ## Recovery
 
 - Plan discovers design gap → return to design, fill gap, re-confirm
-- User changes direction → re-run from Step 2
-- Missing technical design → return to Step 6, fill specific sub-layer
+- User changes direction → re-run from Step 1
+- Missing technical design → return to Step 4, fill specific sub-layer

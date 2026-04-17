@@ -284,8 +284,8 @@ evaluate)
   # Usage: sprint-ctl.sh evaluate <clarify> <design> <risk> [keywords...]
   # Input: 3 binary parameters (0 or 1)
   # Output: stage list
-  CLARIFY="${1:-0}"; DESIGN="${2:-0}"; RISK="${3:-0}"; _COMP="${4:-low}"
-  shift 4 2>/dev/null || shift 3 2>/dev/null || true
+  CLARIFY="${1:-0}"; DESIGN="${2:-0}"; RISK="${3:-0}"
+  shift 3 2>/dev/null || true
   KEYWORDS="$*"
 
   # ── Keyword override: high-risk keywords force risk=1 ──
@@ -304,17 +304,9 @@ evaluate)
   [[ $RISK -eq 1 ]] && STAGES="${STAGES},review"
   STAGES="${STAGES},insight"
 
-  # ── Complexity assessment ──
-  # Binary: high if explicitly flagged, low otherwise
-  # AI caller sets COMPLEXITY based on: files >5 OR cross-module (>1 top-level dir) → high
-  COMPLEXITY="${4:-low}"
-  if [[ "$COMPLEXITY" != "high" && "$COMPLEXITY" != "low" ]]; then
-    COMPLEXITY="low"
-  fi
-
   # ── Output ──
   echo "INPUT"
-  echo "  clarify=$CLARIFY  design=$DESIGN  risk=$RISK  complexity=$COMPLEXITY"
+  echo "  clarify=$CLARIFY  design=$DESIGN  risk=$RISK"
   echo ""
   echo "STAGES"
   echo "  $STAGES"
@@ -353,13 +345,6 @@ evaluate)
   echo "  insight     ALWAYS     retrospective"
 
   echo ""
-  echo "COMPLEXITY"
-  echo "  $COMPLEXITY"
-  if [[ "$COMPLEXITY" == "high" ]]; then
-    echo "  design gates: all steps enabled"
-  else
-    echo "  design gates: optional steps default skip (1/2/3/5)"
-  fi
 
   # ── HINTS from historical data ──
   SUMMARY_FILE="$SPRINT_DIR/summary.json"

@@ -41,7 +41,7 @@ Stage files may strengthen but not contradict these.
 
 ### Behavioral Rules
 
-1. **Conversation stages don't read code** — brainstorm, design Steps 1-2, long Steps 1-5: all evidence from user. No code/file reads until direction confirmed.
+1. **Conversation stages don't read code** — brainstorm, design Step 1, long Steps 1-5: all evidence from user. No code/file reads until direction confirmed.
 2. **Only build on confirmed information** — no follow-ups or designs based on unconfirmed assumptions.
 3. **Justify questions; converge when complete** — each question states why. All slots filled + no question changes output → stop asking.
 4. **Incremental value per stage** — inherit upstream directly. quality doesn't re-test tasks. review doesn't re-check anchors.
@@ -150,13 +150,9 @@ Execute override: cross-module → opus. Single file → sonnet. No logic → ha
 
 **HINTS**: evaluate outputs a `HINTS` section when historical trends or anomalies are detected from `.sprint/summary.json`. Present HINTS to user between evaluate output and confirmation. No HINTS = don't mention it.
 
-**Complexity** (when design=yes): assess before calling evaluate.
-- Files >5 OR cross-module (>1 top-level dir) → `high` (all design Gates enter by default)
-- Otherwise → `low` (design Steps 1/2/3/5 Gates default skip)
-
 ```bash
 # [RUN] after confirm
-bash "$SPRINT_CTL" evaluate {clarify:0|1} {design:0|1} {risk:0|1} {complexity:low|high}
+bash "$SPRINT_CTL" evaluate {clarify:0|1} {design:0|1} {risk:0|1}
 bash "$SPRINT_CTL" create "sprint" "{desc}" "{stages}"
 bash "$SPRINT_CTL" activate "{id}"
 ```
