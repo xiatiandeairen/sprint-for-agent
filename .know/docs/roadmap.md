@@ -59,7 +59,7 @@
 | v1 — 单项目可用 | 验证分阶段执行约束的可行性           | ↑ 测试覆盖 0→46 case；↑ 语言支持 1→7 种     | 已发布 | 2026.04.08 - 2026.04.14 | M1-M5  |
 | v2 — 可观测   | 建立跨 sprint 数据消费能力       | ↑ 聚合查询 0→1 命令；↑ insight 趋势 0→3 指标 | 已发布 | 2026.04.14 - 2026.04.14 | M6-M7  |
 | v3 — 产品成熟  | 消除规则矛盾，补全流程缺口，提升可靠性和置信度 | ↑ 测试覆盖 46→52 case；↓ 规则矛盾 2→0      | 已发布 | 2026.04.16 - 2026.04.16 | M8-M10 |
-| v4 — 元指导增强 | 方法论匹配 + 检查点回顾，补齐事前/事中认知指导 | 待定 | 规划中 | 待定 | M11-M12 |
+| v4 — 元指导增强 | 方法论匹配 + 检查点回顾，补齐事前/事中认知指导 | 待定 | 规划中 | 待定 | M11-M17 |
 
 
 ### 版本详情
@@ -130,7 +130,7 @@
 - **优先级依据**: v3 执行框架已稳定，是叠加认知指导层的时机；来源于 evolution 产品方向分析（Pre/During 能力与 sprint 高度重叠）+ 2026-04-17 的 ONE JOB 深度审计
 - **风险与依赖**: 依赖: evolution v0.2 验证数据证明废话过滤有效后，方法论匹配的输出质量才有保障；风险: 方法论库的覆盖度和匹配准确率需要实际使用验证；检查点回顾的信噪比（误报率）未知
 - **成功指标**: evaluate 阶段能根据任务类型推荐思维框架且用户采纳率 >50%，execute 阶段检查点回顾至少 1 次有效检测到偏差信号，5 项 stage 职责审计改进全部落地
-- **核心价值**: 1. evaluate 增加方法论匹配 2. execute 增加检查点回顾 3. review 深度分级（quick/full）+ L4 signal 按改动类型过滤 4. plan-design 决策衔接（消除 Q1-Q4 重复提问）5. stage 职责收敛（Value Mining 归位、uncommitted 移出 insight）6. design 建议任务边界
+- **核心价值**: 1. evaluate 增加方法论匹配 2. execute 增加检查点回顾 3. review 深度分级（quick/full）+ L4 signal 按改动类型过滤 4. plan-design 决策衔接（消除 Q1-Q4 重复提问）5. stage 职责收敛（Value Mining 归位、uncommitted 移出 insight）6. design 建议任务边界 7. brainstorm Sanity Gate 破 AI 顺从病（需求合法性闸门，非分析能力）
 - **用户覆盖**: 作者 dogfood
 - **核心指标**（v3 → v4）:
 
@@ -161,8 +161,9 @@
 | M11 | evaluate 方法论匹配 | — | 未开始 | — |
 | M12 | execute 检查点回顾 | — | 未开始 | — |
 | M13 | review 深度优化 | quick/full 分级 + L4 signal 按类型过滤 | 未开始 | — |
-| M14 | plan-design 衔接清理 | design 存在时 plan 跳过 Q1-Q4；design 缺失时显式 fallback | 未开始 | — |
+| M14 | plan-design 衔接清理 | design 存在时 plan 跳过 Q1-Q4；design 缺失时显式 fallback | 已完成 | 2026-04-17 |
 | M15 | stage 职责收敛 | Value Mining 归位可选扩展 + uncommitted 移出 insight | 未开始 | — |
 | M16 | design 任务边界提示 | design handoff 增加 Suggested Task Boundaries | 未开始 | — |
+| M17 | brainstorm Sanity Gate | Step 1 前置 5 问 y/n 过滤 + Q3/Q4 分级深挖（市场/可行性），破 AI 顺从病 | 已完成 | 2026-04-17 |
 
 
