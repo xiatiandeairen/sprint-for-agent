@@ -400,8 +400,14 @@ def anomaly(values, name, unit='', fmt=lambda x: str(x)):
     if avg > 0 and values[-1] > 2 * avg:
         hints.append(f'[异常] 上次 {name} {fmt(values[-1])}{unit}，历史平均 {fmt(int(avg))}{unit}')
 
-# Duration
-durations = [d['duration'] // 60 for d in data if d.get('duration')]
+# Duration (filter outliers: >4x median or >2h)
+raw_dur = [d['duration'] // 60 for d in data if d.get('duration')]
+if len(raw_dur) >= 5:
+    med = sorted(raw_dur)[len(raw_dur) // 2]
+    cap = max(med * 4, 120)
+    durations = [d for d in raw_dur if d <= cap]
+else:
+    durations = raw_dur
 trend(durations, 'duration', 'm')
 anomaly(durations, 'duration', 'm')
 
@@ -565,7 +571,14 @@ def detect_anomaly(values):
 # Prepare time-ordered data (oldest first for trend detection)
 ordered = sorted(data, key=lambda x: x.get('completed_at', ''))
 
-durations = [d['duration'] // 60 for d in ordered if d.get('duration')]
+# Filter outlier durations (>4h likely means sprint left open overnight)
+raw_durations = [d['duration'] // 60 for d in ordered if d.get('duration')]
+if len(raw_durations) >= 5:
+    median = sorted(raw_durations)[len(raw_durations) // 2]
+    cap = max(median * 4, 120)  # 4x median or 2h, whichever is larger
+    durations = [d for d in raw_durations if d <= cap]
+else:
+    durations = raw_durations
 anchor_rates = []
 for d in ordered:
     a = d.get('anchor', {})
@@ -586,43 +599,27 @@ has_trends = False
 print()
 print('Trends')
 
-# Duration trend
-t = detect_trend(durations)
-if t and len(durations) >= 3:
-    last3 = durations[-3:]
-    print(f'  Duration:    {last3[0]}m → {last3[1]}m → {last3[2]}m ({len(durations)} sprints) {t}')
-    has_trends = True
+def show_trend(values, name, unit=''):
+    t = detect_trend(values)
+    if t and len(values) >= 3:
+        last3 = values[-3:]
+        print(f'  {name:<13}{last3[0]}{unit} → {last3[1]}{unit} → {last3[2]}{unit} (last 3 of {len(values)}) {t}')
+        return True
+    return False
 
-anom = detect_anomaly(durations)
-if anom:
-    print(f'  [异常] 上次 duration {anom[0]}m，历史平均 {anom[1]:.0f}m')
-    has_trends = True
+def show_anomaly(values, name, unit=''):
+    anom = detect_anomaly(values)
+    if anom:
+        print(f'  [异常] 上次 {name} {anom[0]}{unit}，历史平均 {anom[1]:.0f}{unit}')
+        return True
+    return False
 
-# Anchor rate trend
-t = detect_trend(anchor_rates)
-if t and len(anchor_rates) >= 3:
-    last3 = anchor_rates[-3:]
-    print(f'  Anchor rate: {last3[0]}% → {last3[1]}% → {last3[2]}% ({len(anchor_rates)} sprints) {t}')
-    has_trends = True
-
-# Scope creep trend
-t = detect_trend(creep_vals)
-if t and len(creep_vals) >= 3:
-    last3 = creep_vals[-3:]
-    print(f'  Scope creep: {last3[0]} → {last3[1]} → {last3[2]} ({len(creep_vals)} sprints) {t}')
-    has_trends = True
-
-anom = detect_anomaly(creep_vals)
-if anom:
-    print(f'  [异常] 上次 scope creep {anom[0]} files，历史平均 {anom[1]:.1f}')
-    has_trends = True
-
-# Brainstorm share trend
-t = detect_trend(bs_shares)
-if t and len(bs_shares) >= 3:
-    last3 = bs_shares[-3:]
-    print(f'  brainstorm:  {last3[0]}% → {last3[1]}% → {last3[2]}% ({len(bs_shares)} sprints) {t}')
-    has_trends = True
+has_trends |= show_trend(durations, 'Duration:', 'm')
+has_trends |= show_anomaly(durations, 'duration', 'm')
+has_trends |= show_trend(anchor_rates, 'Anchor:', '%')
+has_trends |= show_trend(creep_vals, 'Creep:', ' files')
+has_trends |= show_anomaly(creep_vals, 'scope creep', ' files')
+has_trends |= show_trend(bs_shares, 'Brainstorm:', '%')
 
 if not has_trends:
     print('  No trends detected (need ≥3 sprints)')
