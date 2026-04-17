@@ -22,7 +22,7 @@ description: Task execution workflow. Evaluates complexity, trims stages, execut
 | Stage | Pipeline phase: brainstorm → design → plan → execute → quality → review → insight |
 | Step | Numbered progression within a stage (from stage file `## Progress`) |
 | Task | Independently verifiable work unit (plan splits, execute runs) |
-| Anchor | Structural assertion in `anchors.txt`: `MUST_BUILD`, `MUST_EXIST`, `MUST_TEST`, `MUST_IMPORT`, `MUST_NOT_IMPORT`, `MUST_NOT_EXIST`, `FILE_NOT_MODIFIED` |
+| Anchor | Structural assertion in `anchors.txt`: `MUST_BUILD`, `MUST_EXIST`, `MUST_TEST`, `MUST_IMPORT`, `MUST_NOT_IMPORT`, `MUST_NOT_EXIST`, `MUST_CONTAIN`, `MUST_NOT_CONTAIN`, `FILE_NOT_MODIFIED` |
 | Lock | Immutable decision point: Demand Lock, Value Lock (brainstorm), Direction Lock (long-sprint) |
 | Handoff | Stage output document, structure defined by each stage file's template |
 | Gate | Step entry condition: `user` (yes/no), `auto` (system evaluates), `always` |
@@ -48,7 +48,7 @@ Stage files may strengthen but not contradict these.
 5. **Bounded exploration** — open loops declare max rounds. At limit, force convergence.
 6. **Subagent escalation** — 1st fail: retry same model. 2nd: upgrade (sonnet→opus). 3rd: stop, report.
 7. **Handoff is terminal** — written as final step, after all work + user confirmation.
-8. **Confirm before persisting** — handoffs, anchors.txt, Locks, reports: user confirms before write.
+8. **Confirm before persisting** — handoffs, Locks, reports: user confirms before write. (anchors.txt: auto-extracted in plan, presented for additions — see plan Step 3.)
 9. **Precise recovery** — return to stage + step number. Never "start over".
 10. **Max 3 options** — >3 candidates → filter first, present top 3.
 
@@ -137,7 +137,7 @@ Execute override: cross-module → opus. Single file → sonnet. No logic → ha
 | 是否涉及高风险？ | quality+review | quality only | 局部可逆、不影响线上 → 基础验证 |
 
 - Override keywords `delete/migrate/payment/production/permission` → risk=yes
-- Always-on: plan, execute, insight. Quality always; review only risk=yes
+- Always-on: plan, execute, insight. Quality on by default; review only risk=yes
 - **Doc mode**: skip plan + quality. Pipeline: `[brainstorm] → [design] → execute → insight`
 
 ```
@@ -147,9 +147,13 @@ Execute override: cross-module → opus. Single file → sonnet. No logic → ha
 - **跳过**: {stages} — {理由}
 ```
 
+**Complexity** (when design=yes): assess before calling evaluate.
+- Files >5 OR cross-module (>1 top-level dir) → `high` (all design Gates enter by default)
+- Otherwise → `low` (design Steps 1/2/3/5 Gates default skip)
+
 ```bash
 # [RUN] after confirm
-bash "$SPRINT_CTL" evaluate {clarify:0|1} {design:0|1} {risk:0|1}
+bash "$SPRINT_CTL" evaluate {clarify:0|1} {design:0|1} {risk:0|1} {complexity:low|high}
 bash "$SPRINT_CTL" create "sprint" "{desc}" "{stages}"
 bash "$SPRINT_CTL" activate "{id}"
 ```
@@ -188,6 +192,7 @@ Every response starts with:
 - Empty output → "无". Never silently omit.
 - Forbidden: 尽量/适当/大概/或许/roughly/approximately/maybe/perhaps.
 - Errors include: what failed, which command, suggested fix.
+- Match user's language for all output; internal docs stay English.
 
 ### Metrics
 
@@ -209,8 +214,8 @@ Every response starts with:
 |-------|------|-----------|
 | brainstorm | `stages/brainstorm.md` | clarify=yes |
 | design | `stages/design.md` | design=yes |
-| plan | `stages/plan.md` | always (doc mode: skip) |
+| plan | `stages/plan.md` | default on; doc mode: skip |
 | execute | `stages/execute.md` | always |
-| quality | `stages/quality.md` | always (doc mode: skip) |
+| quality | `stages/quality.md` | default on; doc mode: skip |
 | review | `stages/review.md` | risk=yes |
 | insight | `stages/insight.md` | always |

@@ -4,6 +4,8 @@
 
 set -euo pipefail
 
+command -v python3 >/dev/null 2>&1 || { echo "Error: python3 is required but not found. Install Python 3 and retry." >&2; exit 1; }
+
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 SPRINT_DIR="$ROOT/.sprint"
 
@@ -35,6 +37,14 @@ create)
   TYPE="${1:-simple}"
   DESC="${2:-}"
   STAGES="${3:-}"
+  if [[ -z "$DESC" ]]; then
+    echo "Error: description is required. Usage: sprint-ctl.sh create <type> <desc> <stages>" >&2
+    exit 1
+  fi
+  if [[ -z "$STAGES" ]]; then
+    echo "Error: stages are required. Usage: sprint-ctl.sh create <type> <desc> <stages>" >&2
+    exit 1
+  fi
   ID="$(date +%Y%m%d-%H%M%S)-$(printf '%03d' $((RANDOM % 1000)))"
   DIR="$SPRINT_DIR/$ID"
   mkdir -p "$DIR/handoffs"
@@ -53,6 +63,7 @@ create)
   BASE_COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo "none")"
   CREATED_AT="$(now_iso)"
 
+  COMPLEXITY="${4:-low}"
   cat > "$DIR/state.json" <<EOF
 {
   "id": "$ID",
@@ -61,6 +72,7 @@ create)
   "stages": $STAGES_JSON,
   "status": "created",
   "current_stage": "",
+  "complexity": "$COMPLEXITY",
   "base_commit": "$BASE_COMMIT",
   "created_at": "$CREATED_AT"
 }
@@ -206,8 +218,8 @@ evaluate)
   # Usage: sprint-ctl.sh evaluate <clarify> <design> <risk> [keywords...]
   # Input: 3 binary parameters (0 or 1)
   # Output: stage list
-  CLARIFY="${1:-0}"; DESIGN="${2:-0}"; RISK="${3:-0}"
-  shift 3 2>/dev/null || true
+  CLARIFY="${1:-0}"; DESIGN="${2:-0}"; RISK="${3:-0}"; _COMP="${4:-low}"
+  shift 4 2>/dev/null || shift 3 2>/dev/null || true
   KEYWORDS="$*"
 
   # ── Keyword override: high-risk keywords force risk=1 ──
@@ -226,9 +238,17 @@ evaluate)
   [[ $RISK -eq 1 ]] && STAGES="${STAGES},review"
   STAGES="${STAGES},insight"
 
+  # ── Complexity assessment ──
+  # Binary: high if explicitly flagged, low otherwise
+  # AI caller sets COMPLEXITY based on: files >5 OR cross-module (>1 top-level dir) → high
+  COMPLEXITY="${4:-low}"
+  if [[ "$COMPLEXITY" != "high" && "$COMPLEXITY" != "low" ]]; then
+    COMPLEXITY="low"
+  fi
+
   # ── Output ──
   echo "INPUT"
-  echo "  clarify=$CLARIFY  design=$DESIGN  risk=$RISK"
+  echo "  clarify=$CLARIFY  design=$DESIGN  risk=$RISK  complexity=$COMPLEXITY"
   echo ""
   echo "STAGES"
   echo "  $STAGES"
@@ -268,6 +288,15 @@ evaluate)
 
   # insight
   echo "  insight     ALWAYS     retrospective"
+
+  echo ""
+  echo "COMPLEXITY"
+  echo "  $COMPLEXITY"
+  if [[ "$COMPLEXITY" == "high" ]]; then
+    echo "  design gates: all steps enabled"
+  else
+    echo "  design gates: optional steps default skip (1/2/3/5)"
+  fi
   ;;
 
 list)
