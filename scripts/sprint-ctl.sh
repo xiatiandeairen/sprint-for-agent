@@ -300,7 +300,7 @@ evaluate)
   STAGES=""
   [[ $CLARIFY -eq 1 ]] && STAGES="brainstorm"
   [[ $DESIGN -eq 1 ]] && STAGES="${STAGES:+$STAGES,}design"
-  STAGES="${STAGES:+$STAGES,}plan,execute,quality"
+  STAGES="${STAGES:+$STAGES,}plan,execute"
   [[ $RISK -eq 1 ]] && STAGES="${STAGES},review"
   STAGES="${STAGES},insight"
 
@@ -341,9 +341,6 @@ evaluate)
 
   # execute
   echo "  execute     ALWAYS     implementation"
-
-  # quality
-  echo "  quality     ALWAYS     verification"
 
   # review
   if [[ $RISK -eq 1 ]]; then

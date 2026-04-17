@@ -19,7 +19,7 @@ description: Task execution workflow. Evaluates complexity, trims stages, execut
 
 | Term | Meaning |
 |------|---------|
-| Stage | Pipeline phase: brainstorm → design → plan → execute → quality → review → insight |
+| Stage | Pipeline phase: brainstorm → design → plan → execute → review → insight |
 | Step | Numbered progression within a stage (from stage file `## Progress`) |
 | Task | Independently verifiable work unit (plan splits, execute runs) |
 | Anchor | Structural assertion in `anchors.txt`: `MUST_BUILD`, `MUST_EXIST`, `MUST_TEST`, `MUST_IMPORT`, `MUST_NOT_IMPORT`, `MUST_NOT_EXIST`, `MUST_CONTAIN`, `MUST_NOT_CONTAIN`, `FILE_NOT_MODIFIED` |
@@ -135,11 +135,11 @@ Execute override: cross-module → opus. Single file → sonnet. No logic → ha
 |----------|-----|-----|------|
 | 需求是否需要澄清？ | brainstorm | skip | 能一句话说清 → 不需要 |
 | 是否需要技术设计？ | design | skip | 实现方式唯一且明确 → 不需要 |
-| 是否涉及高风险？ | quality+review | quality only | 局部可逆、不影响线上 → 基础验证 |
+| 是否涉及高风险？ | review | skip | 局部可逆、不影响线上 → 跳过 |
 
 - Override keywords `delete/migrate/payment/production/permission` → risk=yes
-- Always-on: plan, execute, insight. Quality on by default; review only risk=yes
-- **Doc mode**: skip plan + quality. Pipeline: `[brainstorm] → [design] → execute → insight`
+- Always-on: plan, execute, insight. Review: risk=yes OR (tasks >1 AND cross-module)
+- **Doc mode**: skip plan. Pipeline: `[brainstorm] → [design] → execute → insight`
 
 ```
 ### 评估: {description}
@@ -219,6 +219,5 @@ Every response starts with:
 | design | `stages/design.md` | design=yes |
 | plan | `stages/plan.md` | default on; doc mode: skip |
 | execute | `stages/execute.md` | always |
-| quality | `stages/quality.md` | default on; doc mode: skip |
-| review | `stages/review.md` | risk=yes |
+| review | `stages/review.md` | risk=yes OR (tasks >1 AND cross-module) |
 | insight | `stages/insight.md` | always |

@@ -47,6 +47,35 @@ Low-priority (do not emphasize): subjective style preference, low-value naming d
 
 ---
 
+## Trigger
+
+Review runs when any of these hold:
+- risk=yes (from evaluate)
+- tasks >1 AND cross-module changes (detected from plan handoff)
+
+## Step 0: Cross-Task Regression
+
+Model: sonnet
+
+Gate (auto): plan handoff 任务数 >1 且任务间有共享文件或模块依赖 → 执行。否则跳过。
+
+Do NOT repeat single-task checks from execute. Only verify cross-task integration:
+
+1. **Public interface changes** — identify consuming modules for each changed API/protocol/type
+2. **New dependencies** — verify acyclic dependency graph, lower modules don't depend on higher
+3. **Deletions / renames** — scan for stale references
+
+```
+### Cross-Task Regression — PASS ✓ / FAIL ✗
+
+**变更影响分析**
+- 接口变更: {affected consumers or "无"}
+- 依赖方向: ✓ / 发现违规
+- 残留引用: 无 / {list}
+```
+
+Fail → return to execute to fix. Pass → continue to Step 1.
+
 ## Step 1: Change Understanding
 
 Model: opus
