@@ -163,7 +163,7 @@
 | M13 | review 深度优化 | quick/full 分级 + L4 signal 按类型过滤 | 未开始 | — |
 | M14 | plan-design 衔接清理 | design 存在时 plan 跳过 Q1-Q4；design 缺失时显式 fallback | 已完成 | 2026-04-17 |
 | M15 | stage 职责收敛 | Value Mining 归位可选扩展 + uncommitted 移出 insight | 已完成 | 2026-04-17 |
-| M16 | design 任务边界提示 | design handoff 增加 Suggested Task Boundaries | 未开始 | — |
+| M16 | design 任务边界提示 | design handoff 增加 Suggested Task Boundaries | 已完成 | 2026-04-17 |
 | M17 | brainstorm Sanity Gate | Step 1 前置 5 问 y/n 过滤 + Q3/Q4 分级深挖（市场/可行性），破 AI 顺从病 | 已完成 | 2026-04-17 |
 
 
