@@ -160,7 +160,7 @@
 | M10 | 提升脚本可靠性和测试覆盖    | python3 检查 + 参数校验 + 6 个新测试，52 case 全通过            | 已完成 | 2026-04-16 |
 | M11 | evaluate 方法论匹配 | — | 未开始 | — |
 | M12 | execute 检查点回顾 | — | 未开始 | — |
-| M13 | review 深度优化 | quick/full 分级 + L4 signal 按类型过滤 | 未开始 | — |
+| M13 | review 深度优化 | quick/full 分级 + L4 signal 按类型过滤 | 已完成 | 2026-04-17 |
 | M14 | plan-design 衔接清理 | design 存在时 plan 跳过 Q1-Q4；design 缺失时显式 fallback | 已完成 | 2026-04-17 |
 | M15 | stage 职责收敛 | Value Mining 归位可选扩展 + uncommitted 移出 insight | 已完成 | 2026-04-17 |
 | M16 | design 任务边界提示 | design handoff 增加 Suggested Task Boundaries | 已完成 | 2026-04-17 |
