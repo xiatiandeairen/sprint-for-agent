@@ -134,7 +134,9 @@ After user confirms, compile all decisions from Steps 1-4:
 - Step 4 design decisions → `core`
 - Implementation details → `detail`
 
-Present register for user review.
+Present register for user review. Append: `如需对抗性审视，回复"审视"`
+
+User says "审视" → switch to challenger role: for each `core` decision, challenge using first-principles reasoning. Question whether the problem being solved is real, whether a simpler approach exists, and whether the decision should be reversed. After challenge round, re-present register (updated or unchanged).
 
 ### Few-shot
 

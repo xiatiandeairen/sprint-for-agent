@@ -162,7 +162,9 @@ Present conclusion:
 - {confirmed point 2}
 ```
 
-User confirms → write handoff.
+Append: `如需对抗性审视，回复"审视"`
+
+User confirms → write handoff. User says "审视" → switch to challenger role: challenge the conclusion using first-principles reasoning. Question whether the direction should exist, whether it's the simplest approach, and what assumptions are unverified. After challenge round, re-present conclusion (updated or unchanged).
 
 **Handoff** (`.sprint/{id}/handoffs/brainstorm.md`):
 ```markdown
