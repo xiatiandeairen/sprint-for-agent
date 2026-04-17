@@ -96,6 +96,21 @@ Present register for user review. Append: `如需对抗性审视，回复"审视
 
 User says "审视" → switch to challenger role: for each `core` decision, challenge using first-principles reasoning. Question whether the problem being solved is real, whether a simpler approach exists, and whether the decision should be reversed. After challenge round, re-present register (updated or unchanged).
 
+### Infer Spec Preferences (for plan)
+
+After Decision Register is confirmed, infer 4 spec fields for downstream plan stage. Each field is an enum with `undecided` fallback — do not guess when evidence is absent.
+
+| Field | Values | Inference source |
+|-------|--------|-----------------|
+| scope | `precise` \| `extended` \| `undecided` | Solution Approach 中"只改必要文件" → precise；"顺手清理周边" → extended |
+| depth | `patch` \| `root-cause` \| `undecided` | Decision Register 讨论根因 → root-cause；明确"先堵住" → patch |
+| transition | `direct` \| `incremental` \| `undecided` | File Structure 显示全量替换 → direct；存在"v1/v2 并存"或"分阶段迁移" → incremental |
+| compatibility | `strict` \| `internal-break` \| `undecided` | Decision Register 涉及"不动调用方"/"保留 API" → strict；"内部可改接口"/"破坏性变更 ok" → internal-break |
+
+Rule: 没有明确证据 → 填 `undecided`，由 plan 阶段补问。**禁止猜测填默认值**。
+
+Write results to handoff `## Spec Preferences` section.
+
 ### Few-shot
 
 Good: `Form: Automation | Trigger: /deploy → auto-checks env, builds, pushes staging | Before: 5 manual steps | After: 1 command | Files: create scripts/deploy.sh, modify package.json`
@@ -157,6 +172,11 @@ Write `.sprint/{id}/handoffs/design.md`:
 ## Constraints
 ## Decision Register
 | # | Decision Point | Category | Status | Conclusion |
+## Spec Preferences
+- scope: {precise | extended | undecided}
+- depth: {patch | root-cause | undecided}
+- transition: {direct | incremental | undecided}
+- compatibility: {strict | internal-break | undecided}
 ## Downstream
 ```
 
