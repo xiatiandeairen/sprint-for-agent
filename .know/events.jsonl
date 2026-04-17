@@ -1,0 +1,5 @@
+{"ts":"2026-04-17","event":"created","summary":"v4深化现有机制而非加新层 — 第一性原理拆解后新系统需求均可用现有anchor/Gate/memory表达"}
+{"ts":"2026-04-17","event":"created","summary":"移除quality stage — 4步中3步与execute重复，impact analysis并入review"}
+{"ts":"2026-04-17","event":"created","summary":"数据闭环用趋势检测不用分类 — summary.json集中存储+连续3次同向=趋势+>2倍均值=异常"}
+{"ts":"2026-04-17","event":"created","summary":"确认点必须携带新信息 — 无决策内容的stage转换和无上下文的中间产物不设确认"}
+{"ts":"2026-04-17","event":"created","summary":"对抗性审视须用户触发不可AI自审 — AI审视自己结论有sunk cost bias会走过场"}
