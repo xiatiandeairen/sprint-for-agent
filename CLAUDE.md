@@ -16,8 +16,7 @@
   - [tech](.know/docs/requirements/data-aggregation/impl/tech.md) | 2026-04-14 ← prd
 - [enhanced-insight](.know/docs/requirements/enhanced-insight/prd.md) | 2026-04-14 ← roadmap
   - [tech](.know/docs/requirements/enhanced-insight/impl/tech.md) | 2026-04-14 ← prd
-- [learning-loop](.know/docs/requirements/learning-loop/prd.md) | 2026-04-17 ← roadmap (M13)
-- [review-optimization](.know/docs/requirements/review-optimization/prd.md) | 2026-04-17 ← roadmap (M14)
-- [plan-design-handoff](.know/docs/requirements/plan-design-handoff/prd.md) | 2026-04-17 ← roadmap (M15)
-- [stage-responsibility-cleanup](.know/docs/requirements/stage-responsibility-cleanup/prd.md) | 2026-04-17 ← roadmap (M16)
-- [design-task-boundary-hints](.know/docs/requirements/design-task-boundary-hints/prd.md) | 2026-04-17 ← roadmap (M17)
+- [review-optimization](.know/docs/requirements/review-optimization/prd.md) | 2026-04-17 ← roadmap (M13)
+- [plan-design-handoff](.know/docs/requirements/plan-design-handoff/prd.md) | 2026-04-17 ← roadmap (M14)
+- [stage-responsibility-cleanup](.know/docs/requirements/stage-responsibility-cleanup/prd.md) | 2026-04-17 ← roadmap (M15)
+- [design-task-boundary-hints](.know/docs/requirements/design-task-boundary-hints/prd.md) | 2026-04-17 ← roadmap (M16)
