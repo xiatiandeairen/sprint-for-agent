@@ -258,6 +258,16 @@ with open(summary_path, 'w') as f:
     json.dump(data, f, indent=2, ensure_ascii=False)
 "
 
+  # Uncommitted changes warning
+  if git rev-parse --git-dir > /dev/null 2>&1; then
+    UNCOMMITTED=$(git status --short 2>/dev/null || true)
+    if [[ -n "$UNCOMMITTED" ]]; then
+      echo ""
+      echo "> ⚠ uncommitted changes:"
+      echo "$UNCOMMITTED" | sed 's/^/>   /'
+    fi
+  fi
+
   ;;
 
 evaluate)

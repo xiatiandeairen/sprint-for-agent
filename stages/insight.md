@@ -2,13 +2,12 @@
 
 ## Progress
 
-- total: 5
+- total: 4
 - steps:
   1. Close the sprint
   2. What went differently than planned?
   3. Did the process work well?
   4. What to remember next time?
-  5. Any uncommitted work left?
 
 Metrics summary + deviation analysis + process evaluation. Last stage, always runs.
 
@@ -131,35 +130,15 @@ Update MEMORY.md index with a one-line pointer.
 
 No qualifying lessons → skip silently. Do not force memory writes.
 
-## Step 5: Uncommitted Changes
-
-Model: sonnet
-
-```bash
-# [RUN]
-git status --short
-git diff --stat
-```
-
-Uncommitted changes exist → "There are uncommitted changes. Would you like to commit them?"
-
-If yes: generate conventional commit message `{type}({scope}): {description}` (imperative, lowercase, no period, max 72 chars). Present and commit on confirmation.
-
-No changes → skip.
-
----
-
 ## Completion
 
 - Sprint ended, metrics printed
 - Deviation analysis with classification
 - Process evaluation with time ratios
 - Lessons noted; qualifying lessons persisted to auto memory
-- Uncommitted changes checked
 - No handoff (insight is terminal output only)
 
 ## Recovery
 
 - metrics.log missing → skip deviation/process evaluation
 - sprint-ctl end fails → proceed with available handoff data
-- git status fails → skip uncommitted changes check

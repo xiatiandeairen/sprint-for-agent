@@ -2,11 +2,10 @@
 
 ## Progress
 
-- total: 3
+- total: 2
 - steps:
   1. What exactly do you want?
-  2. Any hidden value worth capturing?
-  3. Lock the conclusion
+  2. Lock the conclusion
 
 Align user intent through demand modeling and controlled value discovery.
 
@@ -132,18 +131,18 @@ For each diagnostic below, answer yes/no based solely on the locked demand frame
 | 4 | Is the output reusable by other features? | Object touches shared module or produces artifact |
 | 5 | Does an implicit decision deserve to be explicit? | Constraint or Priority contains hidden assumption |
 
-Count yes answers. ≥2 → recommend enter. Otherwise → recommend skip.
+Count yes answers. ≥2 → recommend triggering Optional Value Mining. Otherwise → proceed directly to conclusion.
 
 Present to user:
 
 ```
 Demand Lock ✓
 
-[If ≥2 yes — recommend enter]
+[If ≥2 yes — recommend triggering Optional Value Mining]
 I noticed {convert top 2 "yes" items into plain-language observations, e.g. "this workflow will be repeated — templating opportunity" / "the output artifact is referenced by other modules"}.
-A) Explore these directions  B) Skip to conclusion
+A) Explore these directions (Optional Value Mining)  B) Skip to conclusion
 
-[If <2 yes — recommend skip]
+[If <2 yes — proceed directly]
 Requirements are clear — proceeding to conclusion. Speak up if you see directions worth exploring.
 ```
 
@@ -155,9 +154,46 @@ Bad: `Goal: Improve the app | Object: The codebase | Success: It works better`
 
 ---
 
-## Step 2: Value Mining
+## Step 2: Converge
 
-Gate: determined by Step 1 Gate evaluation (≥2 diagnostics "yes" → enter, otherwise skip). User can override. Default: skip.
+Model: sonnet
+
+Present conclusion:
+```
+### Brainstorm Conclusion
+
+**{1 sentence — what to build}**
+
+**Example**
+- Before: {now}
+- After: {then}
+- Verify: {how to check}
+
+**Value Points** (if any)
+- {confirmed point 1}
+- {confirmed point 2}
+```
+
+Append: `如需对抗性审视，回复"审视"`
+
+User confirms → write handoff. User says "审视" → switch to challenger role: challenge the conclusion using first-principles reasoning. Question whether the direction should exist, whether it's the simplest approach, and what assumptions are unverified. After challenge round, re-present conclusion (updated or unchanged).
+
+**Handoff** (`.sprint/{id}/handoffs/brainstorm.md`):
+```markdown
+## Conclusion
+## Demand Frame
+- Goal / Object / Constraint / Context / Success / Priority
+## Scope
+### In / ### Out
+## Value Points
+## Downstream
+```
+
+---
+
+## Optional Extension: Value Mining
+
+Triggered by: explicit user request, OR Step 1 Gate recommendation (≥2 diagnostics yes). Not part of the standard brainstorm flow — runs only when demand frame suggests hidden value worth capturing and user opts in.
 
 Model: opus
 
@@ -206,42 +242,7 @@ After facet exploration: A) Dig deeper (new hypotheses from confirmed locks) B) 
 
 Limits: 3 rounds without convergence → ask user to redefine boundaries. Max 6 rounds → force converge.
 
----
-
-## Step 3: Converge
-
-Model: sonnet
-
-Present conclusion:
-```
-### Brainstorm Conclusion
-
-**{1 sentence — what to build}**
-
-**Example**
-- Before: {now}
-- After: {then}
-- Verify: {how to check}
-
-**Value Points** (if any)
-- {confirmed point 1}
-- {confirmed point 2}
-```
-
-Append: `如需对抗性审视，回复"审视"`
-
-User confirms → write handoff. User says "审视" → switch to challenger role: challenge the conclusion using first-principles reasoning. Question whether the direction should exist, whether it's the simplest approach, and what assumptions are unverified. After challenge round, re-present conclusion (updated or unchanged).
-
-**Handoff** (`.sprint/{id}/handoffs/brainstorm.md`):
-```markdown
-## Conclusion
-## Demand Frame
-- Goal / Object / Constraint / Context / Success / Priority
-## Scope
-### In / ### Out
-## Value Points
-## Downstream
-```
+After value exploration completes, re-enter Step 2 Converge to finalize the conclusion including any confirmed value points.
 
 ---
 
@@ -250,7 +251,7 @@ User confirms → write handoff. User says "审视" → switch to challenger rol
 - 6-slot frame filled, user confirmed
 - Conclusion + example confirmed
 - Handoff written
-- Value Locks + facets explored (if Step 2 entered)
+- Value Locks explored (if Optional Value Mining triggered)
 
 ## Recovery
 
