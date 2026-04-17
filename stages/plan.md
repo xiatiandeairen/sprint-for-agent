@@ -55,7 +55,12 @@ Step 1 顶部显示：`⚠️ design 跳过，以下为 plan fallback 决策`
 
 然后按原逻辑弹 Q1-Q4（如 Gate 进入）。
 
-**Override path**: 用户说"重新决策 {Qx}" → 弹对应 Q 覆盖 design 继承值。
+**Override path**: 触发词 `重新决策 | 重来 | 覆盖 | override | redo` + `{Qx | 字段名 scope/depth/transition/compatibility}` → 弹对应 Q 覆盖 design 继承值。
+
+示例：
+- "重新决策 Q1" / "Q1 重来" → 弹 scope
+- "override depth" / "覆盖 depth" → 弹 depth
+- "我想重新考虑 scope" → 弹 scope（关键词 `重新考虑` 等价 `重新决策`）
 
 ### Dimensions
 

@@ -109,7 +109,7 @@ After Decision Register is confirmed, infer 4 spec fields for downstream plan st
 
 Rule: 没有明确证据 → 填 `undecided`，由 plan 阶段补问。**禁止猜测填默认值**。
 
-Write results to handoff `## Spec Preferences` section.
+Write results to handoff `## Spec Preferences` section. **Field schema maintained here is the single source of truth — Step 5 handoff template must mirror these 4 fields exactly.** 新增/修改字段时同步更新两处（Step 2 推断表 + Step 5 handoff 模板）。
 
 ### Few-shot
 
@@ -173,6 +173,7 @@ Write `.sprint/{id}/handoffs/design.md`:
 ## Decision Register
 | # | Decision Point | Category | Status | Conclusion |
 ## Spec Preferences
+<!-- Fields + enum values MUST mirror Step 2 "Infer Spec Preferences" table. Keep in sync. -->
 - scope: {precise | extended | undecided}
 - depth: {patch | root-cause | undecided}
 - transition: {direct | incremental | undecided}
