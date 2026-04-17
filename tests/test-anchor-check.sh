@@ -327,4 +327,48 @@ run_test ".sprint.json invalid JSON → error exit 1" '
   rm -f "$ROOT/.sprint.json"
 '
 
+# ── MUST_CONTAIN ──
+
+run_test "MUST_CONTAIN — file contains pattern → PASS" '
+  make_sprint "test-040" "MUST_CONTAIN testfile.txt hello world"
+  echo "hello world" > "$ROOT/testfile.txt"
+  OUTPUT=$(cd "$ROOT" && bash "$ANCHOR_CHECK" "test-040" 2>&1)
+  assert_contains "PASS" "$OUTPUT"
+'
+
+run_test "MUST_CONTAIN — file missing pattern → FAIL" '
+  make_sprint "test-041" "MUST_CONTAIN testfile.txt hello world"
+  echo "goodbye" > "$ROOT/testfile.txt"
+  OUTPUT=$(cd "$ROOT" && bash "$ANCHOR_CHECK" "test-041" 2>&1) || true
+  assert_contains "FAIL" "$OUTPUT"
+'
+
+run_test "MUST_CONTAIN — file not found → FAIL" '
+  make_sprint "test-042" "MUST_CONTAIN nonexistent.txt some pattern"
+  OUTPUT=$(cd "$ROOT" && bash "$ANCHOR_CHECK" "test-042" 2>&1) || true
+  assert_contains "FAIL" "$OUTPUT"
+'
+
+# ── MUST_NOT_CONTAIN ──
+
+run_test "MUST_NOT_CONTAIN — file missing pattern → PASS" '
+  make_sprint "test-043" "MUST_NOT_CONTAIN testfile.txt deprecated_api"
+  echo "good_api()" > "$ROOT/testfile.txt"
+  OUTPUT=$(cd "$ROOT" && bash "$ANCHOR_CHECK" "test-043" 2>&1)
+  assert_contains "PASS" "$OUTPUT"
+'
+
+run_test "MUST_NOT_CONTAIN — file contains pattern → FAIL" '
+  make_sprint "test-044" "MUST_NOT_CONTAIN testfile.txt deprecated_api"
+  echo "deprecated_api()" > "$ROOT/testfile.txt"
+  OUTPUT=$(cd "$ROOT" && bash "$ANCHOR_CHECK" "test-044" 2>&1) || true
+  assert_contains "FAIL" "$OUTPUT"
+'
+
+run_test "MUST_NOT_CONTAIN — file not found → PASS" '
+  make_sprint "test-045" "MUST_NOT_CONTAIN nonexistent.txt bad_pattern"
+  OUTPUT=$(cd "$ROOT" && bash "$ANCHOR_CHECK" "test-045" 2>&1)
+  assert_contains "PASS" "$OUTPUT"
+'
+
 report

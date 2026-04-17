@@ -4,6 +4,8 @@
 
 set -euo pipefail
 
+command -v python3 >/dev/null 2>&1 || { echo "Error: python3 is required but not found. Install Python 3 and retry." >&2; exit 1; }
+
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 SPRINT_DIR="$ROOT/.sprint"
 
@@ -227,6 +229,32 @@ while IFS= read -r line; do
         check "$line" 0
       else
         check "$line" 1
+      fi
+      ;;
+
+    MUST_CONTAIN)
+      TARGET="${PARTS[1]}"
+      # Pattern is everything after the second field (allows spaces)
+      PATTERN="${line#* * }"
+      if [[ ! -f "$ROOT/$TARGET" ]]; then
+        echo "FAIL: $line (file not found: $TARGET)"
+        FAIL=$(( FAIL + 1 ))
+      elif grep -qF "$PATTERN" "$ROOT/$TARGET" 2>/dev/null; then
+        check "$line" 0
+      else
+        check "$line" 1
+      fi
+      ;;
+
+    MUST_NOT_CONTAIN)
+      TARGET="${PARTS[1]}"
+      PATTERN="${line#* * }"
+      if [[ ! -f "$ROOT/$TARGET" ]]; then
+        check "$line" 0
+      elif grep -qF "$PATTERN" "$ROOT/$TARGET" 2>/dev/null; then
+        check "$line" 1
+      else
+        check "$line" 0
       fi
       ;;
 
