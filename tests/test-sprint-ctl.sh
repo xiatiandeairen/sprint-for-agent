@@ -141,11 +141,11 @@ run_test "list — shows existing sprints" '
   assert_contains "list test" "$LIST_OUTPUT"
 '
 
-# ── stats ──
+# ── report ──
 
-run_test "stats — outputs aggregated data" '
+run_test "report — outputs aggregate data" '
   # Create and complete a sprint with metrics
-  OUTPUT=$(cd "$ROOT" && bash "$SPRINT_CTL" create "sprint" "stats test 1" "plan,execute" 2>&1)
+  OUTPUT=$(cd "$ROOT" && bash "$SPRINT_CTL" create "sprint" "report test 1" "plan,execute" 2>&1)
   ID=$(echo "$OUTPUT" | grep "Sprint created:" | awk "{print \$3}")
   cd "$ROOT" && bash "$SPRINT_CTL" activate "$ID" >/dev/null 2>&1
   cd "$ROOT" && bash "$SPRINT_CTL" stage "$ID" plan running >/dev/null 2>&1
@@ -153,32 +153,39 @@ run_test "stats — outputs aggregated data" '
   cd "$ROOT" && bash "$SPRINT_CTL" stage "$ID" execute running >/dev/null 2>&1
   cd "$ROOT" && bash "$SPRINT_CTL" stage "$ID" execute completed >/dev/null 2>&1
   cd "$ROOT" && bash "$SPRINT_CTL" end "$ID" >/dev/null 2>&1
-  STATS=$(cd "$ROOT" && bash "$SPRINT_CTL" stats 2>&1)
-  assert_contains "Sprint Stats" "$STATS"
-  assert_contains "Efficiency" "$STATS"
-  assert_contains "Quality" "$STATS"
-  assert_contains "Value" "$STATS"
-  assert_contains "Completion rate" "$STATS"
+  REPORT=$(cd "$ROOT" && bash "$SPRINT_CTL" report 2>&1)
+  assert_contains "Sprint Report" "$REPORT"
+  assert_contains "Trends" "$REPORT"
+  assert_contains "Summary" "$REPORT"
+  assert_contains "Completion" "$REPORT"
 '
 
-run_test "stats --last N — filters to N sprints" '
-  STATS=$(cd "$ROOT" && bash "$SPRINT_CTL" stats --last 1 2>&1)
-  assert_contains "1 sprints" "$STATS"
-  assert_contains "last 1" "$STATS"
+run_test "report {id} — single sprint summary" '
+  SINGLE_ID=$(python3 -c "import json; d=json.load(open('"'"'$SPRINT_DIR/summary.json'"'"')); print(d[-1]['"'"'id'"'"'])")
+  REPORT=$(cd "$ROOT" && bash "$SPRINT_CTL" report "$SINGLE_ID" 2>&1)
+  assert_contains "Sprint:" "$REPORT"
+  assert_contains "Status: completed" "$REPORT"
+  assert_contains "Anchor:" "$REPORT"
 '
 
-run_test "stats --status completed — filters by status" '
-  STATS=$(cd "$ROOT" && bash "$SPRINT_CTL" stats --status completed 2>&1)
-  assert_contains "status=completed" "$STATS"
-  assert_contains "Completion rate:  100%" "$STATS"
+run_test "report --last N — filters to N sprints" '
+  REPORT=$(cd "$ROOT" && bash "$SPRINT_CTL" report --last 1 2>&1)
+  assert_contains "1 sprints" "$REPORT"
 '
 
-run_test "stats — no sprints → No sprints found" '
+run_test "report — no data → No sprint data found" '
   EMPTY_DIR="$(mktemp -d)"
   cd "$EMPTY_DIR" && git init -q && git config core.hooksPath /dev/null && git commit -q --allow-empty -m "init"
-  STATS=$(cd "$EMPTY_DIR" && ROOT="$EMPTY_DIR" SPRINT_DIR="$EMPTY_DIR/.sprint" bash "$SPRINT_CTL" stats 2>&1)
-  assert_contains "No sprints found" "$STATS"
+  mkdir -p "$EMPTY_DIR/.sprint"
+  REPORT=$(cd "$EMPTY_DIR" && bash "$SPRINT_CTL" report 2>&1)
+  assert_contains "No sprint data found" "$REPORT"
   rm -rf "$EMPTY_DIR"
+'
+
+run_test "stats — alias works same as report" '
+  STATS=$(cd "$ROOT" && bash "$SPRINT_CTL" stats 2>&1)
+  assert_contains "Sprint Report" "$STATS"
+  assert_contains "Summary" "$STATS"
 '
 
 report

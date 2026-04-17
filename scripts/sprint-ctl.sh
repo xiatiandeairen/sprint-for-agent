@@ -192,6 +192,72 @@ print(json.dumps(s, indent=2))
     echo "> creep          $CREEP files"
   fi
 
+  # ── Write to summary.json ──
+  SUMMARY_FILE="$SPRINT_DIR/summary.json"
+
+  # Collect stage durations
+  STAGE_DURATIONS="{}"
+  while IFS='|' read -r _event stage _status _end_ts dur; do
+    dur_sec="${dur%s}"
+    STAGE_DURATIONS=$(python3 -c "
+import json, sys
+d = json.loads('$STAGE_DURATIONS')
+d['$stage'] = int('$dur_sec')
+print(json.dumps(d))
+")
+  done < <(grep "^stage_end" "$DIR/metrics.log")
+
+  # Collect anchor results
+  ANCHOR_PASS=$(grep "^anchor_check" "$DIR/metrics.log" 2>/dev/null | grep -o "pass=[0-9]*" | tail -1 | cut -d= -f2 || echo "0")
+  ANCHOR_FAIL=$(grep "^anchor_check" "$DIR/metrics.log" 2>/dev/null | grep -o "fail=[0-9]*" | tail -1 | cut -d= -f2 || echo "0")
+  ANCHOR_SKIP_VAL=$(grep "^anchor_check" "$DIR/metrics.log" 2>/dev/null | grep -o "skip=[0-9]*" | tail -1 | cut -d= -f2 || echo "0")
+
+  # Collect task completion from execute handoff
+  TASKS_DONE=0; TASKS_ALL=0
+  if [[ -f "$DIR/handoffs/execute.md" ]]; then
+    TASK_MATCH=$(grep -oE "Tasks completed:\s*[0-9]+/[0-9]+" "$DIR/handoffs/execute.md" 2>/dev/null || true)
+    if [[ -n "$TASK_MATCH" ]]; then
+      TASKS_DONE=$(echo "$TASK_MATCH" | grep -oE "[0-9]+/[0-9]+" | cut -d/ -f1)
+      TASKS_ALL=$(echo "$TASK_MATCH" | grep -oE "[0-9]+/[0-9]+" | cut -d/ -f2)
+    fi
+  fi
+
+  # Scope creep count (reuse CREEP if computed above, else 0)
+  CREEP_COUNT="${CREEP:-0}"
+
+  python3 -c "
+import json, os
+
+summary_path = '$SUMMARY_FILE'
+entry = {
+    'id': '$ID',
+    'desc': $(python3 -c "import json; s=json.load(open('$DIR/state.json')); print(json.dumps(s['desc']))"),
+    'status': 'completed',
+    'type': $(python3 -c "import json; s=json.load(open('$DIR/state.json')); print(json.dumps(s['type']))"),
+    'complexity': $(python3 -c "import json; s=json.load(open('$DIR/state.json')); print(json.dumps(s.get('complexity','low')))"),
+    'duration': $TOTAL_DURATION,
+    'stages': $STAGE_DURATIONS,
+    'anchor': {'pass': $ANCHOR_PASS, 'fail': $ANCHOR_FAIL, 'skip': $ANCHOR_SKIP_VAL},
+    'scope_creep': $CREEP_COUNT,
+    'tasks': {'completed': $TASKS_DONE, 'total': $TASKS_ALL},
+    'completed_at': '$(now_iso)'
+}
+
+data = []
+if os.path.isfile(summary_path):
+    try:
+        data = json.load(open(summary_path))
+    except (json.JSONDecodeError, IOError):
+        data = []
+
+# Avoid duplicate entries
+data = [d for d in data if d.get('id') != '$ID']
+data.append(entry)
+
+with open(summary_path, 'w') as f:
+    json.dump(data, f, indent=2, ensure_ascii=False)
+"
+
   # Check after-triggers: find sprints waiting for this one to complete
   TRIGGERS_FILE="$SPRINT_DIR/triggers.json"
   if [[ -f "$TRIGGERS_FILE" ]]; then
@@ -297,6 +363,84 @@ evaluate)
   else
     echo "  design gates: optional steps default skip (1/2/3/5)"
   fi
+
+  # ── HINTS from historical data ──
+  SUMMARY_FILE="$SPRINT_DIR/summary.json"
+  if [[ -f "$SUMMARY_FILE" ]]; then
+    HINTS_OUTPUT=$(python3 -c "
+import json, sys
+
+try:
+    data = json.load(open('$SUMMARY_FILE'))
+except (json.JSONDecodeError, IOError):
+    sys.exit(0)
+
+if len(data) < 3:
+    sys.exit(0)
+
+# Sort oldest first
+data.sort(key=lambda x: x.get('completed_at', ''))
+total = len(data)
+
+hints = []
+
+# Helper: trend detection (last 3 monotonic)
+def trend(values, name, unit='', fmt=lambda x: str(x)):
+    if len(values) < 3:
+        return
+    last3 = values[-3:]
+    if last3[0] < last3[1] < last3[2]:
+        hints.append(f'[趋势] {name}连续上升: {fmt(last3[0])}{unit} → {fmt(last3[1])}{unit} → {fmt(last3[2])}{unit}')
+    elif last3[0] > last3[1] > last3[2]:
+        hints.append(f'[趋势] {name}连续下降: {fmt(last3[0])}{unit} → {fmt(last3[1])}{unit} → {fmt(last3[2])}{unit}')
+
+# Helper: anomaly detection (last > 2x avg of prior, need ≥5)
+def anomaly(values, name, unit='', fmt=lambda x: str(x)):
+    if len(values) < 5:
+        return
+    prior = values[:-1]
+    avg = sum(prior) / len(prior)
+    if avg > 0 and values[-1] > 2 * avg:
+        hints.append(f'[异常] 上次 {name} {fmt(values[-1])}{unit}，历史平均 {fmt(int(avg))}{unit}')
+
+# Duration
+durations = [d['duration'] // 60 for d in data if d.get('duration')]
+trend(durations, 'duration', 'm')
+anomaly(durations, 'duration', 'm')
+
+# Scope creep
+creep = [d.get('scope_creep', 0) for d in data]
+trend(creep, 'scope creep', ' files')
+anomaly(creep, 'scope creep', ' files')
+
+# Anchor pass rate
+anchor_rates = []
+for d in data:
+    a = d.get('anchor', {})
+    t = a.get('pass', 0) + a.get('fail', 0)
+    if t > 0:
+        anchor_rates.append(a['pass'] * 100 // t)
+trend(anchor_rates, 'anchor 通过率', '%')
+
+# Brainstorm share
+bs_shares = []
+for d in data:
+    dur = d.get('duration', 0)
+    bs = d.get('stages', {}).get('brainstorm', 0)
+    if dur > 0 and bs > 0:
+        bs_shares.append(bs * 100 // dur)
+trend(bs_shares, 'brainstorm 占比', '%')
+
+if hints:
+    print(f'HINTS ({total} sprints)')
+    for h in hints:
+        print(f'  {h}')
+" 2>/dev/null || true)
+    if [[ -n "$HINTS_OUTPUT" ]]; then
+      echo ""
+      echo "$HINTS_OUTPUT"
+    fi
+  fi
   ;;
 
 list)
@@ -317,181 +461,201 @@ print(f\"{s['id']:<26} {s['type']:<10} {s['status']:<12} {s['desc']}\")
   if [[ $FOUND -eq 0 ]]; then echo "No sprints found."; fi
   ;;
 
-stats)
-  # Usage: sprint-ctl.sh stats [--last N] [--status STATUS]
-  if [[ ! -d "$SPRINT_DIR" ]]; then
-    echo "No sprints found."
+report)
+  # Usage: sprint-ctl.sh report [id] [--last N] [--status STATUS]
+  # No args = aggregate report. With id = single sprint summary.
+  SUMMARY_FILE="$SPRINT_DIR/summary.json"
+
+  if [[ ! -f "$SUMMARY_FILE" ]]; then
+    echo "No sprint data found. Complete a sprint first."
     exit 0
   fi
 
+  # Check if first arg is an ID (not a flag)
+  REPORT_ID=""
   LAST=""
   FILTER_STATUS=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --last) LAST="$2"; shift 2 ;;
       --status) FILTER_STATUS="$2"; shift 2 ;;
-      *) shift ;;
+      -*) shift ;;
+      *) REPORT_ID="$1"; shift ;;
     esac
   done
 
   python3 -c "
-import json, os, re, sys
+import json, sys
 
-sprint_dir = '$SPRINT_DIR'
+summary_path = '$SUMMARY_FILE'
+report_id = '$REPORT_ID'
 last_n = int('$LAST') if '$LAST' else None
 filter_status = '$FILTER_STATUS' or None
 
-# Collect sprint data
-sprints = []
-for name in sorted(os.listdir(sprint_dir)):
-    state_path = os.path.join(sprint_dir, name, 'state.json')
-    if not os.path.isfile(state_path):
-        continue
-    try:
-        state = json.load(open(state_path))
-    except (json.JSONDecodeError, IOError):
-        continue
-    if filter_status and state.get('status') != filter_status:
-        continue
-    sprints.append((name, state))
-
-# Sort by created_at descending, take last N
-sprints.sort(key=lambda x: x[1].get('created_at', ''), reverse=True)
-if last_n:
-    sprints = sprints[:last_n]
-
-if not sprints:
-    print('No sprints found.')
+try:
+    data = json.load(open(summary_path))
+except (json.JSONDecodeError, IOError):
+    print('No sprint data found.')
     sys.exit(0)
 
-total = len(sprints)
-completed = sum(1 for _, s in sprints if s['status'] == 'completed')
+if not data:
+    print('No sprint data found.')
+    sys.exit(0)
 
-# Parse metrics.log for each sprint
-total_duration = 0
-duration_count = 0
-stage_times = {}
-stage_counts = {}
-anchor_pass = 0
-anchor_total = 0
+# ── Single sprint report ──
+if report_id:
+    matches = [d for d in data if d['id'].startswith(report_id)]
+    if not matches:
+        print(f'Sprint {report_id} not found in summary.')
+        sys.exit(1)
+    s = matches[0]
+    dur_m = s['duration'] // 60
+    stages_str = ' → '.join(f\"{k}({v // 60}m{v % 60:02d}s)\" for k, v in s.get('stages', {}).items())
+    a = s.get('anchor', {})
+    a_total = a.get('pass', 0) + a.get('fail', 0)
+    a_str = f\"{a.get('pass', 0)}/{a_total} pass\" if a_total > 0 else 'N/A'
+    t = s.get('tasks', {})
+    t_str = f\"{t.get('completed', 0)}/{t.get('total', 0)}\" if t.get('total', 0) > 0 else 'N/A'
+    date_str = s.get('completed_at', '')[:10]
 
-for name, state in sprints:
-    metrics_path = os.path.join(sprint_dir, name, 'metrics.log')
-    if not os.path.isfile(metrics_path):
-        continue
+    print(f\"Sprint: {s['id']} | {s['desc']}\")
+    print(f\"Status: {s['status']} | Duration: {dur_m}m | {date_str}\")
+    print(f\"Stages: {stages_str}\")
+    print(f\"Anchor: {a_str} | Scope creep: {s.get('scope_creep', 0)} files | Tasks: {t_str}\")
+    sys.exit(0)
 
-    sprint_start_ts = None
-    sprint_end_ts = None
-
-    with open(metrics_path) as f:
-        for line in f:
-            parts = line.strip().split('|')
-            if not parts:
-                continue
-            event = parts[0]
-
-            if event == 'sprint_start' and len(parts) >= 3:
-                sprint_start_ts = int(parts[2])
-            elif event == 'sprint_end' and len(parts) >= 3:
-                sprint_end_ts = int(parts[2])
-            elif event == 'stage_end' and len(parts) >= 5:
-                stage = parts[1]
-                dur_str = parts[4].rstrip('s')
-                try:
-                    dur = int(dur_str)
-                except ValueError:
-                    continue
-                stage_times[stage] = stage_times.get(stage, 0) + dur
-                stage_counts[stage] = stage_counts.get(stage, 0) + 1
-            elif event == 'anchor_check' and len(parts) >= 4:
-                for p in parts[2:]:
-                    if p.startswith('pass='):
-                        anchor_pass += int(p.split('=')[1])
-                        anchor_total += int(p.split('=')[1])
-                    elif p.startswith('fail='):
-                        anchor_total += int(p.split('=')[1])
-
-    if sprint_start_ts and sprint_end_ts:
-        total_duration += (sprint_end_ts - sprint_start_ts)
-        duration_count += 1
-
-# Parse execute handoffs for task completion
-tasks_completed = 0
-tasks_total = 0
-for name, state in sprints:
-    exec_path = os.path.join(sprint_dir, name, 'handoffs', 'execute.md')
-    if not os.path.isfile(exec_path):
-        continue
-    with open(exec_path) as f:
-        content = f.read()
-    # Match 'Tasks completed: N/M'
-    m = re.search(r'Tasks completed:\s*(\d+)/(\d+)', content)
-    if m:
-        tasks_completed += int(m.group(1))
-        tasks_total += int(m.group(2))
-
-# Scope creep from end output in metrics (count lines with 'creep')
-# Actually parse plan handoff Expected Files vs state base_commit
-# Simplified: count from metrics.log is not stored. Skip for now.
-
-# Output
-filter_desc = ''
+# ── Aggregate report ──
 if filter_status:
-    filter_desc += f', status={filter_status}'
+    data = [d for d in data if d.get('status') == filter_status]
+
+# Sort by completed_at descending
+data.sort(key=lambda x: x.get('completed_at', ''), reverse=True)
 if last_n:
-    filter_desc += f', last {last_n}'
+    data = data[:last_n]
 
-print(f'Sprint Stats ({total} sprints, {completed} completed{filter_desc})')
-print('─' * 40)
+if not data:
+    print('No sprint data found.')
+    sys.exit(0)
 
-# Efficiency
+total = len(data)
+completed = sum(1 for d in data if d['status'] == 'completed')
+
+# ── Trends (main section) ──
+print(f'Sprint Report ({total} sprints)')
+print('═' * 40)
+
+def detect_trend(values):
+    \"\"\"Check if last 3 values are monotonic. Returns arrow or None.\"\"\"
+    if len(values) < 3:
+        return None
+    last3 = values[-3:]
+    if last3[0] < last3[1] < last3[2]:
+        return '↑'
+    if last3[0] > last3[1] > last3[2]:
+        return '↓'
+    return None
+
+def detect_anomaly(values):
+    \"\"\"Check if last value > 2x average of prior values.\"\"\"
+    if len(values) < 5:
+        return None
+    prior = values[:-1]
+    avg = sum(prior) / len(prior)
+    if avg > 0 and values[-1] > 2 * avg:
+        return values[-1], avg
+    return None
+
+# Prepare time-ordered data (oldest first for trend detection)
+ordered = sorted(data, key=lambda x: x.get('completed_at', ''))
+
+durations = [d['duration'] // 60 for d in ordered if d.get('duration')]
+anchor_rates = []
+for d in ordered:
+    a = d.get('anchor', {})
+    t = a.get('pass', 0) + a.get('fail', 0)
+    if t > 0:
+        anchor_rates.append(a['pass'] * 100 // t)
+creep_vals = [d.get('scope_creep', 0) for d in ordered]
+
+# Stage share for brainstorm
+bs_shares = []
+for d in ordered:
+    dur = d.get('duration', 0)
+    bs = d.get('stages', {}).get('brainstorm', 0)
+    if dur > 0 and bs > 0:
+        bs_shares.append(bs * 100 // dur)
+
+has_trends = False
 print()
-print('Efficiency')
-if total > 0:
-    pct = completed * 100 // total
-    print(f'  Completion rate:  {pct}% ({completed}/{total})')
-if duration_count > 0:
-    avg_min = total_duration // duration_count // 60
-    print(f'  Avg duration:     {avg_min}m')
+print('Trends')
 
-if stage_times:
-    total_stage_time = sum(stage_times.values()) or 1
-    print('  Stage distribution:')
-    for stage in ['brainstorm','design','plan','execute','quality','review','insight']:
-        if stage in stage_times:
-            pct = stage_times[stage] * 100 // total_stage_time
-            cnt = stage_counts.get(stage, 0)
-            print(f'    {stage:<15} {pct:>3}%  ({cnt} sprints)')
+# Duration trend
+t = detect_trend(durations)
+if t and len(durations) >= 3:
+    last3 = durations[-3:]
+    print(f'  Duration:    {last3[0]}m → {last3[1]}m → {last3[2]}m ({len(durations)} sprints) {t}')
+    has_trends = True
 
-# Quality
+anom = detect_anomaly(durations)
+if anom:
+    print(f'  [异常] 上次 duration {anom[0]}m，历史平均 {anom[1]:.0f}m')
+    has_trends = True
+
+# Anchor rate trend
+t = detect_trend(anchor_rates)
+if t and len(anchor_rates) >= 3:
+    last3 = anchor_rates[-3:]
+    print(f'  Anchor rate: {last3[0]}% → {last3[1]}% → {last3[2]}% ({len(anchor_rates)} sprints) {t}')
+    has_trends = True
+
+# Scope creep trend
+t = detect_trend(creep_vals)
+if t and len(creep_vals) >= 3:
+    last3 = creep_vals[-3:]
+    print(f'  Scope creep: {last3[0]} → {last3[1]} → {last3[2]} ({len(creep_vals)} sprints) {t}')
+    has_trends = True
+
+anom = detect_anomaly(creep_vals)
+if anom:
+    print(f'  [异常] 上次 scope creep {anom[0]} files，历史平均 {anom[1]:.1f}')
+    has_trends = True
+
+# Brainstorm share trend
+t = detect_trend(bs_shares)
+if t and len(bs_shares) >= 3:
+    last3 = bs_shares[-3:]
+    print(f'  brainstorm:  {last3[0]}% → {last3[1]}% → {last3[2]}% ({len(bs_shares)} sprints) {t}')
+    has_trends = True
+
+if not has_trends:
+    print('  No trends detected (need ≥3 sprints)')
+
+# ── Summary ──
 print()
-print('Quality')
-if anchor_total > 0:
-    apct = anchor_pass * 100 // anchor_total
-    print(f'  Anchor pass rate: {apct}% ({anchor_pass}/{anchor_total})')
-else:
-    print('  Anchor pass rate: N/A')
-
-# Value
-print()
-print('Value')
-if tasks_total > 0:
-    tpct = tasks_completed * 100 // tasks_total
-    print(f'  Task completion:  {tpct}% ({tasks_completed}/{tasks_total})')
-else:
-    print('  Task completion:  N/A')
+print('Summary')
+comp_pct = completed * 100 // total if total > 0 else 0
+avg_dur = sum(durations) // len(durations) if durations else 0
+avg_anchor = sum(anchor_rates) // len(anchor_rates) if anchor_rates else 0
+print(f'  Completion: {comp_pct}% ({completed}/{total}) | Avg: {avg_dur}m | Anchors: {avg_anchor}%')
 "
+  ;;
+
+stats)
+  # Alias for report — re-invoke as report
+  SCRIPT_PATH="${BASH_SOURCE[0]}"
+  exec bash "$SCRIPT_PATH" report "$@"
   ;;
 
 *)
   echo "Usage: sprint-ctl.sh <command> [args]"
-  echo "  evaluate <clarify> <design> <risk> [keywords]  Evaluate task dimensions"
+  echo "  evaluate <clarify> <design> <risk> [complexity] [keywords]  Evaluate task dimensions"
   echo "  create   <type> <desc> <stages>           Create sprint"
   echo "  activate <id>                             Activate sprint"
   echo "  stage    <id> <stage> <status>            Update stage status"
   echo "  end      <id>                             Complete sprint"
   echo "  list                                      List sprints"
-  echo "  stats    [--last N] [--status STATUS]     Show aggregated statistics"
+  echo "  report   [id] [--last N] [--status STATUS]  Sprint report (aggregate or single)"
+  echo "  stats    [--last N] [--status STATUS]     Alias for report"
   exit 1
   ;;
 

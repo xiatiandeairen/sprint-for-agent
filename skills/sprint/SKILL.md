@@ -51,6 +51,7 @@ Stage files may strengthen but not contradict these.
 8. **Confirm before persisting** — handoffs, Locks, reports: user confirms before write. (anchors.txt: auto-extracted in plan, presented for additions — see plan Step 3.)
 9. **Precise recovery** — return to stage + step number. Never "start over".
 10. **Max 3 options** — >3 candidates → filter first, present top 3.
+11. **Gate merge** — when Gates skip early steps in a stage, merge remaining steps into one combined output with one confirmation. Do not present intermediate artifacts (e.g. anchors) without surrounding context (e.g. task split).
 
 ### Internal Markers
 
@@ -147,6 +148,8 @@ Execute override: cross-module → opus. Single file → sonnet. No logic → ha
 - **跳过**: {stages} — {理由}
 ```
 
+**HINTS**: evaluate outputs a `HINTS` section when historical trends or anomalies are detected from `.sprint/summary.json`. Present HINTS to user between evaluate output and confirmation. No HINTS = don't mention it.
+
 **Complexity** (when design=yes): assess before calling evaluate.
 - Files >5 OR cross-module (>1 top-level dir) → `high` (all design Gates enter by default)
 - Otherwise → `low` (design Steps 1/2/3/5 Gates default skip)
@@ -162,7 +165,7 @@ bash "$SPRINT_CTL" activate "{id}"
 
 - **Chaining**: each stage reads upstream handoff. Skipped stage → downstream uses description.
 - **Task tracking**: no TaskCreate per stage (sprint-ctl tracks). TaskCreate only for ≥3 sub-tasks — except execute (1 task per plan task).
-- **Transitions**: full consensus before next stage. State "entering {name}", get confirmation. Thinking stages (brainstorm/design/plan) — don't rush.
+- **Transitions**: handoff confirmed = auto-enter next stage (no "确认继续？"). Only pause between stages if there is new information to present that the user hasn't seen. Thinking stages (brainstorm/design/plan) — don't rush within the stage.
 - **Skip intent**: go/continue/下一步 → accept current, proceed. Core decisions cannot be skipped.
 - **Multi-choice** (≥3 dimensions): recommendation table → user flags → expand flagged only. Binary stays inline.
 

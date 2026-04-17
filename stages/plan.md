@@ -17,6 +17,7 @@ From design handoff to executable task list.
 
 - Every task must have a non-empty AI verify section. No build/test → use file existence or content check.
 - Do not create tasks mixing new functionality with refactoring.
+- **Gate merge rule**: when Steps 1/2 are skipped via Gate, present Steps 3+4+5 as a single combined output (anchors + task split + execution strategy) for one confirmation. Do not present anchors alone without task context.
 
 ## Input
 
