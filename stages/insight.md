@@ -107,7 +107,29 @@ Answer each. "No" → skip. "Yes" → record as lesson.
 
 No findings = no lessons. Do not force output.
 
-Universal/reusable lesson found → prompt: "This lesson may be valuable for future sprints. Want to persist it with `/know learn`?"
+### Lesson → Memory Pipeline
+
+After lessons are identified, filter each for cross-sprint value:
+
+1. Does the lesson reference a specific task number or specific file modification? → **discard** (task-specific)
+2. Would this lesson still hold if the task description changed? → **no** → **discard**
+3. Pass both filters → **persist to auto memory**
+
+Write each qualifying lesson to memory:
+```markdown
+---
+name: sprint-lesson-{topic}
+description: {one-line summary}
+type: feedback
+---
+{lesson content}
+**Why:** {from deviation analysis or process evaluation}
+**How to apply:** {when this pattern appears in future sprints}
+```
+
+Update MEMORY.md index with a one-line pointer.
+
+No qualifying lessons → skip silently. Do not force memory writes.
 
 ## Step 5: Uncommitted Changes
 
@@ -132,7 +154,7 @@ No changes → skip.
 - Sprint ended, metrics printed
 - Deviation analysis with classification
 - Process evaluation with time ratios
-- Lessons noted; `/know learn` prompted if applicable
+- Lessons noted; qualifying lessons persisted to auto memory
 - Uncommitted changes checked
 - No handoff (insight is terminal output only)
 

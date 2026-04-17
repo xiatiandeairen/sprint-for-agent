@@ -27,6 +27,8 @@ If anchors.txt lacks `MUST_BUILD`, add it. For typed languages (Swift, Kotlin, T
 - plan handoff: execution mode, task list, verify criteria, expected files
 - anchors.txt
 
+**Doc mode** (plan skipped, no anchors): treat design handoff or original description as a single task. No TDD, no anchor check. Write directly + format validation. Skip Step-by-step/Parallel mode selection — always step-by-step with 1 implicit task.
+
 ---
 
 ## Stage Start: Task Tracking
@@ -39,7 +41,7 @@ Before coding: TaskCreate per task from plan. Start → `in_progress`. Verified 
 
 ## Step-by-step Mode
 
-Model: per task (sonnet default; opus for cross-module/interface)
+Model: per task from plan handoff `**Model**` field (fallback: sonnet default; opus for cross-module/interface)
 
 For each task:
 
@@ -58,7 +60,9 @@ For each task:
 bash "$ANCHOR_CHECK" "{sprint_id}"
 ```
 
-Fail → fix before proceeding.
+Fail → read design handoff (`.sprint/{id}/handoffs/design.md`) Key Decisions section. Output which design decision the failure relates to as diagnostic context. Then fix before proceeding.
+
+Unlisted file change → same backtracking: check design handoff for the relevant constraint before reporting to user.
 
 ### 3. AI Test
 

@@ -86,6 +86,8 @@ Auto-extract from design handoff and write directly to `.sprint/{id}/anchors.txt
 | Constraints: do-not-touch | `FILE_NOT_MODIFIED {path}` | |
 | Dependencies: required imports | `MUST_IMPORT {target} {module}` | target = relative path from project root (file or dir) |
 | Dependencies: forbidden imports | `MUST_NOT_IMPORT {target} {module}` | target = relative path from project root (file or dir) |
+| Design intent: required content | `MUST_CONTAIN {file} {pattern}` | line-level grep (fixed string). E.g. config must have key, function must return type |
+| Design intent: forbidden content | `MUST_NOT_CONTAIN {file} {pattern}` | line-level grep (fixed string). E.g. no deprecated API calls, no hardcoded secrets |
 | Project has tests | `MUST_TEST` | Uses .sprint.json > CLAUDE.md > auto-detect. SKIP if none found |
 | Project is buildable | `MUST_BUILD` | Uses .sprint.json > CLAUDE.md > auto-detect. SKIP if none found |
 
@@ -114,18 +116,21 @@ Model: sonnet
 - **Single responsibility**: one task = one concern.
 - **Size constraint**:
 
-| Size | Files | Lines | Model |
-|------|-------|-------|-------|
+| Size | Files | Lines | Default Model |
+|------|-------|-------|---------------|
 | S | 1 | <50 | sonnet |
 | M | 2-3 | 50-200 | sonnet |
 | L | 3-5 | 200-500 | opus |
 | XL | 5+ | 500+ | must split further |
+
+Model override per task: cross-module → opus. Single file, no logic → haiku. Otherwise use size default.
 
 S tasks may merge if independent verifiability preserved.
 
 Per task:
 ```
 ### Task {N}: {title}
+**Model**: {opus/sonnet/haiku} — {rationale: cross-module / single file / no logic}
 **Files**: create: {path} / modify: {path}
 **Steps**: 1. Write test 2. Run → FAIL 3. Implement 4. Run → PASS 5. Build verify (typed languages) 6. Commit
 **AI verify**: {build + test + anchor-check}
@@ -148,7 +153,7 @@ Model: sonnet
 Present task summary with recommended execution strategy:
 
 ```
-**Tasks**: Task 1: {title} — {size} | Task 2: ...
+**Tasks**: Task 1: {title} — {size} — {model} | Task 2: ...
 **Anchors**: {N} rules | **Expected Files**: {count}
 **推荐**: {mode} + {commit strategy}
 💡 {rationale}
