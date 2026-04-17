@@ -85,6 +85,32 @@ For code-level design, also produce:
 
 Present to user. Corrections → update and re-present.
 
+### Suggested Task Boundaries
+
+After File Structure is confirmed, produce an initial task split suggestion for plan to consume. Three columns only — no dependency graph, no parallel strategy, no model hints (those belong to plan).
+
+| # | Task Name | Files | Independence Rationale |
+|---|-----------|-------|------------------------|
+| 1 | {verb + noun} | {paths from File Structure} | {why independently verifiable — cite build/test/anchor handle} |
+
+Rules:
+- Draw file paths only from File Structure; do not introduce new paths.
+- If the change is a single atomic edit (1 file, <50 lines), write one row: `N/A — single atomic change`.
+- Independence rationale must name a concrete verification handle (build compiles, unit-test target, anchor check, file-existence).
+
+Few-shot:
+
+Good:
+```
+| 1 | Add auth middleware | src/auth/middleware.ts, src/auth/types.ts | Compiles standalone; unit-testable without caller changes |
+| 2 | Wire middleware into router | src/router.ts | Requires Task 1 merged; smoke-tested via HTTP 401 on protected route |
+```
+
+Bad:
+```
+| 1 | Do auth stuff | various | it works |
+```
+
 ### Build Decision Register
 
 After user confirms, compile all decisions from Steps 1-2:
@@ -169,6 +195,9 @@ Write `.sprint/{id}/handoffs/design.md`:
 ## Key Decisions
 ## File Structure
 | Action | File | Responsibility |
+## Suggested Task Boundaries
+| # | Task Name | Files | Independence Rationale |
+<!-- If Step 2 Suggested Task Boundaries was skipped, write: — not generated (Step 2 skipped) -->
 ## Constraints
 ## Decision Register
 | # | Decision Point | Category | Status | Conclusion |

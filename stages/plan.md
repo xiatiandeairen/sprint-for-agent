@@ -139,6 +139,27 @@ User adds → append. User says nothing / confirms → proceed. Do not ask for c
 
 Model: sonnet
 
+### Inherit from design
+
+If design handoff exists AND its `## Suggested Task Boundaries` section is non-empty AND not marked `— not generated (Step 2 skipped)`:
+
+1. Parse the boundary rows and present to user:
+   ```
+   Design suggested:
+   - Task 1: {name} | Files: {files} | {rationale}
+   - Task 2: ...
+
+   A) Accept as-is
+   B) Adjust (I'll present a diff, you edit)
+   C) Redo from scratch (ignore design's suggestion)
+   ```
+2. **A** → generate plan tasks directly from the boundaries; apply Splitting Rules below only for size/model assignment and per-task template fields.
+3. **B** → enter adjust mode: user edits task names/files; re-apply Splitting Rules for size/model.
+4. **C** → fall through to Splitting Rules below, producing a split from scratch.
+
+If design handoff missing OR Suggested Task Boundaries empty OR marked `not generated (Step 2 skipped)`:
+Skip inherit branch; run Splitting Rules below directly.
+
 ### Splitting Rules
 
 - **Independent verifiability**: each task builds, tests pass, behavior observable standalone.
