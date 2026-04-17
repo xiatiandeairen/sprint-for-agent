@@ -34,9 +34,32 @@ Gate (user): 实现方式是否有多种选择（改动范围、过渡策略、�
 
 💡 只有一种显然的做法 → 跳过。涉及范围取舍、新旧过渡、兼容性约束 → 进入。Default: skip.
 
+### Inherit from design handoff
+
+**If design handoff exists and contains `## Spec Preferences` section**:
+
+1. Parse the 4 fields (scope / depth / transition / compatibility)
+2. For each field：
+   - Value ≠ `undecided` → 已从 design 继承，**不再弹 Q**
+   - Value = `undecided` → 需补问，弹对应 Q
+3. Step 1 头部显示继承状态：
+   ```
+   已从 design 继承: {inherited fields}
+   需补: {undecided fields or "无"}
+   ```
+4. 仅弹出 `undecided` 字段对应的 Q，已继承的跳过
+
+**If design handoff does not exist (design stage was skipped)**:
+
+Step 1 顶部显示：`⚠️ design 跳过，以下为 plan fallback 决策`
+
+然后按原逻辑弹 Q1-Q4（如 Gate 进入）。
+
+**Override path**: 用户说"重新决策 {Qx}" → 弹对应 Q 覆盖 design 继承值。
+
 ### Dimensions
 
-**Core** (always show):
+**Core** (弹出规则见上):
 
 | ID | Question | Key | A | B |
 |----|----------|-----|---|---|
@@ -52,7 +75,7 @@ Gate (user): 实现方式是否有多种选择（改动范围、过渡策略、�
 | Q5 | 测试写到什么程度？ | test | minimal: 只测新增 | thorough: 相邻也补 |
 | Q6 | 有现成库倾向引入还是自写？ | dependency | built-in: 不加依赖 | external: 有成熟方案就用 |
 
-Infer defaults from design handoff ("minimal changes" → scope=precise, "refactor" → depth=root-cause, etc.). Use recommendation-first table. Undecided → "待定", user asks → expand A/B.
+Recommendation-first table. Undecided → "待定", user asks → expand A/B.
 
 ---
 
