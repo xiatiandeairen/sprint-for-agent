@@ -68,7 +68,7 @@ bash ~/.claude/plugins/sprint-for-agent/uninstall.sh
 #   需要技术设计？是 — 跨模块改动
 #   高风险？否 — 局部可逆
 #
-# 流水线：design → plan → execute → quality → insight
+# 流水线：design → plan → execute → insight
 # （brainstorm 和 review 已跳过）
 ```
 
@@ -77,11 +77,12 @@ Sprint 通过 3 个是/否问题评估复杂度，裁剪不必要的阶段，各
 ## 特性
 
 - **复杂度感知流水线** — 3 个问题（澄清 / 设计 / 风险）决定 7 个阶段中哪些需要运行
-- **Anchor 验证** — 结构断言（`MUST_EXIST`、`MUST_BUILD`、`MUST_IMPORT` 等）贯穿执行全程
+- **Anchor 验证** — 9 种结构断言（`MUST_EXIST`、`MUST_BUILD`、`MUST_CONTAIN` 等）贯穿执行全程
 - **模型路由** — 根据推理复杂度为每个步骤选择 opus / sonnet / haiku
-- **文档任务裁剪** — 文档类任务自动跳过 plan 和 quality 阶段
+- **文档任务裁剪** — 文档类任务自动跳过 plan 阶段
 - **动态项目检测** — 自动识别 7 种语言生态的构建/测试命令，支持 `.sprint.json` 覆盖
-- **跨 Sprint 可观测性** — `sprint-ctl stats` 聚合指标，insight 阶段展示历史对比
+- **数据驱动反馈** — `sprint-ctl report` 趋势和异常检测，evaluate 展示历史建议
+- **对抗性审视** — 用户在关键决策点触发第一性原理挑战
 
 ## Skills
 
@@ -108,15 +109,15 @@ Sprint 通过 3 个是/否问题评估复杂度，裁剪不必要的阶段，各
 ```
 sprint-for-agent/
 ├── scripts/
-│   ├── sprint-ctl.sh           # 生命周期 CLI（create, activate, stage, end, stats）
-│   ├── anchor-check.sh         # Anchor 断言执行器（7 种类型，7 种语言）
+│   ├── sprint-ctl.sh           # 生命周期 CLI（create, activate, stage, end, report）
+│   ├── anchor-check.sh         # Anchor 断言执行器（9 种类型，7 种语言）
 │   └── sprint-insight-stats.sh # insight 阶段历史对比
 ├── skills/
 │   ├── sprint/SKILL.md         # 标准 Sprint 工作流
 │   ├── long-sprint/SKILL.md    # 多 Sprint 编排器
 │   └── todo/SKILL.md           # 快速任务执行器
-├── stages/                     # 7 个阶段定义（brainstorm → insight）
-├── tests/                      # 46 个自动化测试用例
+├── stages/                     # 6 个阶段定义（brainstorm → insight）
+├── tests/                      # 53 个自动化测试用例
 ├── install.sh                  # 一键安装
 └── uninstall.sh                # 一键卸载
 ```
@@ -132,9 +133,9 @@ sprint-for-agent/
 │ 标准化       │               │（裁剪）  │
 └──────────────┘               └────┬─────┘
                                     │
-  ┌─────────┬─────────┬─────────┬───┴────┬─────────┬─────────┬─────────┐
-  ▼         ▼         ▼         ▼        ▼         ▼         ▼
-brain-   design     plan    execute   quality   review   insight
+  ┌─────────┬─────────┬─────────┬───┴────┬─────────┬─────────┐
+  ▼         ▼         ▼         ▼        ▼         ▼
+brain-   design     plan    execute   review   insight
 storm
 ```
 
@@ -146,9 +147,9 @@ storm
 |------|-----|-----|
 | 需要澄清需求？ | brainstorm | 跳过 |
 | 需要技术设计？ | design | 跳过 |
-| 高风险？ | quality + review | 仅 quality |
+| 高风险？ | review | 跳过 |
 
-始终启用：plan、execute、insight。关键词覆盖（`delete`、`migrate`、`payment`、`production`、`permission`）强制 risk=yes。
+始终启用：plan、execute、insight。review 也在 tasks >1 且跨模块时触发。关键词覆盖（`delete`、`migrate`、`payment`、`production`、`permission`）强制 risk=yes。
 
 ### Anchor 类型
 
@@ -160,6 +161,8 @@ storm
 | `MUST_NOT_IMPORT <target> <module>` | 目标不得导入模块 |
 | `MUST_BUILD` | 项目必须编译通过 |
 | `MUST_TEST` | 测试必须通过 |
+| `MUST_CONTAIN <file> <pattern>` | 文件必须包含指定模式（行级 grep） |
+| `MUST_NOT_CONTAIN <file> <pattern>` | 文件不得包含指定模式 |
 | `FILE_NOT_MODIFIED <path>` | 文件不得被修改（相对于基准提交） |
 
 ## 配置
@@ -181,14 +184,17 @@ storm
 ## 可观测性
 
 ```bash
-# 跨 Sprint 聚合指标
-sprint-ctl.sh stats [--last N] [--status completed]
+# 聚合趋势和摘要
+sprint-ctl.sh report [--last N] [--status completed]
 
-# 输出：完成率、平均时长、阶段分布、
-#       anchor 通过率、范围蔓延、任务完成率
+# 单次 Sprint 详情
+sprint-ctl.sh report <sprint-id>
+
+# 输出：趋势（时长、anchor 通过率、scope creep），
+#       摘要（完成率、平均时长、anchor）
 ```
 
-insight 阶段自动对比当前 Sprint 指标与历史平均值。
+evaluate 阶段展示基于历史数据的趋势和异常建议。insight 阶段将模式级经验自动写入 auto memory。
 
 ## 贡献
 

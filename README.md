@@ -68,7 +68,7 @@ Removes the plugin directory and cleans up `settings.json`.
 #   Need technical design? Yes — cross-module changes
 #   High risk? No — local, reversible
 #
-# Pipeline: design → plan → execute → quality → insight
+# Pipeline: design → plan → execute → insight
 # (brainstorm and review skipped)
 ```
 
@@ -77,11 +77,12 @@ Sprint evaluates 3 yes/no questions, trims unnecessary stages, and executes with
 ## Features
 
 - **Complexity-aware pipeline** — 3 questions (clarify / design / risk) determine which of 7 stages to run
-- **Anchor verification** — Structural assertions (`MUST_EXIST`, `MUST_BUILD`, `MUST_IMPORT`, etc.) checked throughout execution
+- **Anchor verification** — 9 structural assertions (`MUST_EXIST`, `MUST_BUILD`, `MUST_CONTAIN`, etc.) checked throughout execution
 - **Model routing** — Selects opus / sonnet / haiku per step based on reasoning complexity
 - **Doc-type trimming** — Document tasks auto-skip plan and quality stages
 - **Dynamic project detection** — Auto-detects build/test commands for 7 language ecosystems, with `.sprint.json` override
-- **Cross-sprint observability** — `sprint-ctl stats` for aggregated metrics, insight stage shows historical comparison
+- **Data-driven feedback** — `sprint-ctl report` for trends and anomaly detection, evaluate shows historical hints
+- **Adversarial review** — User-triggered first-principles challenge at key decision points
 
 ## Skills
 
@@ -108,15 +109,15 @@ Best for: quick tasks, sprint resume, plan execution.
 ```
 sprint-for-agent/
 ├── scripts/
-│   ├── sprint-ctl.sh           # Lifecycle CLI (create, activate, stage, end, stats)
-│   ├── anchor-check.sh         # Anchor assertion runner (7 types, 7 languages)
+│   ├── sprint-ctl.sh           # Lifecycle CLI (create, activate, stage, end, report)
+│   ├── anchor-check.sh         # Anchor assertion runner (9 types, 7 languages)
 │   └── sprint-insight-stats.sh # Historical comparison for insight stage
 ├── skills/
 │   ├── sprint/SKILL.md         # Standard sprint workflow
 │   ├── long-sprint/SKILL.md    # Multi-sprint orchestrator
 │   └── todo/SKILL.md           # Quick task executor
-├── stages/                     # 7 stage definitions (brainstorm → insight)
-├── tests/                      # 46 automated test cases
+├── stages/                     # 6 stage definitions (brainstorm → insight)
+├── tests/                      # 53 automated test cases
 ├── install.sh                  # One-line installer
 └── uninstall.sh                # Clean uninstaller
 ```
@@ -132,9 +133,9 @@ User description
 │ Normalize    │               │ (trim)   │
 └──────────────┘               └────┬─────┘
                                     │
-  ┌─────────┬─────────┬─────────┬───┴────┬─────────┬─────────┬─────────┐
-  ▼         ▼         ▼         ▼        ▼         ▼         ▼
-brain-   design     plan    execute   quality   review   insight
+  ┌─────────┬─────────┬─────────┬───┴────┬─────────┬─────────┐
+  ▼         ▼         ▼         ▼        ▼         ▼
+brain-   design     plan    execute   review   insight
 storm
 ```
 
@@ -146,9 +147,9 @@ Each stage reads the upstream handoff and writes its own. Skipped stages pass th
 |----------|-----|-----|
 | Clarify requirements? | brainstorm | skip |
 | Need technical design? | design | skip |
-| High risk? | quality + review | quality only |
+| High risk? | review | skip |
 
-Always-on: plan, execute, insight. Override keywords (`delete`, `migrate`, `payment`, `production`, `permission`) force risk=yes.
+Always-on: plan, execute, insight. Review also triggers when tasks >1 AND cross-module. Override keywords (`delete`, `migrate`, `payment`, `production`, `permission`) force risk=yes.
 
 ### Anchor Types
 
@@ -160,6 +161,8 @@ Always-on: plan, execute, insight. Override keywords (`delete`, `migrate`, `paym
 | `MUST_NOT_IMPORT <target> <module>` | Target must not import module |
 | `MUST_BUILD` | Project must compile |
 | `MUST_TEST` | Tests must pass |
+| `MUST_CONTAIN <file> <pattern>` | File must contain pattern (line-level grep) |
+| `MUST_NOT_CONTAIN <file> <pattern>` | File must not contain pattern |
 | `FILE_NOT_MODIFIED <path>` | File must not be changed from base commit |
 
 ## Configuration
@@ -181,14 +184,17 @@ Command priority: `.sprint.json` → `CLAUDE.md` → auto-detect.
 ## Observability
 
 ```bash
-# Cross-sprint aggregated metrics
-sprint-ctl.sh stats [--last N] [--status completed]
+# Aggregate trends and summary
+sprint-ctl.sh report [--last N] [--status completed]
 
-# Output: completion rate, avg duration, stage distribution,
-#         anchor pass rate, scope creep, task completion rate
+# Single sprint detail
+sprint-ctl.sh report <sprint-id>
+
+# Output: trends (duration, anchor rate, scope creep),
+#         summary (completion rate, avg duration, anchors)
 ```
 
-The insight stage automatically compares current sprint metrics against historical averages.
+The evaluate stage shows data-driven hints (trends and anomalies) from historical sprints. The insight stage persists pattern-level lessons to auto memory.
 
 ## Contributing
 
