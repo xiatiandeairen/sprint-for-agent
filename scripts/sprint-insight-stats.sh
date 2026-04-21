@@ -6,7 +6,9 @@
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-SPRINT_DIR="$ROOT/.sprint"
+SPRINT_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/sprint"
+PROJECT_ID="$(echo "$ROOT" | sed 's|/|-|g')"
+SPRINT_DIR="$SPRINT_HOME/projects/$PROJECT_ID"
 CURRENT_ID="${1:-}"
 
 if [[ -z "$CURRENT_ID" ]]; then

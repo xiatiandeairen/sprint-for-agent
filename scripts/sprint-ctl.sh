@@ -7,7 +7,19 @@ set -euo pipefail
 command -v python3 >/dev/null 2>&1 || { echo "Error: python3 is required but not found. Install Python 3 and retry." >&2; exit 1; }
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-SPRINT_DIR="$ROOT/.sprint"
+
+# XDG-compliant global sprint data home
+SPRINT_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/sprint"
+GLOBAL_INDEX="$SPRINT_HOME/index.jsonl"
+
+# Project ID = absolute path with slashes replaced by dashes
+project_id_from_path() {
+  echo "$1" | sed 's|/|-|g'
+}
+PROJECT_ID="$(project_id_from_path "$ROOT")"
+PROJECT_DIR="$SPRINT_HOME/projects/$PROJECT_ID"
+mkdir -p "$PROJECT_DIR"
+SPRINT_DIR="$PROJECT_DIR"
 
 get_sprint_dir() {
   local id="$1"
@@ -262,6 +274,29 @@ data.append(entry)
 
 with open(summary_path, 'w') as f:
     json.dump(data, f, indent=2, ensure_ascii=False)
+"
+
+  # ── Append to global index.jsonl ──
+  mkdir -p "$SPRINT_HOME"
+  python3 -c "
+import json
+entry = {
+    'sprint_id': '$ID',
+    'project_id': '$PROJECT_ID',
+    'project_path': '$ROOT',
+    'desc': $(python3 -c "import json; s=json.load(open('$DIR/state.json')); print(json.dumps(s['desc']))"),
+    'type': $(python3 -c "import json; s=json.load(open('$DIR/state.json')); print(json.dumps(s['type']))"),
+    'status': 'completed',
+    'complexity': $(python3 -c "import json; s=json.load(open('$DIR/state.json')); print(json.dumps(s.get('complexity','low')))"),
+    'duration': $TOTAL_DURATION,
+    'stages': $STAGE_DURATIONS,
+    'anchor': {'pass': $ANCHOR_PASS, 'fail': $ANCHOR_FAIL, 'skip': $ANCHOR_SKIP_VAL},
+    'scope_creep': $CREEP_COUNT,
+    'tasks': {'completed': $TASKS_DONE, 'total': $TASKS_ALL},
+    'completed_at': '$(now_iso)'
+}
+with open('$GLOBAL_INDEX', 'a') as f:
+    f.write(json.dumps(entry, ensure_ascii=False) + '\n')
 "
 
   # Uncommitted changes warning
@@ -627,6 +662,127 @@ stats)
   # Alias for report — re-invoke as report
   SCRIPT_PATH="${BASH_SOURCE[0]}"
   exec bash "$SCRIPT_PATH" report "$@"
+  ;;
+
+--global)
+  # Developer-only cross-project analysis commands.
+  # See workflows/analytics.md for usage.
+  SUB="${1:-}"
+  shift 2>/dev/null || true
+  if [[ ! -f "$GLOBAL_INDEX" ]]; then
+    echo "Global index not found: $GLOBAL_INDEX"
+    exit 0
+  fi
+  case "$SUB" in
+    list)
+      # --global list [--limit N] [--project ID] [--since YYYY-MM-DD]
+      LIMIT=20; PROJECT_FILTER=""; SINCE=""
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --limit) LIMIT="$2"; shift 2;;
+          --project) PROJECT_FILTER="$2"; shift 2;;
+          --since) SINCE="$2"; shift 2;;
+          *) shift;;
+        esac
+      done
+      python3 -c "
+import json, sys
+rows = []
+for line in open('$GLOBAL_INDEX'):
+    try: rows.append(json.loads(line))
+    except: pass
+if '$PROJECT_FILTER':
+    rows = [r for r in rows if '$PROJECT_FILTER' in r.get('project_id','')]
+if '$SINCE':
+    rows = [r for r in rows if r.get('completed_at','') >= '$SINCE']
+rows.sort(key=lambda r: r.get('completed_at',''), reverse=True)
+rows = rows[:$LIMIT]
+if not rows: print('No sprints.'); sys.exit(0)
+print(f'{\"date\":<12} {\"duration\":>10} {\"project\":<40} desc')
+print('-'*120)
+for r in rows:
+    d = r.get('completed_at','')[:10]
+    dur = r.get('duration',0)
+    dur_s = f'{dur//60}m{dur%60}s' if dur < 3600 else f'{dur//3600}h{(dur%3600)//60}m'
+    proj = r.get('project_id','')[:40]
+    desc = r.get('desc','')[:60]
+    print(f'{d:<12} {dur_s:>10} {proj:<40} {desc}')
+"
+      ;;
+    stats)
+      python3 -c "
+import json
+from collections import defaultdict
+rows = []
+for line in open('$GLOBAL_INDEX'):
+    try: rows.append(json.loads(line))
+    except: pass
+if not rows: print('No sprints.'); exit()
+per_proj = defaultdict(list)
+for r in rows: per_proj[r.get('project_id','unknown')].append(r)
+print(f'Total: {len(rows)} sprints across {len(per_proj)} projects\n')
+print(f'{\"project\":<50} {\"count\":>6} {\"total\":>10} {\"avg\":>8} {\"pass%\":>6}')
+print('-'*90)
+for pid, items in sorted(per_proj.items(), key=lambda x: -len(x[1])):
+    count = len(items)
+    total = sum(i.get('duration',0) for i in items)
+    avg = total // count if count else 0
+    anchor_pass = sum(i.get('anchor',{}).get('pass',0) for i in items)
+    anchor_fail = sum(i.get('anchor',{}).get('fail',0) for i in items)
+    pass_rate = int(100 * anchor_pass / (anchor_pass + anchor_fail)) if (anchor_pass + anchor_fail) else 0
+    fmt = lambda s: f'{s//3600}h{(s%3600)//60}m' if s >= 3600 else f'{s//60}m'
+    print(f'{pid[:50]:<50} {count:>6} {fmt(total):>10} {fmt(avg):>8} {pass_rate:>5}%')
+"
+      ;;
+    report)
+      python3 -c "
+import json
+from collections import Counter
+rows = []
+for line in open('$GLOBAL_INDEX'):
+    try: rows.append(json.loads(line))
+    except: pass
+if not rows: print('No sprints in global index.'); exit()
+total = len(rows)
+projects = Counter(r.get('project_id','?') for r in rows)
+total_dur = sum(r.get('duration',0) for r in rows)
+avg_dur = total_dur // total if total else 0
+anchor_pass = sum(r.get('anchor',{}).get('pass',0) for r in rows)
+anchor_fail = sum(r.get('anchor',{}).get('fail',0) for r in rows)
+pass_rate = int(100 * anchor_pass / (anchor_pass + anchor_fail)) if (anchor_pass + anchor_fail) else 0
+# bloat signals
+long_sprints = sum(1 for r in rows if r.get('duration',0) > 3600)
+short_sprints = sum(1 for r in rows if r.get('duration',0) < 120)
+fmt = lambda s: f'{s//3600}h{(s%3600)//60}m' if s >= 3600 else f'{s//60}m{s%60}s'
+print('━━ Global Sprint Report ━━\n')
+print(f'Total:           {total} sprints across {len(projects)} projects')
+print(f'Total time:      {fmt(total_dur)}')
+print(f'Avg duration:    {fmt(avg_dur)}')
+print(f'Anchor pass:     {pass_rate}% ({anchor_pass} pass, {anchor_fail} fail)')
+print(f'Long (>1h):      {long_sprints}')
+print(f'Trivial (<2m):   {short_sprints}')
+print()
+print('Top 5 projects by sprint count:')
+for pid, cnt in projects.most_common(5):
+    print(f'  {pid[:60]:<60} {cnt}')
+# Health judgment
+print()
+signals = []
+if short_sprints / total > 0.3: signals.append(f'{int(short_sprints/total*100)}% trivial sprints — cheap path missing')
+if long_sprints / total > 0.2: signals.append(f'{int(long_sprints/total*100)}% long sprints — scope control weak')
+if pass_rate < 90: signals.append(f'anchor pass rate {pass_rate}% — verify rule quality')
+if not signals: print('Health: ✓ all indicators normal')
+else:
+    print('Signals:')
+    for s in signals: print(f'  • {s}')
+"
+      ;;
+    *)
+      echo "Usage: sprint-ctl.sh --global {list|stats|report} [options]"
+      echo "  See workflows/analytics.md"
+      exit 1
+      ;;
+  esac
   ;;
 
 *)

@@ -214,17 +214,24 @@ Skip only when the stage's own output already enumerates explicit decisions (e.g
 
 ## Directory
 
+Sprint records are stored globally at `$XDG_DATA_HOME/sprint/` (default `~/.local/share/sprint/`), organized per project. Not in the project's working tree.
+
 ```
-.sprint/{id}/
-├── state.json      # created → running → completed
-├── handoffs/       # stage output docs
-├── anchors.txt     # plan produces, execute verifies
-└── metrics.log     # append-only events
+$SPRINT_HOME/
+├── projects/
+│   └── {project-id}/
+│       └── {sprint-id}/
+│           ├── state.json      # created → running → completed
+│           ├── handoffs/       # stage output docs
+│           ├── anchors.txt     # plan produces, execute verifies
+│           └── metrics.log     # append-only events
 ```
+
+where `project-id` = absolute project path with `/` → `-`.
 
 Aggregate file:
 ```
-.sprint/summary.json    # cross-sprint aggregate, updated on sprint end
+$SPRINT_HOME/projects/{project-id}/summary.json   # per-project, updated on sprint end
 ```
 
 ## Data Schemas

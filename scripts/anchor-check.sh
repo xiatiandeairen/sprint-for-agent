@@ -7,7 +7,11 @@ set -euo pipefail
 command -v python3 >/dev/null 2>&1 || { echo "Error: python3 is required but not found. Install Python 3 and retry." >&2; exit 1; }
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-SPRINT_DIR="$ROOT/.sprint"
+
+# XDG-compliant sprint data home (mirrors sprint-ctl.sh)
+SPRINT_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/sprint"
+PROJECT_ID="$(echo "$ROOT" | sed 's|/|-|g')"
+SPRINT_DIR="$SPRINT_HOME/projects/$PROJECT_ID"
 
 ID="${1:-}"
 if [[ -z "$ID" ]]; then
