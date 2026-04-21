@@ -23,7 +23,6 @@ description: Task execution workflow. Evaluates complexity, trims stages, execut
 | Step | Numbered progression within a stage (from stage file `## Progress`) |
 | Task | Independently verifiable work unit (plan splits, execute runs) |
 | Anchor | Structural assertion in `anchors.txt`: `MUST_BUILD`, `MUST_EXIST`, `MUST_TEST`, `MUST_IMPORT`, `MUST_NOT_IMPORT`, `MUST_NOT_EXIST`, `MUST_CONTAIN`, `MUST_NOT_CONTAIN`, `FILE_NOT_MODIFIED` |
-| Lock | Immutable decision point: Demand Lock, Value Lock (brainstorm) |
 | Handoff | Stage output document, structure defined by each stage file's template |
 | Gate | Step entry condition: `user` (yes/no), `auto` (system evaluates), `always` |
 | Auto mode | Hosted sprint mode (`--auto`). Core decision points auto-generate structured self-check blocks; user intervenes only at start and final summary. See Hosted Mode section. |
@@ -54,18 +53,6 @@ Stage files may strengthen but not contradict these.
 9. **Precise recovery** — return to stage + step number. Never "start over".
 10. **Max 3 options** — >3 candidates → filter first, present top 3.
 11. **Gate merge** — when Gates skip early steps in a stage, merge remaining steps into one combined output with one confirmation. Do not present intermediate artifacts (e.g. anchors) without surrounding context (e.g. task split).
-
-### Internal Markers
-
-| Marker | Action |
-|--------|--------|
-| `# [RUN]` | Execute with Bash |
-| `[TASK] xxx` | TaskCreate; TaskUpdate completed when done |
-| `[STOP:confirm]` | Wait for ok/yes/continue/确认/好/可以 |
-| `[STOP:choose]` | User picks option |
-| `[STOP:respond]` | User gives substantive reply |
-
-Never expose markers, step numbers, or algorithm terms to user. Match user's language; internal docs stay English.
 
 ### Script Paths
 
@@ -207,14 +194,11 @@ Every response starts with:
 ### Output Rules
 
 - Progress indicator on every response. No exceptions.
-- Confirmations show content. No bare "确认？".
-- Choices list options (A/B/C). No open "你觉得呢？".
 - Stage file templates are mandatory structure.
 - Numbers concrete: "3 files" not "several".
 - Empty output → "无". Never silently omit.
 - Errors include: what failed, which command, suggested fix.
-- Match user's language for all output; internal docs stay English.
-- **User-facing interaction rules**: follow `~/.claude/rules/skill.md` §6 (no internal algorithm term leakage, language baseline, disclosure granularity). Sprint-specific term replacements: see `skills/sprint/interaction-terms.md`. When producing user-visible text: scan against the term table, drop forbidden fillers (尽量/适当/大概/或许/roughly/approximately/maybe/perhaps), and hide internal judgment process / raw state structures per §6.3.
+- **User-facing interaction rules**: follow `~/.claude/rules/skill.md` §6 (term blacklist, language alignment, disclosure granularity, compliance check). Sprint-specific term replacements: `skills/sprint/interaction-terms.md`. This covers: no internal algorithm term leakage, match user's language (Chinese ⇄ English), forbidden fillers (尽量/适当/大概/或许/roughly/approximately/maybe/perhaps), confirmations must show content, choices must list A/B/C options.
 - **Assumptions block** — The first substantive output of each thinking stage (brainstorm Step 1, design Step 2, plan Step 3-5 combined) must end with a `## Assumptions` block listing ≥3 load-bearing assumptions, each with evidence source. User refutes specific items (`A2 错，应该…`) instead of re-describing the need. Format:
   ```
   ## Assumptions（哪条错了告诉我）
@@ -223,10 +207,6 @@ Every response starts with:
   - [A3] ...
   ```
   Skip only when the stage's own output already enumerates explicit decisions (e.g. Decision Register with `○ direction` / `✗ open` statuses), since those serve the same function.
-
-### Metrics
-
-`metrics.log`: `{timestamp}|{event}|{data}`. Events: sprint_start, stage_start, stage_end, anchor_check, sprint_end.
 
 ## Directory
 
@@ -237,6 +217,66 @@ Every response starts with:
 ├── anchors.txt     # plan produces, execute verifies
 └── metrics.log     # append-only events
 ```
+
+Aggregate file:
+```
+.sprint/summary.json    # cross-sprint aggregate, updated on sprint end
+```
+
+## Data Schemas
+
+Single source of truth. `sprint-ctl.sh` writes these; stages read. Changes here MUST sync to `sprint-ctl.sh`.
+
+### state.json
+
+```json
+{
+  "id": "YYYYMMDD-HHMMSS-RRR",
+  "type": "sprint",
+  "desc": "...",
+  "stages": ["brainstorm", "design", ...],
+  "status": "created | running | completed",
+  "current_stage": "{stage name or ''}",
+  "complexity": "low | medium | high",
+  "auto": true | false,
+  "base_commit": "{short sha or 'none'}",
+  "created_at": "ISO 8601 UTC"
+}
+```
+
+### metrics.log (append-only, pipe-delimited)
+
+| Event | Format |
+|-------|--------|
+| sprint_start | `sprint_start\|{id}\|{ts}` |
+| stage_start | `stage_start\|{stage}\|{ts}` |
+| stage_end | `stage_end\|{stage}\|{status}\|{ts}\|{dur}s` |
+| anchor_check | `anchor_check\|{ts}\|pass={n}\|fail={n}\|skip={n}` |
+| sprint_end | `sprint_end\|{id}\|{ts}` |
+
+### summary.json (array of completed sprints)
+
+```json
+[
+  {
+    "id": "...",
+    "desc": "...",
+    "status": "completed",
+    "type": "sprint",
+    "complexity": "low",
+    "duration": 1234,       // seconds
+    "stages": {"brainstorm": 300, "design": 200, ...},  // per-stage sec
+    "anchor": {"pass": 9, "fail": 0, "skip": 0},
+    "scope_creep": 0,       // unexpected file count
+    "tasks": {"planned": 3, "completed": 3, "skipped": 0},
+    "completed_at": "ISO 8601 UTC"
+  }
+]
+```
+
+### anchors.txt
+
+One rule per line. Syntax and 9 rule types: see plan.md Step 3 translation table. `grep -qF` semantics (fixed string match).
 
 ## Stages
 

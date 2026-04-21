@@ -377,6 +377,8 @@ Write `.sprint/{id}/handoffs/review.md` using the A-G structure from Step 4.
 
 Model: sonnet
 
+**Note**: 本步骤行为随模式变化——非 auto 模式下询问用户；auto 模式下跳过询问、自动接受 verdict，分支细节见本节末尾 `Auto mode: mandatory self-check (D6-review-verdict)` 块。
+
 Present the G section verdict with supporting evidence. Ask: "是否同意这个行动建议？"
 
 - Approve → complete
@@ -391,8 +393,8 @@ If `state.json.auto == true`:
 - Before presenting the verdict question, produce the Review Verdict self-check block per `skills/sprint/auto-principles.md` §自检 block 模板
 - Bound principles: `reversibility` + `blast-radius` + `concrete-evidence` (auto-principles.md decision `D6-review-verdict`)
 - Append to handoff `## 自动审视` section
-- **Skip the "是否同意这个行动建议？" prompt**; verdict is auto-accepted and recorded
-- Any decision that is NOT `approve` → log as a high-impact finding but still auto-advance; user will see it at insight's 自动审视汇总 and can issue `重跑 6` or accept via `approve`
+- **auto 模式下跳过 "是否同意这个行动建议？" prompt**；verdict 自动接受并记录
+- Any decision that is NOT `approve` → log as a high-impact finding but still auto-advance; user will see it at insight's 自动审视汇总 and can issue `重跑 D6-review-verdict` or accept via `approve`
 
 ---
 
