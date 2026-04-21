@@ -161,13 +161,24 @@ See Hosted Mode section for details.
 
 ```bash
 # [RUN] after confirm
-# If user triggered --auto / keyword / Q4=y, append auto=1 to evaluate and pass auto_flag to create.
-bash "$SPRINT_CTL" evaluate {clarify:0|1} {design:0|1} {risk:0|1} [auto=0|1]
-bash "$SPRINT_CTL" create "sprint" "{desc}" "{stages}" "{complexity:low|medium|high}" "{auto_flag:0|1}"
+# Determine AUTO first (before calling evaluate):
+#   - user typed `/sprint --auto {desc}` → AUTO=1
+#   - desc contains 托管/hosted/委托/autopilot keyword → AUTO=1
+#   - evaluate Q4 answered yes → AUTO=1
+#   - otherwise → AUTO=0
+
+# Then run:
+if [ "$AUTO" = "1" ]; then
+  bash "$SPRINT_CTL" evaluate {clarify} {design} {risk} auto=1
+  bash "$SPRINT_CTL" create "sprint" "{desc}" "{stages}" "low" "1"
+else
+  bash "$SPRINT_CTL" evaluate {clarify} {design} {risk}
+  bash "$SPRINT_CTL" create "sprint" "{desc}" "{stages}"
+fi
 bash "$SPRINT_CTL" activate "{id}"
 ```
 
-**Auto propagation contract**: if `evaluate` output includes `auto=1`, the corresponding `create` call MUST pass `auto=1` as the 5th positional argument. Otherwise `state.json.auto` stays `false` and hosted-mode self-check triggers will not fire.
+**Auto propagation contract**: AUTO must be resolved **before** calling `evaluate` and `create`. If `evaluate` output includes `auto=1`, the corresponding `create` call MUST pass `"1"` as the 5th positional argument. Otherwise `state.json.auto` stays `false` and hosted-mode self-check triggers will not fire. The bash `if/else` above is mandatory — do NOT use a single-form invocation with unresolved `{auto_flag}` placeholder.
 
 ### Pipeline Rules
 
@@ -278,3 +289,25 @@ Every response starts with:
 - auto 模式下，自检 block 的 G1/G2/G3 三字段**任一缺失**视为 handoff 不完整，流程阻断并报错
 - 决策点所在步骤被 gate 跳过 → 不产出对应自检 block（不视为缺失）
 - 非 auto 模式下任何 stage 文件必须保持原行为，自检相关代码路径静默
+
+#### Auto mode hard rule: no soft-pause between stages
+
+When `state.json.auto == true`, the main agent **must not end a response with a question, soft-wait prompt, or ambiguous "进入下一阶段?" phrasing**. Ending a response at a stage boundary is an **implicit pause** equivalent to asking for confirmation, which violates hosted-mode contract.
+
+**Required behavior**: within the **same turn**, the main agent must:
+1. Write the current stage's handoff
+2. Run `sprint-ctl stage {current} completed`
+3. Run `sprint-ctl stage {next} running`
+4. Immediately begin executing the next stage's steps (produce output, run tools, etc.)
+
+The only allowed pauses in auto mode are:
+- **Sprint start**: after Q4 answer (if Q4 fired)
+- **Final summary in insight**: user replies `approve` / `重跑 {ID}` / `审视 {ID}`
+- **Hard failure**: a tool call or anchor-check failure that needs user input (with explicit error message)
+
+Forbidden phrases at end of a response when `state.json.auto == true`:
+- "进入 plan?" / "ready to continue?" / "确认吗？"
+- "所有决策 ✓。进入 X" followed by stopping (this is a soft pause)
+- Trailing bare question marks or menu offers unrelated to the final summary
+
+Violation detection: if the last ≤2 lines of a response contain `?` / `？` / "确认" / "继续?" / "ready" / "ok?" AND the current sprint's `state.json.auto == true` AND no hard-failure occurred, the response is non-compliant.
