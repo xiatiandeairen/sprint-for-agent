@@ -25,3 +25,7 @@
 ## 保留原文
 
 PR / diff / commit / lint / API / CLI / skill / sprint（产品名）
+
+## 落地示例：anchor 翻译
+
+`stages/plan.md` Step 3 把 `MUST_CONTAIN / MUST_EXIST / FILE_NOT_MODIFIED` 等 rule 原文翻成一句中文（如 `stages/brainstorm.md 必须含文本 "total: 2"`），并给出"可能还需要补"推荐菜单。属 §6.3 "展示粒度" 规则的具体落地——rule 原文是内部结构，必须不直接展示给用户。

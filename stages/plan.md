@@ -122,16 +122,65 @@ Auto-extract from design handoff and write directly to `.sprint/{id}/anchors.txt
 
 Also extract from spec preferences and decision point mitigations.
 
-After writing, present the list with one question (do NOT use "Anchors" as user-visible label; use "验证清单" or "结构检查"):
+After writing, present the list in **natural-language form** (do NOT show raw rule tokens like `MUST_CONTAIN`/`MUST_EXIST` to the user; do NOT use the label "Anchors").
+
+### Anchor 翻译规则（rule → 一句中文）
+
+| Rule | 一句中文模板 |
+|------|--------------|
+| `MUST_EXIST {path}` | `{path} 必须存在` |
+| `MUST_NOT_EXIST {path}` | `{path} 必须不存在（须删除）` |
+| `MUST_CONTAIN {path} {pattern}` | `{path} 必须含文本 "{pattern}"` |
+| `MUST_NOT_CONTAIN {path} {pattern}` | `{path} 必须不含文本 "{pattern}"` |
+| `FILE_NOT_MODIFIED {path}` | `{path} 不得改动` |
+| `MUST_BUILD` | `项目必须能构建通过` |
+| `MUST_TEST` | `项目测试必须通过` |
+| `MUST_IMPORT {target} {module}` | `{target} 必须 import {module}` |
+| `MUST_NOT_IMPORT {target} {module}` | `{target} 必须不 import {module}` |
+
+### 可能还需要补（推荐推断规则，最多 3 条）
+
+根据 design handoff 扫以下信号，命中则作为候选补项推给用户：
+
+| design handoff 里的信号 | 推荐补项 |
+|------------------------|---------|
+| File Structure 列了"do-not-touch"文件 | `FILE_NOT_MODIFIED {path}` |
+| Decision Register 提到"保留接口"/"不动调用方" | `MUST_CONTAIN {api_file} {signature}` |
+| Constraints 禁用某依赖/API | `MUST_NOT_CONTAIN` 或 `MUST_NOT_IMPORT` |
+| 代码改动 + 项目有测试目录 | `MUST_TEST` |
+| 新建文件 + 编译型语言项目 | `MUST_BUILD` |
+| 新建配置/常量文件 | `MUST_CONTAIN {file} {key}` |
+
+规则：无信号命中 → 空菜单；最多 3 条，按信号强度排序；每条必须带"建议理由"一行。
+
+### 输出模板
 
 ```
-验证清单（{N} 条）— 已写入。
-{list rules, 1 per line}
+验证清单（{N} 条）— 已写入：
 
-要加/去掉什么？
+1. {translated rule 1}
+2. {translated rule 2}
+...
+
+{if recommended additions:}
+可能还需要补以下几项（可选）：
+  A) {translated recommendation 1} — 建议理由：{signal}
+  B) {translated recommendation 2} — 建议理由：{signal}
+  C) {translated recommendation 3} — 建议理由：{signal}
+
+回复 "ok" / "无需补充" 直接继续；回复编号（如 "A,C"）追加；自由文本补充也可。
+
+{if no recommendations:}
+无明显可补项，回复 "ok" 继续，或自己补一条（如 "文件 X 不得改动"）。
 ```
 
-User adds → append. User says nothing / confirms → proceed. Do not ask for confirmation of auto-extracted anchors.
+### 交互收敛
+
+- `ok` / `无需补充` / `继续` → 接受现有清单，进入 Step 4
+- 编号（如 `A,C`）→ 反查推荐项 → 翻回 rule 原文 → 追加到 anchors.txt → 重刷显示一次
+- 自由文本 → 按 Anchor 翻译规则反向解析为 rule → 追加；解析失败 → 最多 1 轮追问，再失败则视为不补
+
+**Auto mode note**: in `state.json.auto == true` mode, present the translated list + menu for visibility, but if no user input arrives immediately (the sprint is hands-off), proceed after one clean render with the current anchors; user can revise at insight's 自动审视汇总 via `重跑 D5-task-split`.
 
 ---
 
