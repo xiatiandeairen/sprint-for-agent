@@ -1,6 +1,6 @@
 ---
 name: sprint
-description: Task execution workflow. Evaluates complexity, trims stages, executes step by step with anchor verification.
+description: Task execution workflow with optional hosted (--auto) mode. Evaluates complexity, trims stages, executes step by step with anchor verification and principle self-check.
 ---
 
 # Sprint
@@ -42,7 +42,7 @@ Stage files may strengthen but not contradict these.
 
 ### Behavioral Rules
 
-1. **Conversation stages don't read code** — brainstorm, design Step 1, long Steps 1-5: all evidence from user. No code/file reads until direction confirmed.
+1. **Conversation stages don't read code** — brainstorm and design Step 1: all evidence from user. No code/file reads until direction confirmed.
 2. **Only build on confirmed information** — no follow-ups or designs based on unconfirmed assumptions.
 3. **Justify questions; converge when complete** — each question states why. All slots filled + no question changes output → stop asking.
 4. **Incremental value per stage** — inherit upstream directly. quality doesn't re-test tasks. review doesn't re-check anchors.
@@ -106,14 +106,13 @@ Execute override: cross-module → opus. Single file → sonnet. No logic → ha
 
 ### Input Normalization
 
-| Pattern | Defaults |
-|---------|----------|
-| "fix X" / "bug in X" | clarify=no, design=no, risk=evaluate |
-| "add X" / "create X" | clarify=yes if Goal/Success unclear; design=yes if >3 files or cross-module |
-| "refactor X" | clarify=no, design=yes, risk=no |
-| "delete X" / "remove X" | clarify=no, design=no, risk=yes |
-| doc keywords: prd/tech/文档/doc/roadmap/写文档/write doc | **Doc mode**: skip plan + quality, no anchors |
-| File path only | Ask intent first |
+Default lean (AI infers from description unless stated):
+- **fix / bug**: clarify=no, design=no, risk=evaluate
+- **refactor**: clarify=no, design=yes, risk=no
+- **delete / remove**: clarify=no, design=no, risk=yes
+- **add / create**: clarify=yes if goal unclear; design=yes if >3 files or cross-module
+- **doc keywords** (prd / tech / 文档 / doc / roadmap): **Doc mode** — skip plan, no anchors
+- File path only → ask intent first
 
 ### Evaluate
 
@@ -129,7 +128,7 @@ Execute override: cross-module → opus. Single file → sonnet. No logic → ha
 - Always-on: plan, execute, insight. Review: risk=yes OR (tasks >1 AND cross-module)
 - **Doc mode**: skip plan. Pipeline: `[brainstorm] → [design] → execute → insight`
 
-**Q4 (conditional — only if `--auto` not passed and no keyword detected)**:
+**Q4 (conditional — only if `--auto` not passed)**:
 
 | Question | yes | no | Hint |
 |----------|-----|-----|------|
@@ -150,7 +149,6 @@ See Hosted Mode section for details.
 # [RUN] after confirm
 # Determine AUTO first (before calling evaluate):
 #   - user typed `/sprint --auto {desc}` → AUTO=1
-#   - desc contains 托管/hosted/委托/autopilot keyword → AUTO=1
 #   - evaluate Q4 answered yes → AUTO=1
 #   - otherwise → AUTO=0
 
@@ -199,14 +197,20 @@ Every response starts with:
 - Empty output → "无". Never silently omit.
 - Errors include: what failed, which command, suggested fix.
 - **User-facing interaction rules**: follow `~/.claude/rules/skill.md` §6 (term blacklist, language alignment, disclosure granularity, compliance check). Sprint-specific term replacements: `skills/sprint/interaction-terms.md`. This covers: no internal algorithm term leakage, match user's language (Chinese ⇄ English), forbidden fillers (尽量/适当/大概/或许/roughly/approximately/maybe/perhaps), confirmations must show content, choices must list A/B/C options.
-- **Assumptions block** — The first substantive output of each thinking stage (brainstorm Step 1, design Step 2, plan Step 3-5 combined) must end with a `## Assumptions` block listing ≥3 load-bearing assumptions, each with evidence source. User refutes specific items (`A2 错，应该…`) instead of re-describing the need. Format:
-  ```
-  ## Assumptions（哪条错了告诉我）
-  - [A1] {assumption} — 来源：{description phrase / prior handoff line / inferred from X}
-  - [A2] ...
-  - [A3] ...
-  ```
-  Skip only when the stage's own output already enumerates explicit decisions (e.g. Decision Register with `○ direction` / `✗ open` statuses), since those serve the same function.
+
+### Assumptions Protocol
+
+Thinking stages (brainstorm Step 1, design Step 2, plan Step 3-5 combined) — the first substantive output MUST end with an `## Assumptions` block listing ≥3 load-bearing assumptions, each tied to an evidence source. User refutes specific items (`A2 错，应该…`) instead of re-describing the need.
+
+Format:
+```
+## Assumptions（哪条错了告诉我）
+- [A1] {assumption} — 来源：{description phrase / prior handoff line / inferred from X}
+- [A2] ...
+- [A3] ...
+```
+
+Skip only when the stage's own output already enumerates explicit decisions (e.g. Decision Register with `○ direction` / `✗ open` statuses), since those serve the same function.
 
 ## Directory
 
@@ -293,13 +297,14 @@ One rule per line. Syntax and 9 rule types: see plan.md Step 3 translation table
 
 托管模式：核心决策点由主 agent 按原则约束做结构化自检，主流程自动推进，用户完全旁观，sprint 结束时看汇总。
 
-### 触发方式（三选一）
+### 触发方式（二选一）
 
-1. **参数**：`/sprint --auto {desc}`
-2. **关键词**：`/sprint {desc}` 且描述含 `托管` / `hosted` / `委托` / `autopilot`
-3. **评估问询**：前两者都没命中时，Evaluate 阶段出 Q4 询问
+1. **参数**：`/sprint --auto {desc}` — 明确意图，快捷路径
+2. **评估问询**：未传 `--auto` 时，Evaluate 阶段问 Q4，用户答 y 即启用
 
 命中任一 → `state.json.auto = true`。
+
+**为何删除关键词匹配**：自然语言关键词（如"委托"）会误伤（"我委托你改个文件..." ≠ 要托管）。`--auto` + Q4 足够。
 
 ### 触发时的行为
 
@@ -332,22 +337,8 @@ One rule per line. Syntax and 9 rule types: see plan.md Step 3 translation table
 
 #### Auto mode hard rule: no soft-pause between stages
 
-When `state.json.auto == true`, the main agent **must not end a response with a question, soft-wait prompt, or ambiguous "进入下一阶段?" phrasing**. Ending a response at a stage boundary is an **implicit pause** equivalent to asking for confirmation, which violates hosted-mode contract.
+When `state.json.auto == true`, the main agent **must not end a response at a stage boundary** — a stage-boundary end is an implicit pause. Same turn must: write handoff → `sprint-ctl stage {x} completed` + `{x+1} running` → begin executing next stage.
 
-**Required behavior**: within the **same turn**, the main agent must:
-1. Write the current stage's handoff
-2. Run `sprint-ctl stage {current} completed`
-3. Run `sprint-ctl stage {next} running`
-4. Immediately begin executing the next stage's steps (produce output, run tools, etc.)
+**Allowed pauses** only: sprint start (Q4), insight's final summary (`approve` / `重跑 {ID}` / `审视 {ID}`), hard failure.
 
-The only allowed pauses in auto mode are:
-- **Sprint start**: after Q4 answer (if Q4 fired)
-- **Final summary in insight**: user replies `approve` / `重跑 {ID}` / `审视 {ID}`
-- **Hard failure**: a tool call or anchor-check failure that needs user input (with explicit error message)
-
-Forbidden phrases at end of a response when `state.json.auto == true`:
-- "进入 plan?" / "ready to continue?" / "确认吗？"
-- "所有决策 ✓。进入 X" followed by stopping (this is a soft pause)
-- Trailing bare question marks or menu offers unrelated to the final summary
-
-Violation detection: if the last ≤2 lines of a response contain `?` / `？` / "确认" / "继续?" / "ready" / "ok?" AND the current sprint's `state.json.auto == true` AND no hard-failure occurred, the response is non-compliant.
+**Violation detection**: last ≤2 lines contain `?` / `？` / "确认" / "继续?" / "ready" AND `state.json.auto == true` AND no hard failure → non-compliant. Forbidden endings include "进入 plan?", "ready to continue?", "所有决策 ✓。进入 X" + stop.

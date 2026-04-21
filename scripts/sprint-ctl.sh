@@ -288,7 +288,6 @@ evaluate)
     case "$arg" in
       auto=1|--auto) AUTO=1 ;;
       auto=0) AUTO=0 ;;
-      托管|hosted|autopilot|委托) AUTO=1; KEYWORDS="$KEYWORDS $arg" ;;
       *) KEYWORDS="$KEYWORDS $arg" ;;
     esac
   done

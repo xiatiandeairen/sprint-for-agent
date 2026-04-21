@@ -160,33 +160,12 @@ Assumptions block rules:
 
 User confirms → demand alignment locked. Corrections → update (max 1 follow-up).
 
-**Lock** — present final demand frame, then evaluate step entry for Step 2.
-
-Entry evaluation (internal, not shown to user):
-
-For each diagnostic below, answer yes/no based solely on the locked demand frame:
-
-| # | Question | yes signal |
-|---|----------|------------|
-| 1 | Will this task be done more than once? | Context mentions recurring trigger or pattern |
-| 2 | Is there a manual step that could be eliminated? | Goal includes manual workflow |
-| 3 | Could the result fail silently? | No validation in Success criteria |
-| 4 | Is the output reusable by other features? | Object touches shared module or produces artifact |
-| 5 | Does an implicit decision deserve to be explicit? | Constraint or Priority contains hidden assumption |
-
-Count yes answers. ≥2 → recommend exploring additional value points (internally: Value Mining). Otherwise → proceed directly to conclusion.
-
-Present to user (do NOT output the labels "Demand Lock" or "Value Mining"):
+**Lock** — present final demand frame (do NOT output the label "Demand Lock"):
 
 ```
 已对齐需求 ✓
 
-[If ≥2 yes — recommend value exploration]
-我注意到 {convert top 2 "yes" items into plain-language observations, e.g. "这个流程会重复发生，可以做成模板" / "这个产出会被其他模块引用"}。
-A) 展开这些方向看看  B) 直接进入结论
-
-[If <2 yes — proceed directly]
-需求已清晰 — 直接进入结论。如果你看到值得挖的方向，随时提。
+需求已清晰 — 直接进入结论。如果想挖额外价值点，说 "深挖" 触发 Value Mining（见本文件末尾 Optional Extension）。
 ```
 
 ### Auto mode: mandatory self-check (`D1-demand-lock`)
@@ -243,58 +222,24 @@ User confirms → write handoff. User says "审视" → switch to challenger rol
 
 ---
 
-## Optional Extension: Value Mining (internal label — do not render to user)
+## Optional Extension: Value Mining
 
-Triggered by: explicit user request, OR Step 1 entry recommendation (≥2 diagnostics yes). Not part of the standard brainstorm flow — runs only when demand frame suggests hidden value worth capturing and user opts in. When presenting to user, avoid the label "Value Mining"; use natural descriptions like "价值点探索".
+**Triggered by**: explicit user request only ("深挖" / "拓展" / "还有什么价值点"). **Not auto-triggered** by Step 1 gate (历次 sprint 触发 0 次，移除自动推荐逻辑)。
 
 Model: opus
 
-Run diagnostic questions internally (not to user), generate grounded hypotheses:
+Scan the demand frame against 6 diagnostic questions — each `yes` maps to a hypothesis direction:
 
-| Diagnostic | If yes → direction |
+| Diagnostic | Direction on `yes` |
 |------------|-------------------|
-| Task done repeatedly? | Automate or template |
-| Manual step eliminable? | Remove or one-click |
+| Task done repeatedly? | Automate / template |
+| Manual step eliminable? | Remove / one-click |
 | Could fail silently? | Add validation |
-| Consistency check missing? | Build verification in |
 | Output reusable elsewhere? | Extract as shared asset |
-| Others benefit from this? | Generalize |
 | Implicit decision should be explicit? | Surface as parameter |
 | Recurring pattern? | Reusable solution |
 
-**Diagnose:** Run questions against user's goal. Skip clear "no"s. Do not force hypotheses.
-
-**Rank:** Present top 2-3 grounded hypotheses (render in user language):
-```
-除了你提到的目标，我注意到：
-1. {hypothesis} — 因为 {evidence}
-2. {hypothesis} — 因为 {evidence}
-
-哪条有价值？任选 / 都不要 / 其他
-```
-
-**Confirm:** Confirmed → 价值点确认 ✓（internal: Value Lock）. Rejected → discard.
-
-### Confirmed Value Point Expansion
-
-Per confirmed value point, present 4 facets with recommended values:
-
-| Facet | Question |
-|-------|----------|
-| Scope | How broadly does this apply? |
-| Priority | Importance vs primary goal? |
-| Operational | Additional info needed to deliver? |
-| Boundary | Where should this NOT extend? |
-
-Recommendation-first table. User flags dimension → expand with A/B/C.
-
-### Dig Deeper Loop
-
-After facet exploration: A) Dig deeper (new hypotheses from confirmed locks) B) Converge.
-
-Limits: 3 rounds without convergence → ask user to redefine boundaries. Max 6 rounds → force converge.
-
-After value exploration completes, re-enter Step 2 Converge to finalize the conclusion including any confirmed value points.
+Present top 2-3 grounded hypotheses (each with evidence from demand frame). User picks / rejects / adds. Confirmed points merge into Step 2 Converge conclusion as "价值点确认 ✓". Max 1 round; no facet expansion, no recursive dig-deeper (historically unused, removed).
 
 ---
 
