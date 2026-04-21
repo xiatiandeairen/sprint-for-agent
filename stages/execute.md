@@ -77,7 +77,7 @@ Run AI verify commands from task. Also check:
 ### Task {N}: {title} — PASS ✓ / FAIL ✗
 
 **自动检查**
-- Build: ✓ | Anchor: {N}/{N} ✓ | 实现一致性: 与 plan 一致 ✓
+- Build: ✓ | 验证清单: {N}/{N} ✓ | 实现一致性: 与规划一致 ✓
 
 **文件变更**
 - {path}: {what changed}
@@ -130,7 +130,7 @@ All complete → collect: files changed, anchor results, test results, errors/de
 | Task | 状态 |
 
 **自动检查**
-- Build: ✓ | Tests: {N} pass / {N} fail | Anchor: {N}/{N} ✓ | 实现一致性: ✓
+- Build: ✓ | Tests: {N} pass / {N} fail | 验证清单: {N}/{N} ✓ | 实现一致性: ✓
 
 **需要你确认**
 - [ ] {checks from tasks}

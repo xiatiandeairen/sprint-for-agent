@@ -319,6 +319,8 @@ Model: sonnet
 
 Compile Steps 1-3 into A-H output. This is the review deliverable.
 
+Render user-facing section titles in user's language. English below is the template skeleton — translate when producing output (e.g. "## A. 变更理解 / ## B. 结论概览 / ## C. 核心问题 / ## D. 模式信号 / ## E. 可自动化修复 / ## F. 规约候选 / ## G. 行动决策").
+
 ```
 ## A. Change Understanding
 {from Step 1}

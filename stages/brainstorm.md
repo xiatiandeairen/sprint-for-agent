@@ -56,18 +56,19 @@ Run the 5 questions internally against the raw user description. Do NOT show the
 - Q4b: What is the minimum viable version?
 - Q4c: Can it be staged instead of done at once?
 
-**Pushback template** (render in user language):
+**Pushback template** (render in user language — do NOT output the label "Sanity Gate" or "Q{n}" codes; describe issues in plain language):
 
 ```
-Sanity Gate: {N} item(s) to clarify
+有 {N} 点需要先澄清：
 
-- Q{n} ({short label}): {1-line reason}
-  {if Q3 or Q4 triggered: list the 3 expansion sub-questions here}
+- {1-line description of the concern — no code like "Q3"}
+  {if market concern: list 3 market sub-questions inline as natural questions}
+  {if feasibility concern: list 3 feasibility sub-questions inline as natural questions}
 
-Please choose: A) clarify / supply info   B) insist with justification   C) revise the requirement
+请选择：A) 补充信息 / 解释  B) 坚持原意（说明理由）  C) 调整需求
 ```
 
-After user responds — if clarification resolves the triggers, proceed to 6-slot modeling. If user insists with justification, record the acknowledged risk in the Demand Frame `Context` slot and proceed. If requirement is revised, re-run the gate on the revised description.
+After user responds — if clarification resolves the triggers, proceed to 6-slot modeling. If user insists with justification, record the acknowledged risk in Context and proceed. If requirement is revised, re-run the internal check on the revised description.
 
 **Few-shot**:
 
@@ -100,7 +101,39 @@ Turn vague input into a 6-slot demand frame.
 
 ### Execution
 
-**Extract** visible slots from description. Rank gaps by downstream impact.
+**Ambiguity Triage** (run first, before slot extraction):
+
+Assess the raw description against these 3 signals:
+
+| Signal | Trigger |
+|--------|---------|
+| Verb ambiguity | Contains "完善/优化/改进/handle/support" without concrete verb (add/remove/replace/rename) |
+| Scope ambiguity | ≥2 plausible scopes (1 file vs module vs cross-module) |
+| Outcome ambiguity | ≥2 plausible end states (fix bug vs add feature vs rewrite) |
+
+**0 signals fire** → description is concrete. Proceed directly to slot extraction below.
+
+**≥1 signal fires** → present 3 candidate framings in ONE table before asking anything else (do NOT use the internal label "Strawman Framings" to the user):
+
+```
+基于描述，可能是以下三种之一。离哪个最近 + 差在哪？
+
+| # | 问题框定 | 范围 | 形式 | 明确不做 |
+|---|---------|------|------|---------|
+| A | {narrowest framing} | {1 file / 1 module / etc.} | {Patch/Refactor/Feature/Automation} | {explicit exclusion} |
+| B | {middle framing — recommended} | ... | ... | ... |
+| C | {widest framing} | ... | ... | ... |
+```
+
+Rules:
+- Each row must name concrete files/modules/actions — no "various" or "related components"
+- Exclusions must be specific (something user might reasonably want but this framing excludes)
+- Always recommend one (mark with ← 推荐) based on inferred effort/risk fit
+- Max 3 rows. If <3 distinct framings exist → description wasn't ambiguous, should have skipped this sub-step
+
+User picks → framing locked → proceed to slot extraction filling the 6 slots **under that framing's scope**. Do not revisit framing choice in Clarify step.
+
+**Extract** visible slots from description (and chosen framing, if Strawman Framings ran). Rank gaps by downstream impact.
 
 **Clarify** — present inferred slots + clarification questions in ONE round (slots are interdependent; batch asking is more efficient than sequential):
 
@@ -113,13 +146,23 @@ Here's what I inferred — confirm, correct, or fill in the blanks:
 - **Context**: ...
 - **Success**: ...
 - **Priority**: ...
+
+## Assumptions（哪条错了告诉我）
+- [A1] {inferred load-bearing premise} — 来源：{evidence phrase from description}
+- [A2] ...
+- [A3] ...
 ```
 
-User confirms → Demand Lock locked. Corrections → update (max 1 follow-up).
+Assumptions block rules:
+- ≥3 items, each with explicit evidence source (quoted phrase or "inferred from X")
+- Items must be **refutable** — user can say "A2 错" and mean something specific
+- Cover the highest-risk inferences (what the user would be most surprised to see wrong)
 
-**Lock** — present final demand frame, then evaluate Gate for Step 2.
+User confirms → demand alignment locked. Corrections → update (max 1 follow-up).
 
-Gate evaluation (internal, not shown to user):
+**Lock** — present final demand frame, then evaluate step entry for Step 2.
+
+Entry evaluation (internal, not shown to user):
 
 For each diagnostic below, answer yes/no based solely on the locked demand frame:
 
@@ -131,19 +174,19 @@ For each diagnostic below, answer yes/no based solely on the locked demand frame
 | 4 | Is the output reusable by other features? | Object touches shared module or produces artifact |
 | 5 | Does an implicit decision deserve to be explicit? | Constraint or Priority contains hidden assumption |
 
-Count yes answers. ≥2 → recommend triggering Optional Value Mining. Otherwise → proceed directly to conclusion.
+Count yes answers. ≥2 → recommend exploring additional value points (internally: Value Mining). Otherwise → proceed directly to conclusion.
 
-Present to user:
+Present to user (do NOT output the labels "Demand Lock" or "Value Mining"):
 
 ```
-Demand Lock ✓
+已对齐需求 ✓
 
-[If ≥2 yes — recommend triggering Optional Value Mining]
-I noticed {convert top 2 "yes" items into plain-language observations, e.g. "this workflow will be repeated — templating opportunity" / "the output artifact is referenced by other modules"}.
-A) Explore these directions (Optional Value Mining)  B) Skip to conclusion
+[If ≥2 yes — recommend value exploration]
+我注意到 {convert top 2 "yes" items into plain-language observations, e.g. "这个流程会重复发生，可以做成模板" / "这个产出会被其他模块引用"}。
+A) 展开这些方向看看  B) 直接进入结论
 
 [If <2 yes — proceed directly]
-Requirements are clear — proceeding to conclusion. Speak up if you see directions worth exploring.
+需求已清晰 — 直接进入结论。如果你看到值得挖的方向，随时提。
 ```
 
 ### Few-shot
@@ -158,18 +201,18 @@ Bad: `Goal: Improve the app | Object: The codebase | Success: It works better`
 
 Model: sonnet
 
-Present conclusion:
+Present conclusion (render in user language):
 ```
-### Brainstorm Conclusion
+### 结论
 
 **{1 sentence — what to build}**
 
-**Example**
+**举例**
 - Before: {now}
 - After: {then}
-- Verify: {how to check}
+- 验证: {how to check}
 
-**Value Points** (if any)
+**价值点**（如有）
 - {confirmed point 1}
 - {confirmed point 2}
 ```
@@ -191,9 +234,9 @@ User confirms → write handoff. User says "审视" → switch to challenger rol
 
 ---
 
-## Optional Extension: Value Mining
+## Optional Extension: Value Mining (internal label — do not render to user)
 
-Triggered by: explicit user request, OR Step 1 Gate recommendation (≥2 diagnostics yes). Not part of the standard brainstorm flow — runs only when demand frame suggests hidden value worth capturing and user opts in.
+Triggered by: explicit user request, OR Step 1 entry recommendation (≥2 diagnostics yes). Not part of the standard brainstorm flow — runs only when demand frame suggests hidden value worth capturing and user opts in. When presenting to user, avoid the label "Value Mining"; use natural descriptions like "价值点探索".
 
 Model: opus
 
@@ -212,20 +255,20 @@ Run diagnostic questions internally (not to user), generate grounded hypotheses:
 
 **Diagnose:** Run questions against user's goal. Skip clear "no"s. Do not force hypotheses.
 
-**Rank:** Present top 2-3 grounded hypotheses:
+**Rank:** Present top 2-3 grounded hypotheses (render in user language):
 ```
-Beyond your stated goal, I noticed:
-1. {hypothesis} — because {evidence}
-2. {hypothesis} — because {evidence}
+除了你提到的目标，我注意到：
+1. {hypothesis} — 因为 {evidence}
+2. {hypothesis} — 因为 {evidence}
 
-Which matter? Any / none / other?
+哪条有价值？任选 / 都不要 / 其他
 ```
 
-**Confirm:** Confirmed → Value Lock. Rejected → discard.
+**Confirm:** Confirmed → 价值点确认 ✓（internal: Value Lock）. Rejected → discard.
 
-### Value Lock Expansion
+### Confirmed Value Point Expansion
 
-Per confirmed lock, present 4 facets with recommended values:
+Per confirmed value point, present 4 facets with recommended values:
 
 | Facet | Question |
 |-------|----------|
@@ -251,7 +294,7 @@ After value exploration completes, re-enter Step 2 Converge to finalize the conc
 - 6-slot frame filled, user confirmed
 - Conclusion + example confirmed
 - Handoff written
-- Value Locks explored (if Optional Value Mining triggered)
+- Value points explored (if value mining triggered)
 
 ## Recovery
 

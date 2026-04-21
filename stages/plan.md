@@ -122,13 +122,13 @@ Auto-extract from design handoff and write directly to `.sprint/{id}/anchors.txt
 
 Also extract from spec preferences and decision point mitigations.
 
-After writing, present anchor list with one question:
+After writing, present the list with one question (do NOT use "Anchors" as user-visible label; use "验证清单" or "结构检查"):
 
 ```
-Anchors ({N} rules) — written.
-{list anchors, 1 per line}
+验证清单（{N} 条）— 已写入。
+{list rules, 1 per line}
 
-Any files or constraints to add?
+要加/去掉什么？
 ```
 
 User adds → append. User says nothing / confirms → proceed. Do not ask for confirmation of auto-extracted anchors.

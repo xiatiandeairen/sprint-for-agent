@@ -188,9 +188,17 @@ Every response starts with:
 - Stage file templates are mandatory structure.
 - Numbers concrete: "3 files" not "several".
 - Empty output → "无". Never silently omit.
-- Forbidden: 尽量/适当/大概/或许/roughly/approximately/maybe/perhaps.
 - Errors include: what failed, which command, suggested fix.
 - Match user's language for all output; internal docs stay English.
+- **User-facing interaction rules**: follow `~/.claude/rules/skill.md` §6 (no internal algorithm term leakage, language baseline, disclosure granularity). Sprint-specific term replacements: see `skills/sprint/interaction-terms.md`. When producing user-visible text: scan against the term table, drop forbidden fillers (尽量/适当/大概/或许/roughly/approximately/maybe/perhaps), and hide internal judgment process / raw state structures per §6.3.
+- **Assumptions block** — The first substantive output of each thinking stage (brainstorm Step 1, design Step 2, plan Step 3-5 combined) must end with a `## Assumptions` block listing ≥3 load-bearing assumptions, each with evidence source. User refutes specific items (`A2 错，应该…`) instead of re-describing the need. Format:
+  ```
+  ## Assumptions（哪条错了告诉我）
+  - [A1] {assumption} — 来源：{description phrase / prior handoff line / inferred from X}
+  - [A2] ...
+  - [A3] ...
+  ```
+  Skip only when the stage's own output already enumerates explicit decisions (e.g. Decision Register with `○ direction` / `✗ open` statuses), since those serve the same function.
 
 ### Metrics
 

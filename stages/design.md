@@ -28,7 +28,7 @@ From confirmed demand to concrete solution design. Goal: plan stage can split ta
 
 Model: opus
 
-Gate (user): 解决方式是否需要确定？
+Step entry (ask user): 解决方式是否需要确定？
 
 💡 如何解决已经明确 → 跳过。存在多种可行方向或形式不清 → 进入。Default: skip.
 
@@ -111,16 +111,16 @@ Bad:
 | 1 | Do auth stuff | various | it works |
 ```
 
-### Build Decision Register
+### Build Decision Register (internal label — present to user as "决策清单")
 
 After user confirms, compile all decisions from Steps 1-2:
 - Step 1 approach selection (if entered) → `core`
 - Step 2 design decisions → `core`
 - Implementation details → `detail`
 
-Present register for user review. Append: `如需对抗性审视，回复"审视"`
+Present to user as "决策清单" (do NOT output "Decision Register"). The `core / detail` and `✓/○/✗` markers are internal — when presenting to user, convert to natural language (e.g. "已确认" / "方向已定，细节待补" / "未讨论") or keep the table but translate column headers. Append: `如需对抗性审视，回复"审视"`.
 
-User says "审视" → switch to challenger role: for each `core` decision, challenge using first-principles reasoning. Question whether the problem being solved is real, whether a simpler approach exists, and whether the decision should be reversed. After challenge round, re-present register (updated or unchanged).
+User says "审视" → switch to challenger role: for each `core` decision, challenge using first-principles reasoning. Question whether the problem being solved is real, whether a simpler approach exists, and whether the decision should be reversed. After challenge round, re-present (updated or unchanged).
 
 ### Infer Spec Preferences (for plan)
 
@@ -149,11 +149,11 @@ Bad: `Form: Feature | Description: Improve deployment to be more automated | Fil
 
 Model: sonnet
 
-Gate (auto): Decision Register 中是否有 `detail` 类 `○ direction` 条目？
+Step entry (auto): 决策清单中是否有 `detail` 类 `○ direction` 条目？（internal check — not shown to user）
 
 有 → 进入。无 → 跳过。
 
-Extract unconfirmed `detail` items, sort by dependency. TaskCreate per item. Walk through each: recommended approach + alternatives. User confirms → TaskUpdate completed + register entry → `confirmed`.
+Extract unconfirmed `detail` items, sort by dependency. Create a tracking task per item (internal). Walk through each: recommended approach + alternatives. User confirms → mark task complete + decision clipped from `○ direction` to `✓ confirmed` in the 决策清单.
 
 User says "skip" → remaining `detail` items stay at `direction` for plan/execute to resolve.
 
@@ -163,7 +163,7 @@ User says "skip" → remaining `detail` items stay at `direction` for plan/execu
 
 Model: opus
 
-Gate (user): 是否需要定义架构分层、核心流程、接口协议或算法？
+Step entry (ask user): 是否需要定义架构分层、核心流程、接口协议或算法？
 
 💡 不增加新层、不改数据流、不设计新接口、不涉及非平凡算法 → 跳过。Default: skip.
 
