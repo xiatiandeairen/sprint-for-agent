@@ -53,6 +53,14 @@ Determine how to solve the problem before designing the details.
 
 4. **Lock** — confirmed approach feeds into Step 2 (Solution Alignment).
 
+### Auto mode: mandatory self-check (`D2-solution-approach`)
+
+If `state.json.auto == true` and Step 1 was entered (not gated out):
+- Produce the Solution Approach self-check block per `skills/sprint/auto-principles.md` §自检 block 模板
+- Bound principles: `simplicity` + `cost-first` + `reversibility` (auto-principles.md decision `D2-solution-approach`)
+- Append to handoff `## 自动审视` section
+- **Do not pause**; proceed to Step 2
+
 ### Few-shot
 
 Good: `Approach: CLI script with subcommands | Form: Automation | Trade-off: fast to build, less discoverable than UI`
@@ -137,6 +145,15 @@ Rule: 没有明确证据 → 填 `undecided`，由 plan 阶段补问。**禁止�
 
 Write results to handoff `## Spec Preferences` section. **Field schema maintained here is the single source of truth — Step 5 handoff template must mirror these 4 fields exactly.** 新增/修改字段时同步更新两处（Step 2 推断表 + Step 5 handoff 模板）。
 
+### Auto mode: mandatory self-check (`D3-design-decisions`)
+
+If `state.json.auto == true`:
+- After Decision Register is compiled, produce the Design Decisions self-check block per `skills/sprint/auto-principles.md` §自检 block 模板
+- Bound principles: `first-principles` + `simplicity` + `consistency` + `cost-first` (auto-principles.md decision `D3-design-decisions`)
+- Append to handoff `## 自动审视` section
+- Skip the `如需对抗性审视` prompt (G3 replaces it)
+- Proceed to Step 3
+
 ### Few-shot
 
 Good: `Form: Automation | Trigger: /deploy → auto-checks env, builds, pushes staging | Before: 5 manual steps | After: 1 command | Files: create scripts/deploy.sh, modify package.json`
@@ -177,6 +194,16 @@ Evaluate 4 sub-layers, present applicable ones for confirmation:
 | Algorithm | Non-trivial algorithm logic? | Pseudocode, complexity, performance/scalability/maintainability/edge case review |
 
 All "not applicable" → skip entirely. Present applicable outputs together for user confirmation. Decisions added to register as `core`.
+
+### Auto mode: mandatory self-check (`D4-system-design`)
+
+If `state.json.auto == true` AND at least one sub-layer was produced:
+- Produce the System Design self-check block per `skills/sprint/auto-principles.md` §自检 block 模板
+- Bound principles: `minimal-abstraction` + `consistency` + `blast-radius` (auto-principles.md decision `D4-system-design`)
+- Append to handoff `## 自动审视` section
+- Skip user confirmation; proceed to Step 5 (Write Handoff)
+
+If this Step 4 was gated out (all sub-layers "not applicable") → do NOT produce block; it's not missing.
 
 ---
 

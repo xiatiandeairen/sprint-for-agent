@@ -189,6 +189,14 @@ Per task:
 
 Aggregate all files into `## Expected Files`.
 
+### Auto mode: mandatory self-check (`D5-task-split`)
+
+If `state.json.auto == true`:
+- After task split is compiled, produce the Task Split self-check block per `skills/sprint/auto-principles.md` §自检 block 模板
+- Bound principles: `independence` + `reversibility` (auto-principles.md decision `D5-task-split`)
+- Append to handoff `## 自动审视` section
+- Skip user confirmation; proceed to Step 5
+
 ### Few-shot
 
 Good: `Task 1: Add UserProfile model — S — 1 file | verify: exists, compiles, contains fields`

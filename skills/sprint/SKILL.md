@@ -26,6 +26,8 @@ description: Task execution workflow. Evaluates complexity, trims stages, execut
 | Lock | Immutable decision point: Demand Lock, Value Lock (brainstorm) |
 | Handoff | Stage output document, structure defined by each stage file's template |
 | Gate | Step entry condition: `user` (yes/no), `auto` (system evaluates), `always` |
+| Auto mode | Hosted sprint mode (`--auto`). Core decision points auto-generate structured self-check blocks; user intervenes only at start and final summary. See Hosted Mode section. |
+| Self-check | Mandatory structured block at a core decision point in auto mode: decision + bound principles + per-principle audit + G1 failure attribution + G2 rejected alternatives + G3 off-list blindspot. Defined in `skills/sprint/auto-principles.md`. |
 
 ## Rules
 
@@ -140,6 +142,14 @@ Execute override: cross-module → opus. Single file → sonnet. No logic → ha
 - Always-on: plan, execute, insight. Review: risk=yes OR (tasks >1 AND cross-module)
 - **Doc mode**: skip plan. Pipeline: `[brainstorm] → [design] → execute → insight`
 
+**Q4 (conditional — only if `--auto` not passed and no keyword detected)**:
+
+| Question | yes | no | Hint |
+|----------|-----|-----|------|
+| 是否启用托管模式？ | auto=1 | auto=0 (default) | 启用后核心决策点由原则自检推进，你只在开始和最终汇总时介入 |
+
+See Hosted Mode section for details.
+
 ```
 ### 评估: {description}
 - **类型**: {普通任务 | 文档任务}
@@ -151,10 +161,13 @@ Execute override: cross-module → opus. Single file → sonnet. No logic → ha
 
 ```bash
 # [RUN] after confirm
-bash "$SPRINT_CTL" evaluate {clarify:0|1} {design:0|1} {risk:0|1}
-bash "$SPRINT_CTL" create "sprint" "{desc}" "{stages}"
+# If user triggered --auto / keyword / Q4=y, append auto=1 to evaluate and pass auto_flag to create.
+bash "$SPRINT_CTL" evaluate {clarify:0|1} {design:0|1} {risk:0|1} [auto=0|1]
+bash "$SPRINT_CTL" create "sprint" "{desc}" "{stages}" "{complexity:low|medium|high}" "{auto_flag:0|1}"
 bash "$SPRINT_CTL" activate "{id}"
 ```
+
+**Auto propagation contract**: if `evaluate` output includes `auto=1`, the corresponding `create` call MUST pass `auto=1` as the 5th positional argument. Otherwise `state.json.auto` stays `false` and hosted-mode self-check triggers will not fire.
 
 ### Pipeline Rules
 
@@ -224,3 +237,44 @@ Every response starts with:
 | execute | `stages/execute.md` | always |
 | review | `stages/review.md` | risk=yes OR (tasks >1 AND cross-module) |
 | insight | `stages/insight.md` | always |
+
+## Hosted Mode (`--auto`)
+
+托管模式：核心决策点由主 agent 按原则约束做结构化自检，主流程自动推进，用户完全旁观，sprint 结束时看汇总。
+
+### 触发方式（三选一）
+
+1. **参数**：`/sprint --auto {desc}`
+2. **关键词**：`/sprint {desc}` 且描述含 `托管` / `hosted` / `委托` / `autopilot`
+3. **评估问询**：前两者都没命中时，Evaluate 阶段出 Q4 询问
+
+命中任一 → `state.json.auto = true`。
+
+### 触发时的行为
+
+**自动决策点**（由 `skills/sprint/auto-principles.md` §"决策点映射" 定义，当前 6 个）：
+- brainstorm Step 1 末：需求锁定
+- design Step 1 末：方案选择
+- design Step 2 末：设计决策
+- design Step 4 末：系统设计（若该子层触发）
+- plan Step 4 末：任务切分
+- review Step 6：Review Verdict
+
+每个触发点，主 agent **必须**产出自检 block（结构见 `auto-principles.md` §"自检 block 模板"，含 G1/G2/G3 强制字段），写入该阶段 handoff 的 `## 自动审视` section。
+
+**不等待用户确认**：核心决策产出 + 自检完成即进入下一步。handoff 写入、阶段切换均自动。
+
+**唯一用户介入点**：
+- sprint 开始（触发方式 1/2 无需任何交互；3 需要用户答 Q4 y/n）
+- insight 阶段的"自动审视汇总"呈现后，用户回复 `approve` / `重跑 N[,M]` / `审视 N`
+
+### 与现有 `如需对抗性审视，回复"审视"` 的关系
+
+- **非 auto 模式**：保持原样（用户 on-demand 单点挑战）
+- **auto 模式**：每决策点的自检 block 内置 G3（清单外盲点）提供发散挑战，**替代**现有机制；最终汇总阶段用户可用 `审视 N` 对某点做更深质疑
+
+### Hosted Mode 的 Hard Rules
+
+- auto 模式下，自检 block 的 G1/G2/G3 三字段**任一缺失**视为 handoff 不完整，流程阻断并报错
+- 决策点所在步骤被 gate 跳过 → 不产出对应自检 block（不视为缺失）
+- 非 auto 模式下任何 stage 文件必须保持原行为，自检相关代码路径静默

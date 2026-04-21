@@ -189,6 +189,15 @@ A) 展开这些方向看看  B) 直接进入结论
 需求已清晰 — 直接进入结论。如果你看到值得挖的方向，随时提。
 ```
 
+### Auto mode: mandatory self-check (`D1-demand-lock`)
+
+If `state.json.auto == true`:
+- Produce the Demand Lock self-check block per `skills/sprint/auto-principles.md` §自检 block 模板
+- Bound principles: `first-principles` + `value-proof` + `concrete-evidence` (auto-principles.md decision `D1-demand-lock`)
+- Append the block to this stage's handoff under `## 自动审视` section
+- **Do not pause** for user confirmation; proceed directly to Step 2 Converge
+- Step 2 Converge: in auto mode, skip the `如需对抗性审视` prompt (G3 in self-check already provides divergent challenge); write handoff and auto-advance to design stage
+
 ### Few-shot
 
 Good: `Goal: Add dark mode to settings page | Object: SettingsViewController + theme system | Success: Toggle switches all colors; persists across launches`

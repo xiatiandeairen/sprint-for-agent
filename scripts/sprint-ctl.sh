@@ -64,6 +64,11 @@ create)
   CREATED_AT="$(now_iso)"
 
   COMPLEXITY="${4:-low}"
+  AUTO_FLAG="${5:-0}"
+  case "$AUTO_FLAG" in
+    auto=1|--auto|1|true) AUTO_BOOL="true" ;;
+    *) AUTO_BOOL="false" ;;
+  esac
   cat > "$DIR/state.json" <<EOF
 {
   "id": "$ID",
@@ -73,6 +78,7 @@ create)
   "status": "created",
   "current_stage": "",
   "complexity": "$COMPLEXITY",
+  "auto": $AUTO_BOOL,
   "base_commit": "$BASE_COMMIT",
   "created_at": "$CREATED_AT"
 }
@@ -271,12 +277,21 @@ with open(summary_path, 'w') as f:
   ;;
 
 evaluate)
-  # Usage: sprint-ctl.sh evaluate <clarify> <design> <risk> [keywords...]
-  # Input: 3 binary parameters (0 or 1)
-  # Output: stage list
+  # Usage: sprint-ctl.sh evaluate <clarify> <design> <risk> [auto=0|1] [keywords...]
+  # Input: 3 binary parameters (0 or 1), optional auto=0|1 or auto keyword, plus free keywords
+  # Output: stage list + AUTO flag
   CLARIFY="${1:-0}"; DESIGN="${2:-0}"; RISK="${3:-0}"
   shift 3 2>/dev/null || true
-  KEYWORDS="$*"
+  AUTO=0
+  KEYWORDS=""
+  for arg in "$@"; do
+    case "$arg" in
+      auto=1|--auto) AUTO=1 ;;
+      auto=0) AUTO=0 ;;
+      托管|hosted|autopilot|委托) AUTO=1; KEYWORDS="$KEYWORDS $arg" ;;
+      *) KEYWORDS="$KEYWORDS $arg" ;;
+    esac
+  done
 
   # ── Keyword override: high-risk keywords force risk=1 ──
   for kw in $KEYWORDS; do
@@ -296,7 +311,7 @@ evaluate)
 
   # ── Output ──
   echo "INPUT"
-  echo "  clarify=$CLARIFY  design=$DESIGN  risk=$RISK"
+  echo "  clarify=$CLARIFY  design=$DESIGN  risk=$RISK  auto=$AUTO"
   echo ""
   echo "STAGES"
   echo "  $STAGES"

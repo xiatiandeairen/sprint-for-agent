@@ -385,6 +385,15 @@ Present the G section verdict with supporting evidence. Ask: "是否同意这个
 - Split refactor → identify what to split, flag for separate sprint
 - User overrides verdict → update handoff with user's decision and reasoning
 
+### Auto mode: mandatory self-check (`D6-review-verdict`)
+
+If `state.json.auto == true`:
+- Before presenting the verdict question, produce the Review Verdict self-check block per `skills/sprint/auto-principles.md` §自检 block 模板
+- Bound principles: `reversibility` + `blast-radius` + `concrete-evidence` (auto-principles.md decision `D6-review-verdict`)
+- Append to handoff `## 自动审视` section
+- **Skip the "是否同意这个行动建议？" prompt**; verdict is auto-accepted and recorded
+- Any decision that is NOT `approve` → log as a high-impact finding but still auto-advance; user will see it at insight's 自动审视汇总 and can issue `重跑 6` or accept via `approve`
+
 ---
 
 ## Completion
