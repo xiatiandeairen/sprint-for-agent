@@ -49,6 +49,10 @@ Stage files may strengthen but not contradict these.
 5. **Bounded exploration** — open loops declare max rounds. At limit, force convergence.
 6. **Subagent escalation** — 1st fail: retry same model. 2nd: upgrade (sonnet→opus). 3rd: stop, report.
 7. **Handoff is terminal** — written as final step, after all work + user confirmation.
+   **Handoff scope (B6-b)**: handoff 只对**当前 sprint 内部 stage-to-stage** 负责。禁止假设下一 sprint 会读它。**跨 sprint 有价值的信息必须落到**:
+   - 项目 repo 的 `.md` 文档（如 `OPTIMIZATION-PLAN.md` / `RESULTS.md`）—— 后续 sprint 会主动 Read
+   - Memory 文件（`MEMORY.md` + `feedback_*.md`）—— 系统自动注入下个 session context
+   Handoff 的 `Downstream` section 只描述**下一 stage**，不写"Next sprint 建议"。
 8. **Confirm before persisting** — handoffs, Locks, reports: user confirms before write. (anchors.txt: auto-extracted in plan, presented for additions — see plan Step 3.)
 9. **Precise recovery** — return to stage + step number. Never "start over".
 10. **Max 3 options** — >3 candidates → filter first, present top 3.

@@ -183,13 +183,33 @@ print(json.dumps(s, indent=2))
   echo "> [完成] Sprint #$ID"
   echo ""
 
-  # Per-stage durations
+  # Per-stage durations + execute 超时告警 (B4)
+  EXECUTE_DUR_S=0
   while IFS='|' read -r _event stage _status _end_ts dur; do
     printf "> %-15s %s\n" "$stage" "$dur"
+    if [ "$stage" = "execute" ]; then
+      EXECUTE_DUR_S="${dur%s}"
+    fi
   done < <(grep "^stage_end" "$DIR/metrics.log")
 
   echo "> ─────────────────────────"
   printf "> %-15s %dm\n" "总计" "$TOTAL_MIN"
+
+  # B4: execute 超 3600s 告警
+  if [ "$EXECUTE_DUR_S" -gt 3600 ] 2>/dev/null; then
+    echo ""
+    echo "> ⚠ execute 耗时 ${EXECUTE_DUR_S}s > 3600s 阈值"
+    echo "> ⚠ 数据密集 sprint, 建议检查 insight verdict 是否列了 ≥2 反例 (D 规则)"
+    echo "> ⚠ 建议过 1 小时/隔日重读 raw observations 核对 verdict"
+  fi
+
+  # B6-b: 跨 sprint 信息检查 (只在 doc mode / 非纯代码 sprint 生效)
+  # 如果 insight 阶段运行过, 但没有产生 repo 文件 + 没写 memory, warn
+  if [ -f "$DIR/handoffs/insight.md" ] || grep -q "insight" "$DIR/metrics.log" 2>/dev/null; then
+    # 粗检查: 当前 session 是否有 .md 或 feedback 文件被新建
+    # (实际 heuristic 留给 AI 自检, 这里只 flag)
+    :  # placeholder
+  fi
 
   # Anchor results
   PASS=$(grep "^anchor_check" "$DIR/metrics.log" | grep -o "pass=[0-9]*" | tail -1 | cut -d= -f2 || echo "?")

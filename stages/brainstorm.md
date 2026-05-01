@@ -50,6 +50,21 @@ Run the 5 questions internally against the raw user description. Do NOT show the
 - Q3b: Key differentiator from that solution?
 - Q3c: Is this an implicit build-vs-buy decision?
 
+**Q3 same-category constraint** (mandatory):
+
+When enumerating existing solutions, each candidate MUST be labeled "same-category y/n" — same **form factor** AND same **usage scenario** as the target. Cross-category tools are "adjacent references" only; they CANNOT participate in differentiation analysis or "whitespace" claims.
+
+Mandatory competitor table schema:
+
+| 方案 | 形态 | 同品类 y/n | 核心能力 | 缺口 |
+|---|---|---|---|---|
+
+Self-audit line required after the table (render verbatim to user):
+
+> 同品类=y 的有 {X} 个。X<2 → 品类本身是新的（差异化命题成立）；X≥2 → 必须对其中至少 1 个给出具体"哪里不够"的证据，不能靠跨品类交集制造伪空白。
+
+Failure mode this prevents: listing tools from multiple categories (e.g. Docker + macOS sandbox-exec + TCC when target is an agent-native sandbox) and claiming the "gap between them" as whitespace. That gap is fake — the tools were never in the same competitive set.
+
 **Q4 expansion sub-questions** (feasibility):
 
 - Q4a: Largest technical risk or unknown?

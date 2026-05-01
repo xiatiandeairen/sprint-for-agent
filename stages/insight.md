@@ -36,6 +36,24 @@ bash "$SPRINT_CTL" end "{id}"
 
 Prints: per-stage duration, anchor results, scope creep count.
 
+## Step 1.5: Counter-Evidence 识别（D 规则，强制）
+
+Model: opus
+
+**在合成任何 verdict 前**，必须先从 execute handoff 的 `Raw Observations` + `Open Questions` 里**列 ≥2 条反例**——与主结论冲突 / 表面矛盾 / 反直觉的数据点。
+
+```
+### 反例（against 主结论候选 X）
+反例 1: {具体 observation 或 quote} — 与 X 冲突的原因: {1 句}
+反例 2: {具体 observation 或 quote} — 与 X 冲突的原因: {1 句}
+```
+
+- 列不出 → insight 标记 "verdict tentative, 反例未识别"，**不得下 strong claim**
+- 列得出 → 每条反例必须在后续 verdict 中被**显式处理**（修正主结论 / 限制 scope / 列为 open）
+- **本 step 是 Step 2-4 的前置**——跳过 = handoff 不完整
+
+**背景**：sprint 20260422-190035 (step-by-step ablation) 在 execute 末合成的 verdict 有 5 条被 sprint 20260422-211644 重读时修正。这 5 条都是当时 reactions 里明摆着的反例但没停下来想。D 规则机械化"停下来想"。
+
 ## Step 2: Deviation Analysis
 
 Model: opus
@@ -144,19 +162,35 @@ Gate (auto): `state.json.auto == true` → 执行；否则跳过整个 Step 5。
 ```
 ## 自动审视汇总
 
+### 人话版（先读这段）
+
+本 sprint 的核心决策 N 个, 简述如下:
+- **D1 {决策点名}**: {用户视角 1 句描述 — AI 在这里选了什么 / 为什么 / 代价是什么}
+- **D2 ...**: 同上
+- ...
+
+**总的来说**: {1-2 句总结 — 这 sprint 的主线走向}
+
+### 表格版（detail, 想挑就挑）
+
 | ID | Stage | 决策 | 绑定原则 | 对照 | G1 风险 | G2 拒选 | G3 盲点 |
 |----|-------|------|---------|------|---------|---------|---------|
 | D1-demand-lock | brainstorm | 需求锁定 | {principles} | {✓/partial/weak 汇总} | {G1 一句} | {G2 一句} | {G3 一句或 "已穷尽"} |
 | ... |
 
 **总计**: {N_fired} 决策点触发 / {N_all_pass} 全 ✓ / {N_partial} 含 partial 或 weak / {N_blindspot} G3 未穷尽
-**说明**: G3 未穷尽的决策点已识别清单外盲点，重跑或审视可收敛
 
 请选择：
 - `approve` — 全部通过，关闭 sprint
 - `重跑 N` / `重跑 N,M` — 对指定决策点重新产决策 + 自检
 - `审视 N` — 对指定决策点做第一性原理深度挑战（比重跑更强）
 ```
+
+**人话版要求**（B2 规则，防"啥意思"问题）：
+- 每条决策 1 句话, 禁术语（principles id, G1/G2/G3 代号不出现）
+- 用"AI 选了 X / 因为 Y / 代价 Z"的三段结构
+- 总结 1-2 句说明本 sprint 的主线, 不是罗列决策
+- 人话版在前, 表格版在后 (允许用户只读人话不读表)
 
 **Command handling**:
 

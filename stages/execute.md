@@ -17,6 +17,8 @@ Default Model: sonnet (override to opus for cross-module / interface tasks)
 
 - (extends SKILL.md file modification rule) Unlisted file needs change → **stop and report**, do not continue.
 - Do not proceed to next task if current anchor check fails. Fix first.
+- **Observer/Synthesizer 分离** (B rule): execute handoff **禁止包含 verdict / 结论性陈述 / keep-drop 表格 / recommendation**. 只允许: raw observations (引用 + 数据), 量化结果, open questions. Verdict 留给 insight stage 合成。
+- **跨 sprint 信息不走 handoff** (B6-b): handoff 只对当前 sprint 内部 stage-to-stage 负责。有跨 sprint 价值的输出必须落到**项目 repo** (如 `*.md` 文档) 或 **memory 文件** (`feedback_*.md`)。Handoff 的 "Downstream" section 只描述下一 stage 要读什么，**不描述下一 sprint**。
 
 ## Default Anchors
 
@@ -151,16 +153,31 @@ Model: sonnet
 
 Write `.sprint/{id}/handoffs/execute.md`:
 
+**Cooldown Check**: 若 execute 阶段产出 >10 个数据点 (subagent results / 样本 / readings) 或耗时 >1800s, **在写 handoff 前** flag 一句: "数据密集 execute, 合成 verdict 推到 insight, 此处只记观察"。
+
 ```markdown
 ## Summary
-- Mode / Tasks completed / Commits
+- Mode / Tasks completed (数量而非质量判断)
 ## Tasks
-### Task 1: {title}
-- Status / Files changed / Anchor / Implementation / User verified
-## Anchor Results
-## Test Scope for Quality
-## Files Changed
+### Task N: {title}
+- Status (done/fail) / Files changed / 完成的动作 (非评价)
+## Raw Observations
+- 引用, 量化数据, subagent 原话, scan 输出 — 不做 synthesis
+## Open Questions
+- 观察到但未解的模式 / 矛盾 / 边界情况
+## Downstream (本 sprint 内 → insight stage)
+- insight 需要 attention 的具体 observation id / question
 ```
+
+**禁止** (B+D 规则):
+- ❌ keep/drop/modify 表
+- ❌ "V3→V4 建议 X"
+- ❌ "Per-step verdict"
+- ❌ "Recommendation" section
+- ❌ 评价性形容词 (好/差/有效/冗余/仪式)
+- ✅ 事实 ("reader 说 V3 没想关掉, V4 有点想关了")
+- ✅ 数据 ("CV=0.3, 熵=1.5")
+- ✅ 问题 ("V4 为什么退步?")
 
 ---
 
