@@ -20,3 +20,4 @@
 - [plan-design-handoff](.know/docs/requirements/plan-design-handoff/prd.md) | 2026-04-17 ← roadmap (M14)
 - [stage-responsibility-cleanup](.know/docs/requirements/stage-responsibility-cleanup/prd.md) | 2026-04-17 ← roadmap (M15)
 - [design-task-boundary-hints](.know/docs/requirements/design-task-boundary-hints/prd.md) | 2026-04-17 ← roadmap (M16)
+- [stage-refactor-playbook](.know/docs/requirements/stage-refactor-playbook/prd.md) | 2026-04-23 ← meta-process
