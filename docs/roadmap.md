@@ -1,101 +1,137 @@
-# sprint-for-agent 产品路线图
+# Sprint v2 Product Roadmap
 
-## 1. 产品愿景
+## 1. Product Vision
 
-### 产品核心
+### Product Essence
 
-- **定位**: 面向 AI 编程代理的结构化任务执行引擎
-- **动机**: AI agent 执行复杂任务时方向偏离、过程不可见、质量不可控，现有方案（人工监督或 prompt 约束）不可规模化且无持久性
-- **长远愿景**: AI agent 在任何项目中都像有纪律的工程师一样工作：评估复杂度、分阶段执行、在关键节点自我校验、事后反思改进
+- **Positioning**: 面向 AI 协作任务（编程 / 创作 / 分析等）的工作流引擎——原子 stage 通过轻量编排组合
+- **Motivation**: sprint v1 是绑死编程任务的线性流水线，stage 与"评估 / anchor / 文件改动"等编程预设耦合；做非编程任务（如长文创作）只能另起 skill（article、article-v2），stage 模型不互通，改进无法跨场景迁移
+- **Long-term vision**: sprint 成为人机协作的工作流协议层——任何任务类（编程 / 创作 / 分析 / 调研 / ...）都能用一组 stage 配方表达，新增场景 = 写新配方，而不是建新 skill
 
-### 价值体系
+### Value System
 
-| 层级 | 价值 | 衡量指标 |
-|------|------|----------|
-| **即时价值** | agent 每次执行都有结构化约束，方向偏离在阶段边界被拦截 | anchor 通过率、阶段 gate 确认次数 |
-| **累积价值** | 执行数据持续积累，效率和质量趋势可追溯，流程优化有数据依据 | 跨 sprint 统计可用性、insight 历史对比可用性 |
-| **战略价值** | AI 协作从"自由发挥后修复"升级为"约束下执行"，agent 可靠性从依赖运气变为依赖流程 | 跨项目可靠性对比（无数据） |
 
-### 核心问题
+| Tier                 | Value                                           | Metric                                                                                 |
+| -------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------- |
+| **Immediate value**  | 用户在编程外的协作任务上能复用同一组 stage 能力，不必为每类任务另建 skill     | 单个新场景配方的编写工时（target value, pending validation: <1 day）                                 |
+| **Cumulative value** | 配方库随场景累积，stage 改进自动惠及所有依赖它的配方                   | 配方总数（target: v2.0=1，v2.1≥2，v2.x 持续增长）；单 stage 被复用配方数（target value, pending validation） |
+| **Strategic value**  | 从"为每类 AI 协作任务造一个 skill"升级为"组合现有 stage 能力即得新协作流" | 新场景从设想到首次可用配方的时间（target value, pending validation: <1 week）                            |
 
-| 问题 | 发生频率 | 单次成本 | 影响面 | 现有应对 |
-|------|----------|----------|--------|----------|
-| AI agent 执行复杂任务时方向偏离 | 每次复杂任务（估算: 日均 2-5 次） | 估算 10-30 分钟返工 + 引入回归风险 | 所有使用 AI agent 做工程任务的开发者 | 人工全程盯着，不可规模化 |
-| agent 执行过程不可见，偏离难以及时发现 | 每次超过 3 步的任务（估算: 日均 3-10 次） | 偏离越深修复成本越高，估算浪费 50% 以上已执行工作量 | 同上 | 事后 review，修复成本高 |
-| 简单任务走完整流程太重，不走又没保障 | 每次小任务（估算: 日均 5-15 次） | 完整流程浪费 5-10 分钟，跳过流程则无质量保障 | 同上 | prompt 约束，无持久化 |
-| stage 抽象太粗导致职责重叠和顺序固定 | 每次 sprint | 用户感觉"啰嗦堆砌"且不灵活，简单任务被迫走重流程 | 全部 sprint 用户 | 当前 6 stage 各自塞 5+ 件原子事 |
 
-### 目标用户
+### Core Problem
 
-| 角色 | 典型场景 | Before | After | 预估提效 |
-|------|----------|--------|-------|----------|
-| 使用 Claude Code 的独立开发者 | 用 agent 实现功能、修 bug、重构 | 每次复杂任务需人工监督或事后修复（估算: 单次 10-30 分钟返工） | `/sprint` 一条命令启动，自动裁剪阶段、分步执行、关键点暂停确认 | 待验证（预期: 单次复杂任务节省 10-20 分钟返工时间） |
-| 使用 AI agent 维护中大型项目的开发者 | 跨模块大任务拆分执行 | 大任务一口气做完中间无法检查，偏离后全部返工 | `/long-sprint` 自动拆分子 sprint，每个独立交付验证，方向锁定防止漂移 | 待验证（预期: 大任务成功率显著提升） |
 
-### 竞品对比
+| Problem                                                 | Occurrence Frequency                                                            | Per-Occurrence Cost                                             | Reach      | Existing Workaround                                            |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------- | ---------- | -------------------------------------------------------------- |
+| 用户在非编程类 AI 协作任务（写文章 / 做分析）上无法套用 sprint 的流程感             | 每次启动非编程任务即遇到（estimated: 数次/周, based on 作者已有 article / article-v2 等独立 skill 的事实） | 每个新场景额外 1-3 天 skill 设计 + 后续维护分裂（estimated, not precisely timed） | 唯一用户（作者本人） | article / article-v2 等独立 skill；缺点：与 sprint 不共享 stage，改进无法跨场景迁移 |
+| sprint v1 流程仅支持"顺序 + 跳过"，无法表达"循环写到达标"、"分支评估后选路"等真实控制流需求 | 已遇到（user confirmed：现实场景中已有需要编排的需求，但不到 DSL 复杂度）                                  | to be quantified（无系统化测量手段，作者凭感觉手动重跑或在描述里塞条件）                    | 唯一用户       | 手动重跑 sprint 或修改输入描述；无系统化方式                                     |
 
-| 方案 | 定位 | 目标用户 | 核心功能 | 优势 | 局限 |
-|------|------|----------|----------|------|------|
-| **sprint-for-agent** | 面向 AI 编程代理的结构化任务执行引擎 | Claude Code 用户 | 复杂度裁剪、阶段流水线、anchor 验证、模型路由、跨 sprint 可观测 | 执行约束而非辅助，9 种 anchor 类型保障结构不变量，自动适配 7 种语言生态 | 仅支持 Claude Code，学习曲线存在，依赖 python3 |
-| Claude Code CLAUDE.md | Claude Code 内置的项目级 prompt 约束 | Claude Code 用户 | 项目规则、编码约定、命令配置 | 零依赖，开箱即用 | 无执行约束，无过程验证，规则膨胀后 token 成本不可控 |
-| Cursor Rules | IDE 级 AI 编程约束配置 | Cursor 用户 | 项目规则、文件级规则、glob 匹配 | IDE 深度集成 | 仅限 Cursor，无阶段化执行，无结构验证，无跨任务可观测性 |
 
-## 2. 版本规划
+### Target Users
 
-### 汇总
 
-| 版本 | 核心方向 | 核心指标变化 | 状态 | 周期 | 里程碑 |
-|------|----------|--------------|------|------|--------|
-| v1 — 可用的分阶段执行引擎 | 验证分阶段执行约束 + 跨 sprint 可观测 + 产品成熟 + stage 职责清理 | ↑ 测试覆盖 0→52 case；↑ 语言支持 1→7 种；↑ skill 0→3；↑ stage 0→6 | 已发布 | 2026.04.08 - 2026.04.17 | M1 |
-| v2 — stage 原子化 + 灵活编排 | stage 拆细到原子单职责，dispatch 作为预处理层匹配任务粒度 | ↑ stage 数 6→17（目标）；↓ 平均 stage 行数 ~280→~50；↑ dispatch 规范 0→1 | 进行中 | 2026.04.29 - TBD | M2- |
+| Role                              | Typical Scenario                                                 | Before                                                                                 | After                                                      | Estimated Productivity Gain                                        |
+| --------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------ |
+| Claude Code 上的个人重度 AI 协作用户（仅作者本人） | 在编程 / 创作 / 分析三类任务间频繁切换，希望同一套 sprint 心智模型覆盖；并且对部分任务存在"循环修订"等控制流需求 | 编程走 sprint，创作走 article / article-v2，分析无标准化流程；改进无法跨场景迁移（estimated, not precisely timed） | 所有任务在 v2 sprint 下用配方表达；改一个 stage 全场景受益（pending validation） | pending validation (expected: 新场景启动从 1-3 天 skill 设计降至 <1 day 配方编写) |
 
-### 版本详情
 
-#### v1 — 可用的分阶段执行引擎
+### Competitive Comparison
 
-- **战略意图**: 验证核心假设——在 agent 执行过程中施加分阶段约束是否比自由发挥产出更高质量结果；同时建立跨 sprint 数据消费、消除规则矛盾、清理 stage 职责
-- **投入产出**: 投入 9 天累计 → 建立端到端分阶段执行 + 跨 sprint 聚合查询 + 4 维度成熟度达 L2+ + 6/6 stage 职责纯净
-- **优先级依据**: 核心闭环未验证前后续版本无意义；功能完整后是质量打磨时机；规则矛盾越早修复越好
-- **风险与依赖**: 依赖 Claude Code plugin 机制稳定性；风险已落地缓解
-- **成功指标**: 端到端执行不报错 + 52 测试全通过 + 0 规则矛盾 + 6 stage 框架稳定 + 作者持续 dogfood
-- **核心价值**: 1. `/sprint` 一条命令驱动结构化任务执行 2. anchor 验证结构不变量 3. `/long-sprint` 编排大任务 4. 跨 sprint 聚合查询和趋势分析 5. stage 职责纯净 + review 深度分级 + 需求闸门
-- **用户覆盖**: 作者 dogfood
-- **核心指标**（基线 → v1）:
 
-| 指标 | 基线 | v1 | 变化 | 来源 |
-|------|------|----|------|------|
-| 测试覆盖 | 0 case | 52 case | ↑ 52 | test-sprint-ctl + test-anchor-check + test-insight-stats |
-| 语言生态支持 | 1（Swift） | 7（Swift, JS, Rust, Make, Python, Go, Ruby） | ↑ 6 | anchor-check.sh detect 函数 |
-| skill 数量 | 0 | 3（sprint, long-sprint, todo） | ↑ 3 | skills/ 目录 |
-| stage 数量 | 0 | 6（brainstorm/design/plan/execute/review/insight） | ↑ 6 | stages/ 目录 |
-| 跨 sprint 聚合命令 | 0 | 1（stats） | ↑ 1 | sprint-ctl.sh stats |
-| insight 历史指标 | 0 | 3（耗时、anchor 率、task 率） | ↑ 3 | sprint-insight-stats.sh |
-| 规则矛盾 | 2 处 | 0 处 | ↓ 2 | SKILL 评估段对齐 |
-| review 深度档位 | 1 | 2（quick/full） | ↑ 1 | review-optimization |
+| Solution             | Positioning                                               | Target Users | Core Features                                                                   | Strengths                  | Limitations                                   |
+| -------------------- | --------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------- | -------------------------- | --------------------------------------------- |
+| **sprint v2**        | 面向 AI 协作任务的工作流引擎                                          | 个人重度 AI 协作用户 | 原子 stage、配方组合、控制流（顺序/条件/循环）、多场景覆盖                                               | 同一抽象覆盖编程 + 非编程；v1 数据层零成本复用 | 仍处 roadmap 阶段，原子化 + 编排尚未实施                    |
+| sprint v1            | 编程任务的多阶段流水线                                               | 个人重度 AI 协作用户 | brainstorm / design / plan / execute / review / insight 线性流水线、handoff、anchor 校验 | 编程场景成熟稳定；handoff 与评估机制完善   | 流程线性、stage 不可独立调用、无法服务非编程场景                   |
+| article / article-v2 | 中文长文创作的 5 步质量流（spark → angle → evidence → voice → revise） | 同上           | 内置硬 Gate、对抗性修订、专为长文设计                                                           | 写作场景效果好，与 sprint v1 互补     | 与 sprint 不共享 stage，改进无法跨场景迁移；不支持"循环写到达标"控制流抽象 |
 
-#### v2 — stage 原子化 + 灵活编排
 
-- **战略意图**: v1 6 stage 各塞 5+ 件原子事，"brainstorm/design 职责粗 + 顺序固定"是用户实测痛点；本版本把 stage 拆细到单职责原子单元，引入 dispatch 预处理层让任务粒度匹配 stage 子集
-- **投入产出**: TBD（已投入约 1 天产出 dispatch.zh.md spec）→ 17 stage 文件实现 + dispatch 与 sprint-ctl 集成 + 用户验证
-- **优先级依据**: v1 收尾后用户反馈"stage 顺序固定 + 职责太粗"；现机制对小任务过重、对洞察类任务无承接（hypothesize/synthesize 缺）
-- **风险与依赖**: 17 stage 文件实现需逐个落地；mapping 表过渡期复用现 6 stage 必须保正确性；dispatch 与现 SKILL.zh.md 评估章并存可能产生双入口困惑
-- **成功指标**: dispatch 规范落地 + 17 stage 文件全部实现 + 多场景（小/中/大需求）实测组合自然 + 用户感觉简洁
-- **核心价值**: 1. stage 单职责拆细（17 个原子单元）2. dispatch 预处理层（5 二分题识别场景 + 17 stage 各 1 题验证）3. 任务粒度自动匹配 stage 子集（小任务 2 stage / 中任务 5 stage / 大任务 12 stage）
-- **用户覆盖**: 作者 dogfood
-- **核心指标**（v1 → v2）:
+## 2. Version Plan
 
-| 指标 | v1 | v2 目标 | 变化 | 来源 |
-|------|----|---------|------|------|
-| stage 数 | 6 | 17 | ↑ 11 | 拆 brainstorm→3 / design→5 / plan→2 + 新增 hypothesize/synthesize/regression |
-| 平均 stage 行数 | ~280 | ~50 | ↓ ~230 | 单职责自然短 |
-| dispatch 规范 | 0 | 1（dispatch.zh.md） | ↑ 1 | skills/sprint/dispatch.zh.md |
-| 场景识别二分题 | 0 | 5 | ↑ 5 | dispatch §1 |
-| 逐 stage 验证题 | 0 | 17（每 stage 一个） | ↑ 17 | dispatch §3 |
-| 灵活组合粒度 | 6 stage 固定子集 | 任务粒度匹配 2-12 stage | ↑ | 用例验证 |
+### Version Summary Table
 
-## 3. 里程碑
 
-| # | 核心方向 | 目标达成情况 | 状态 | 完成日期 |
-|---|----------|--------------|------|----------|
-| [M1](milestones/m1.md) | v1 可用的分阶段执行引擎 | 端到端可用 + 52 测试全通过 + 6 stage 职责纯净 + 跨 sprint 聚合查询和趋势分析全部落地 | 已完成 | 2026-04-17 |
-| [M2](milestones/m2.md) | dispatch 预处理层规范定稿 | dispatch.zh.md 86 行 spec 落地：5 场景二分题 + 6 预制链 + 17 stage 验证题 + 17→6 mapping 表 | 已完成 | 2026-04-29 |
+| Version | Core Direction               | Core-Metric Delta | Status   | Period | Milestones |
+| ------- | ---------------------------- | ----------------- | -------- | ------ | ---------- |
+| v2.0    | 落地原子 stage + 编排能力 + 编程配方等价迁移 | TBD               | planning | TBD    | M1-M3      |
+| v2.1    | 落地首个非编程配方 + v1 痛点修复          | TBD               | planning | TBD    | M4-M5      |
+| v2.x    | 高级控制流（并行 / 跳转）+ 其他场景配方       | TBD               | planning | TBD    | M6+        |
+
+
+### Version Details
+
+#### v2.0 — atomic foundation
+
+- **Strategic intent**: 把 v1 的隐式线性流水线显式化为"原子 stage + 编排"，奠定后续多场景的基础抽象；与产品愿景对应：先证明同一组 stage 能在不同流程中独立调用
+- **Input/output**: invest TBD（个人空闲时间，未估算）→ expected v1 编程任务可用 v2 等价复跑（VG4 验收通过）
+- **Priority rationale**: 不解锁原子化 + 编排，v2.1 多场景配方无处依附；v2.x 控制流扩展也无前置；无外部依赖，可立即启动
+- **Risks and dependencies**: 依赖 v1 数据层（sprint-ctl / state.json / handoff 目录）保持稳定；风险：原子化定义可能遗漏 v1 隐式上下文依赖（如 brainstorm 6 槽位假设）需回滚补救
+- **Success metric**: 至少 3 个原 stage 完成原子化改造可独立调用；可用配方表达"顺序 / 条件 / 循环"三种控制流；v1 编程任务用 v2 复跑且 handoff 内容差异在可解释范围内
+- **Core value**:
+  1. 首次可用统一抽象描述 sprint 流程，不再绑定线性次序
+  2. 首次可用配方表达控制流（条件 / 循环），不依赖手动重跑
+  3. v1 全部能力等价保留，无能力退化
+- **User coverage**: author dogfood
+- **Core metric** (v1 → v2.0):
+
+
+| Metric         | v1  | v2.0                   | Delta        | Source                           |
+| -------------- | --- | ---------------------- | ------------ | -------------------------------- |
+| 原子化 stage 数    | 0   | target ≥3              | new baseline | target value, pending validation |
+| 配方数            | 0   | target 1（编程）           | new baseline | target value, pending validation |
+| 控制流原语支持        | 0   | target 3（顺序 / 条件 / 循环） | new baseline | target value, pending validation |
+| v1 编程任务等价回归通过率 | n/a | target 100%            | new baseline | target value, pending validation |
+
+
+#### v2.1 — multi-scenario validation
+
+- **Strategic intent**: 验证 v2 抽象在非编程场景的存在性（VG3），同时借此次升级一次性消化 v1 用着卡的具体痛点（VG5）；与 v2.0 的关系：检验抽象是否真的泛化
+- **Input/output**: invest TBD → expected 至少 1 个非编程配方端到端跑通真实任务 + 痛点清单逐条修复
+- **Priority rationale**: v2.0 通过验收后是检验抽象的唯一方式；不验证就只是改了个 v1；痛点修复借此次升级一次性完成，避免后续返工
+- **Risks and dependencies**: 依赖 v2.0 验收通过；风险：实际跑非编程配方时可能发现 v2.0 抽象缺漏（需回滚到 v2.0 修补，影响排期）
+- **Success metric**: 1 个非编程配方端到端跑通 1 个真实任务（创作 或 分析二选一）；痛点清单 ≥3 条，每条对应一行可验证修复标准且全部完成
+- **Core value**:
+  1. 首次可用 sprint 服务非编程任务
+  2. v1 痛点借升级一次性消化，避免长期累积
+- **User coverage**: author dogfood
+- **Core metric** (v2.0 → v2.1):
+
+
+| Metric         | v2.0 | v2.1      | Delta        | Source                           |
+| -------------- | ---- | --------- | ------------ | -------------------------------- |
+| 非编程配方数         | 0    | target ≥1 | new baseline | target value, pending validation |
+| 痛点修复条数         | 0    | target ≥3 | new baseline | target value, pending validation |
+| 端到端真实任务覆盖（非编程） | 0    | target ≥1 | new baseline | target value, pending validation |
+
+
+#### v2.x — extension
+
+- **Strategic intent**: 按 v2.0 / v2.1 落地后的实际反馈推进高级控制流（并行 / 跳转）和其他场景配方；显式不预设内容以避免长期承诺过度
+- **Input/output**: invest TBD → expected TBD（按需启动）
+- **Priority rationale**: 无前置紧迫性；v2.1 落地前任何 v2.x 决策都是猜测；不锁内容反而保留灵活度
+- **Risks and dependencies**: no identified risks or external dependencies
+- **Success metric**: 启动时基于 v2.1 实际反馈定义（roadmap 不预先锁定）
+- **Core value**: TBD（按 v2.1 反馈扩展）
+- **User coverage**: author dogfood
+- **Core metric** (v2.1 → v2.x):
+
+
+| Metric            | v2.1          | v2.x       | Delta | Source                           |
+| ----------------- | ------------- | ---------- | ----- | -------------------------------- |
+| 高级控制流（并行 / 跳转）支持数 | 0             | target TBD | —     | target value, pending validation |
+| 累计配方数             | ≥2            | target TBD | —     | target value, pending validation |
+| 累计场景覆盖类数          | 2（编程 + 1 非编程） | target TBD | —     | target value, pending validation |
+
+
+## 3. Milestones
+
+
+| #                           | Core Direction                             | Goal Achievement | Status      | Completion Date |
+| --------------------------- | ------------------------------------------ | ---------------- | ----------- | --------------- |
+| [M1](docs/milestones/m1.md) | 完成原子 stage 实现规范的设计与立项                      | —                | not started | —               |
+| [M2](docs/milestones/m2.md) | 实现编排能力（顺序 / 条件 / 循环三种控制流原语）                | —                | not started | —               |
+| [M3](docs/milestones/m3.md) | 完成编程配方等价迁移并通过 v1 回归证明                      | —                | not started | —               |
+| [M4](docs/milestones/m4.md) | 落地首个非编程配方（创作或分析）并跑通 1 个真实任务                | —                | not started | —               |
+| [M5](docs/milestones/m5.md) | 收集 v1 痛点清单并逐条完成修复                          | —                | not started | —               |
+| [M6](docs/milestones/m6.md) | 启动 v2.x 扩展（高级控制流 / 其他场景配方），具体内容按 v2.1 反馈定义 | —                | not started | —               |
+
+
