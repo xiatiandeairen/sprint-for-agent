@@ -1,0 +1,16 @@
+[project]
+name = "sprint-unit-md"
+version = "0.1.0"
+description = "Markdown invariant tests for the sprint skill."
+requires-python = ">=3.10"
+dependencies = [
+  "pytest>=8.0,<9.0",
+  "markdown-it-py>=3.0,<5.0",
+]
+
+[tool.pytest.ini_options]
+markers = [
+  "mutation: deliberately mutates source files; has setup/teardown; may be slow",
+]
+testpaths = ["."]
+python_files = ["test_*.py"]

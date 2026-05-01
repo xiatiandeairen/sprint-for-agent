@@ -1,0 +1,23 @@
+# Fixture: simple-fix
+# A small, self-contained bug fix. Should trigger the lean pipeline
+# (no brainstorm, no design, no review): plan → execute → insight.
+
+description: "修复 scripts/foo.sh 中 $VAR 未加引号导致空格路径失败的问题"
+
+notes: |
+  Expected evaluate outcome: clarify=0 design=0 risk=0.
+  Stages: plan, execute, insight.
+  This fixture does not actually change scripts/foo.sh — the operator runs
+  sprint in an isolated workdir. See runner.py `prepare` / `capture`.
+
+timeout_sec: 600
+
+# Replies to feed at interactive decision points. Operator (or a subagent)
+# matches the `match` substring in the sprint's stdout, then sends `reply`.
+replies:
+  - match: "确认或调整"
+    reply: "go"
+  - match: "确认进入"
+    reply: "go"
+  - match: "anchor"
+    reply: "ok"
