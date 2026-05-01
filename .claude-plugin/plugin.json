@@ -1,5 +1,5 @@
 {
-  "name": "sprint",
-  "version": "1.1.0",
-  "description": "任务执行引擎 — 按任务类型路由，7 阶段流水线，anchor 验证"
+  "name": "sprint-for-code",
+  "version": "0.1.0",
+  "description": "编程场景 sprint：atom 组合工作流"
 }
