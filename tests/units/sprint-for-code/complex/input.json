@@ -1,0 +1,4 @@
+{
+  "desc": "把 auth 中间件从 sessionStore 切到 JWT",
+  "replies": ["yes"]
+}

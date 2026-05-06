@@ -1,0 +1,4 @@
+{
+  "stages": ["plan", "implement", "verify", "reflect"],
+  "sequence": "plan → loop(implement → verify) max=3 → reflect"
+}

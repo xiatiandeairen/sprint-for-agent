@@ -1,0 +1,60 @@
+{
+  "stages": ["plan", "implement", "verify"],
+  "sequence": "plan → parallel(implement) → verify",
+  "handoff": {
+    "frontmatter": {
+      "id": "20260418-030405-003",
+      "type": "sprint-for-code",
+      "desc": "在订单、支付、发票三个独立模块中批量替换已知 validator import，并跑验证",
+      "sequence": "plan → parallel(implement) → verify",
+      "created": "2026-04-18T03:04:05Z"
+    },
+    "stage_entries": [
+      {
+        "number": 1,
+        "stage": "plan",
+        "round": null,
+        "task": null,
+        "body": "tasks: orders, payments, invoices"
+      },
+      {
+        "number": 2,
+        "stage": "implement",
+        "round": null,
+        "task": "orders",
+        "body": "migrated order validation"
+      },
+      {
+        "number": 3,
+        "stage": "implement",
+        "round": null,
+        "task": "payments",
+        "body": "migrated payment validation"
+      },
+      {
+        "number": 4,
+        "stage": "implement",
+        "round": null,
+        "task": "invoices",
+        "body": "migrated invoice validation"
+      },
+      {
+        "number": 5,
+        "stage": "verify",
+        "round": null,
+        "task": null,
+        "body": "validator test suite passed"
+      }
+    ],
+    "runtime": {
+      "cursor": "verify",
+      "loop_active": "",
+      "parallel_completed": []
+    },
+    "finalize": {
+      "status": "completed",
+      "completed_at": "2026-04-18T03:09:05Z",
+      "insight": {}
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "stages": ["implement"],
+  "sequence": "implement",
+  "handoff": {
+    "frontmatter": {
+      "id": "20260418-010203-001",
+      "type": "sprint-for-code",
+      "desc": "在 user.ts 加一行 console.log 看请求体",
+      "sequence": "implement",
+      "created": "2026-04-18T01:02:03Z"
+    },
+    "stage_entries": [
+      {
+        "number": 1,
+        "stage": "implement",
+        "round": null,
+        "task": null,
+        "body": "added request body debug log"
+      }
+    ],
+    "runtime": {
+      "cursor": "implement",
+      "loop_active": "",
+      "parallel_completed": []
+    },
+    "finalize": {
+      "status": "completed",
+      "completed_at": "2026-04-18T01:02:33Z",
+      "insight": {}
+    }
+  }
+}

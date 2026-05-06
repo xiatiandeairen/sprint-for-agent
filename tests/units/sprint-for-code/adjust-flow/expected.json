@@ -1,0 +1,4 @@
+{
+  "stages": ["plan", "implement", "verify"],
+  "sequence": "plan → implement → verify"
+}

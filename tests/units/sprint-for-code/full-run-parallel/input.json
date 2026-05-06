@@ -1,0 +1,17 @@
+{
+  "desc": "在订单、支付、发票三个独立模块中批量替换已知 validator import，并跑验证",
+  "replies": ["yes"],
+  "execution": {
+    "sid": "20260418-030405-003",
+    "created": "2026-04-18T03:04:05Z",
+    "completed_at": "2026-04-18T03:09:05Z",
+    "parallel_tasks": ["orders", "payments", "invoices"],
+    "stage_bodies": {
+      "plan": "tasks: orders, payments, invoices",
+      "orders/implement": "migrated order validation",
+      "payments/implement": "migrated payment validation",
+      "invoices/implement": "migrated invoice validation",
+      "verify": "validator test suite passed"
+    }
+  }
+}
