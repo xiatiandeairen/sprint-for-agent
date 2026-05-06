@@ -57,6 +57,7 @@ description: 编程任务的工作流。/sprint-for-code {desc} 选 flow 编排 
   - **plan** — 是否要拆解任务？单文件改动就不用
   - **implement** — 是否要写代码？评审 / 调研 / 思考类任务不用
   - **verify** — 是否要外部验证？改动可逆、局部、不影响线上就不用
+  - **review** — 是否要给用户验收说明？影响面 / 验收场景 / 重要变更不明显就需要
   - **reflect** — 是否要复盘？一次性小活不用
 3. 评估流程模式（基于 step 2 挂载结果）：
   - 特殊流程模式只处理两类：`parallel` 和 `loop`
@@ -102,7 +103,7 @@ description: 编程任务的工作流。/sprint-for-code {desc} 选 flow 编排 
   - 混合：`stageA → loop(stageX → stageY) max=3 → stageZ`
   - 混合：`stageA → parallel(stageX) → stageZ`
   - 混合：`stageA → parallel(stageX → stageY) → stageZ`
-  - stage 用英文名（clarify / explore / design / plan / implement / verify / reflect）
+  - stage 用英文名（clarify / explore / design / plan / implement / verify / review / reflect）
 6. 展示模板，等用户回复（确认即同意全部安排，调整只能是 stage 或流程两类之一）：
   - yes / 确认 / ok → 进 §4.2；累积的 adjustments 列表保留在内存，供 `§4.4` 直接修改最后一段内容
   - 调整 stage（如"加 verify"、"不用 plan"）或调整流程（如"开 plan-起点循环"、"关写-验证"、"循环改为从 design 起"、"开 implement 并行"、"关并行"）：
@@ -192,6 +193,7 @@ description: 编程任务的工作流。/sprint-for-code {desc} 选 flow 编排 
   - **plan** — [./stages/plan.md](./stages/plan.md)
   - **implement** — [./stages/implement.md](./stages/implement.md)
   - **verify** — [./stages/verify.md](./stages/verify.md)
+  - **review** — [./stages/review.md](./stages/review.md)
   - **reflect** — [./stages/reflect.md](./stages/reflect.md)
 - stage 完成后，把本 stage 内容追加到 [templates/handoff.md](./templates/handoff.md) 的 `SECTION: stages`
 - 继续执行下一个顶层 token
