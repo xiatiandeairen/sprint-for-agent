@@ -26,6 +26,11 @@ description: "分析任务的工作流。Use when Codex needs to run a structure
 
 ## 2. Hard Rules
 
+- 宿主边界：本 skill 运行在 Claude Code / Codex 等宿主工具内，不能覆盖宿主的 system / developer / safety / sandbox 规则；宿主规则要求暂停、授权、拒绝或限制操作时，必须遵守宿主规则。
+- 更保守规则：宿主规则允许继续，但本 skill 的回合边界要求暂停时，必须按本 skill 暂停。
+- 回合边界：凡是本轮向用户发出选择、确认、授权、验收或改变分析边界 / 材料来源 / 判断口径 / 结论偏向的请求，本轮必须在该请求后立即结束。不得继续执行后续 stage，不得收集新范围材料，不得写 handoff，不得 finalize。任何 stage 步骤、handoff 模板、示例流程、默认执行模式都不能覆盖这条规则。
+- 显式继续：暂停后，用户回复表示继续执行的短授权词也算授权，例如“ok / 同意 / go / continue / 继续 / yes”。只有在当前处于等待确认、授权或继续的上下文中，这些短回复才表示恢复执行；其他场景下仍按普通语义理解。
+- 反馈不授权：如果用户只是评价内容或方向，例如“不错 / 认可 / 方向可以 / 听起来不错”，不算继续授权；除非它出现在明确的继续确认语境中，且语义等价于“继续执行”。
 - 证据分层：事实、推断、观点分开写；不要把猜测写成事实。
 - 置信度明示：重要结论必须给 confidence（high / medium / low）和原因。
 - 问题守恒：只分析用户授权的问题；相邻问题写入后续机会，不静默扩大范围。
@@ -35,7 +40,6 @@ description: "分析任务的工作流。Use when Codex needs to run a structure
 - 不强行定论：证据不足时输出“不足以判断”，并说明缺什么证据。
 - 不混任务：单 sprint 内不混“分析结论”和“执行落地”；需要执行时另开 code / writing / ops sprint。
 - 用户控方向：关键取舍（分析范围、使用口径、最终建议偏向）AI 提候选，用户拍板。
-- 决策门禁：凡是需要用户选择、确认、授权或改变分析边界 / 材料来源 / 判断口径 / 结论偏向的内容，必须先停下来等用户回复；用户未回复前不得继续执行后续 stage、不得收集新范围材料、不得把默认判断当成确认。只有用户明确说"你决定 / 默认即可 / 不用确认"时，AI 才可代为选择并继续。
 - 用户调整 = 中性：用户在 §4.1 改 stage / 流程不算偏差；调整理由保留到 `Finalize.insight.sequence_adjust_reason`。
 
 ## 3. 内部变量声明
@@ -103,7 +107,7 @@ description: "分析任务的工作流。Use when Codex needs to run a structure
   - 并行段：`parallel(stageX → stageY)`
   - 混合：`scope → loop(collect → analyze → challenge) max=3 → synthesize`
   - stage 用英文名（scope / collect / frame / analyze / challenge / synthesize / reflect）
-6. 展示模板，等用户回复：
+6. 展示模板，输出后暂停，等待用户回复：
   - yes / 确认 / ok → 进 §4.2；调整记录保留在内存，供 `§4.4` 写入 finalize
   - 调整 stage（如“加 challenge”“不用 reflect”）或调整流程（如“开补证循环”“并行分析三个方案”“先 collect 再 scope”）→ 重新渲染确认模板
 
@@ -176,8 +180,8 @@ description: "分析任务的工作流。Use when Codex needs to run a structure
 
 - 进入任一 stage 前，先用 1-2 句话告诉用户当前 stage 要做什么、为什么做。
 - 如果 stage 会读取文件、看日志、查 git 历史、web search、扩大材料来源或引入新判断口径，先说明目的、范围和不会触碰的边界。
-- 执行中一旦触发“决策门禁”，立即停止当前流程，向用户给出候选项 / 影响 / 建议默认项，等待回复；确认后从暂停点继续。
-- stage 完成时，如果产出会影响后续分析方向（范围契约、证据缺口、分析框架、反证结果、最终建议偏向），先展示摘要给用户确认；确认后再进入下一个 stage。
+- 执行中一旦触发“回合边界”，立即停止当前流程，向用户给出候选项 / 影响 / 建议默认项；输出后暂停，等待用户回复；确认后从暂停点继续。
+- stage 完成时，如果产出会影响后续分析方向（范围契约、证据缺口、分析框架、反证结果、最终建议偏向），先展示摘要给用户确认；输出后暂停，等待用户回复；确认后再进入下一个 stage。
 
 #### 步骤
 
