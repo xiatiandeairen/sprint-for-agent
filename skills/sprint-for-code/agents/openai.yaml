@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sprint for Code"
+  short_description: "Problem-driven software engineering workflow"
+  default_prompt: "Use $sprint-for-code to solve this software engineering task with evidence."

@@ -1,195 +1,73 @@
-<p align="center">
-  <h1 align="center">sprint-for-agent</h1>
-  <p align="center">
-    Structured task execution engine for AI coding agents.<br>
-    Stage pipeline · Anchor verification · Model routing
-  </p>
-</p>
+# Sprint for Agent
 
-<p align="center">
-  <strong>English</strong> | <a href="README_zh.md">中文</a>
-</p>
+Problem-driven skills for software engineering and decision-grade analysis.
 
-<p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-</p>
+Sprint does not force agents through a stage pipeline. It selects only the questions that can materially affect the result, resolves discoverable questions autonomously, and asks the user only for scope, authority, risk, or value decisions.
 
----
-
-## What is this?
-
-AI coding agents rush through complex tasks — they skip validation, forget constraints mid-execution, and produce inconsistent results.
-
-**sprint-for-agent** is a [Claude Code plugin](https://docs.anthropic.com/en/docs/claude-code) that enforces a structured execution pipeline. It evaluates task complexity upfront, runs only the stages that matter, verifies structural invariants (anchors) at every checkpoint, and routes each step to the right model tier.
-
-## Quick Install
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/xiatiandeairen/sprint-for-agent/main/install.sh | bash
-```
-
-This clones the plugin to `~/.claude/plugins/sprint-for-agent` and registers it in your Claude Code settings. Requires `git`.
-
-<details>
-<summary>Manual installation</summary>
-
-```bash
-git clone https://github.com/xiatiandeairen/sprint-for-agent.git ~/.claude/plugins/sprint-for-agent
-```
-
-Add to `~/.claude/settings.json`:
-
-```json
-{
-  "plugins": ["~/.claude/plugins/sprint-for-agent"]
-}
-```
-
-</details>
-
-<details>
-<summary>Uninstall</summary>
-
-```bash
-bash ~/.claude/plugins/sprint-for-agent/uninstall.sh
-```
-
-Removes the plugin directory and cleans up `settings.json`.
-
-</details>
-
-## Quick Start
-
-```
-> /sprint Add dark mode support to the settings panel
-
-# Sprint evaluates complexity:
-#   Clarify requirements? No — goal is clear
-#   Need technical design? Yes — cross-module changes
-#   High risk? No — local, reversible
-#
-# Pipeline: design → plan → execute → insight
-# (brainstorm and review skipped)
-```
-
-Sprint evaluates 3 yes/no questions, trims unnecessary stages, and executes with handoff documents flowing between stages.
-
-## Features
-
-- **Complexity-aware pipeline** — 3 questions (clarify / design / risk) determine which of 7 stages to run
-- **Anchor verification** — 9 structural assertions (`MUST_EXIST`, `MUST_BUILD`, `MUST_CONTAIN`, etc.) checked throughout execution
-- **Model routing** — Selects opus / sonnet / haiku per step based on reasoning complexity
-- **Doc-type trimming** — Document tasks auto-skip plan and quality stages
-- **Dynamic project detection** — Auto-detects build/test commands for 7 language ecosystems, with `.sprint.json` override
-- **Data-driven feedback** — `sprint-ctl report` for trends and anomaly detection, evaluate shows historical hints
-- **Adversarial review** — User-triggered first-principles challenge at key decision points
+[中文](README_zh.md)
 
 ## Skills
 
-### `/sprint` — Standard Execution
+### `sprint-for-code`
 
-Evaluates task complexity, trims the pipeline, executes with anchor verification at each gate.
+Use for code, configuration, tests, build files, repository engineering documentation, implementation reviews, code review, performance optimization, and reliability optimization.
 
-Best for: single features, bug fixes, refactors, module-scoped changes.
+It recognizes three task shapes:
 
-## Architecture
-
-```
-sprint-for-agent/
-├── scripts/
-│   ├── sprint-ctl.sh           # Lifecycle CLI (create, activate, stage, end, report)
-│   ├── anchor-check.sh         # Anchor assertion runner (9 types, 7 languages)
-│   └── sprint-insight-stats.sh # Historical comparison for insight stage
-├── skills/
-│   └── sprint/SKILL.md         # Standard sprint workflow
-├── stages/                     # 6 stage definitions (brainstorm → insight)
-├── tests/                      # 53 automated test cases
-├── install.sh                  # One-line installer
-└── uninstall.sh                # Clean uninstaller
+```text
+change:   goal → solution → Eval → implement ⇄ Eval → evidence gate
+review:   goal → review criteria → inspect ⇄ challenge → evidence gate
+optimize: metric → baseline → hypothesis → change ⇄ remeasure → evidence gate
 ```
 
-### Pipeline Flow
+Questions come from a small core, task-specific domain checks, and new uncertainties discovered during execution. The skill has no fixed stage DSL, mandatory flow confirmation, or default handoff archive.
 
-```
-User description
-    │
-    ▼
-┌──────────────┐   3 yes/no   ┌──────────┐
-│ Input        │──────────────▶│ Evaluate │
-│ Normalize    │               │ (trim)   │
-└──────────────┘               └────┬─────┘
-                                    │
-  ┌─────────┬─────────┬─────────┬───┴────┬─────────┬─────────┐
-  ▼         ▼         ▼         ▼        ▼         ▼
-brain-   design     plan    execute   review   insight
-storm
-```
+### `sprint-for-analysis`
 
-Each stage reads the upstream handoff and writes its own. Skipped stages pass through.
+Use for investigations, decision memos, trade-off analysis, root-cause analysis, requirements analysis, document or data interpretation, risk assessment, and strategy diagnosis.
 
-### Evaluate Questions
+## Design principles
 
-| Question | yes | no |
-|----------|-----|-----|
-| Clarify requirements? | brainstorm | skip |
-| Need technical design? | design | skip |
-| High risk? | review | skip |
+- Users control goals, scope, authority, risk, and material trade-offs.
+- Agents autonomously resolve ordinary implementation and investigation details.
+- Every important completion claim maps to evidence.
+- Unrun checks, manual validation, and evidence limits remain explicit.
+- Persistence is optional and reserved for long or resumable work.
 
-Always-on: plan, execute, insight. Review also triggers when tasks >1 AND cross-module. Override keywords (`delete`, `migrate`, `payment`, `production`, `permission`) force risk=yes.
+## Install
 
-### Anchor Types
+In Claude Code, add the repository as a marketplace and install the plugin:
 
-| Anchor | Checks |
-|--------|--------|
-| `MUST_EXIST <path>` | File or directory must exist |
-| `MUST_NOT_EXIST <path>` | File or directory must not exist |
-| `MUST_IMPORT <target> <module>` | Target must import module (language-aware) |
-| `MUST_NOT_IMPORT <target> <module>` | Target must not import module |
-| `MUST_BUILD` | Project must compile |
-| `MUST_TEST` | Tests must pass |
-| `MUST_CONTAIN <file> <pattern>` | File must contain pattern (line-level grep) |
-| `MUST_NOT_CONTAIN <file> <pattern>` | File must not contain pattern |
-| `FILE_NOT_MODIFIED <path>` | File must not be changed from base commit |
-
-## Configuration
-
-Create `.sprint.json` in your project root to specify build/test/lint commands:
-
-```json
-{
-  "build": "npm run build",
-  "test": "npm test",
-  "lint": "eslint ."
-}
+```text
+/plugin marketplace add xiatiandeairen/sprint-for-agent
+/plugin install sprint@sprint
 ```
 
-All fields are optional. Without this file, Sprint auto-detects from `Package.swift`, `package.json`, `Cargo.toml`, `Makefile`, `pyproject.toml`, `go.mod`, or `Gemfile`.
+For local development, add this repository directory as the marketplace source instead.
 
-Command priority: `.sprint.json` → `CLAUDE.md` → auto-detect.
+Codex can load either skill directory directly or through a symlink in `~/.codex/skills/`.
 
-## Observability
+## Repository
+
+```text
+skills/
+├── sprint-for-code/
+│   ├── SKILL.md
+│   └── agents/openai.yaml
+└── sprint-for-analysis/
+    ├── SKILL.md
+    ├── agents/openai.yaml
+    ├── stages/
+    └── templates/
+tests/
+└── test_repository.py
+```
+
+Run validation with:
 
 ```bash
-# Aggregate trends and summary
-sprint-ctl.sh report [--last N] [--status completed]
-
-# Single sprint detail
-sprint-ctl.sh report <sprint-id>
-
-# Output: trends (duration, anchor rate, scope creep),
-#         summary (completion rate, avg duration, anchors)
+python3 -m unittest discover -s tests -v
 ```
-
-The evaluate stage shows data-driven hints (trends and anomalies) from historical sprints. The insight stage persists pattern-level lessons to auto memory.
-
-## Contributing
-
-Contributions welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feat/my-feature`)
-3. Run the tests: `bash tests/test-anchor-check.sh && bash tests/test-sprint-ctl.sh`
-4. Submit a pull request
 
 ## License
 

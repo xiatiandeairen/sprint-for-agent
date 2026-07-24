@@ -1,4 +1,0 @@
-{
-  "stages": ["plan", "implement", "verify"],
-  "sequence": "plan → loop(implement → verify) max=3"
-}

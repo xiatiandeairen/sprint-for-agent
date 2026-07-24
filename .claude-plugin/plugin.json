@@ -1,5 +1,5 @@
 {
-  "name": "sprint-for-code",
-  "version": "0.1.0",
-  "description": "编程场景 sprint：atom 组合工作流"
+  "name": "sprint",
+  "version": "2.0.0",
+  "description": "动态问题驱动的软件工程与分析工作流"
 }

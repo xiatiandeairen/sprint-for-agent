@@ -1,4 +1,0 @@
-{
-  "stages": ["clarify", "explore", "design", "plan", "implement", "verify", "reflect"],
-  "sequence": "clarify → explore → loop(design → plan → implement → verify) max=5 → reflect"
-}
