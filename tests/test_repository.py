@@ -83,9 +83,48 @@ class RepositoryTests(unittest.TestCase):
 
         self.assertLess(len(text.splitlines()), 800)
 
-    def test_code_skill_has_no_legacy_stage_tree(self) -> None:
+    def test_analysis_skill_uses_problem_driven_contract(self) -> None:
+        text = ANALYSIS_SKILL.read_text(encoding="utf-8")
+        required = {
+            "investigate",
+            "decide",
+            "review",
+            "动态问题",
+            "证据门禁",
+            "root-cause",
+            "comparison",
+            "research",
+            "requirements",
+            "data-and-logs",
+            "document-and-claim-review",
+            "risk",
+            "strategy",
+            "supported",
+            "limited",
+            "inconclusive",
+        }
+        for term in required:
+            with self.subTest(term=term):
+                self.assertIn(term, text)
+
+        forbidden = {
+            "loop(",
+            "parallel(",
+            "SECTION: runtime",
+            "SPRINT_SID",
+            "开始？(yes",
+        }
+        for term in forbidden:
+            with self.subTest(term=term):
+                self.assertNotIn(term, text)
+
+        self.assertLess(len(text.splitlines()), 800)
+
+    def test_skills_have_no_legacy_stage_trees(self) -> None:
         self.assertFalse((CODE_SKILL.parent / "stages").exists())
         self.assertFalse((CODE_SKILL.parent / "templates").exists())
+        self.assertFalse((ANALYSIS_SKILL.parent / "stages").exists())
+        self.assertFalse((ANALYSIS_SKILL.parent / "templates").exists())
         self.assertFalse((ROOT / "tests" / "units").exists())
         self.assertFalse((ROOT / "docs").exists())
 
