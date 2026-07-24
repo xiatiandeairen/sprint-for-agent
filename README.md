@@ -26,6 +26,16 @@ Questions come from a small core, task-specific domain checks, and new uncertain
 
 Use for investigations, decision memos, trade-off analysis, root-cause analysis, requirements analysis, document or data interpretation, risk assessment, and strategy diagnosis.
 
+It recognizes three analysis shapes:
+
+```text
+investigate: question → evidence → hypotheses ⇄ challenge → explanation
+decide:      objective → options → evidence and trade-offs ⇄ challenge → recommendation
+review:      claim → criteria → inspect evidence ⇄ challenge → verdict
+```
+
+It derives confidence from evidence coverage and limits rather than mandatory self-reported scores.
+
 ## Design principles
 
 - Users control goals, scope, authority, risk, and material trade-offs.
@@ -56,9 +66,7 @@ skills/
 │   └── agents/openai.yaml
 └── sprint-for-analysis/
     ├── SKILL.md
-    ├── agents/openai.yaml
-    ├── stages/
-    └── templates/
+    └── agents/openai.yaml
 tests/
 └── test_repository.py
 ```

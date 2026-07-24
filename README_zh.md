@@ -26,6 +26,16 @@ optimize：指标 → 基线 → 假设 → 修改 ⇄ 重测 → 证据门禁
 
 适用于调查、决策备忘录、方案比较、根因分析、需求分析、文档或数据解读、风险评估和策略诊断。
 
+它识别三种分析形态：
+
+```text
+investigate：问题 → 证据 → 假设 ⇄ 反证 → 解释
+decide：     目标 → 选项 → 证据与 trade-off ⇄ 反证 → 推荐
+review：     主张 → 标准 → 检查证据 ⇄ 反证 → verdict
+```
+
+结论可信度来自证据覆盖和限制，而不是强制的模型自评分数。
+
 ## 设计原则
 
 - 用户控制目标、范围、授权、风险和重大取舍。
@@ -56,9 +66,7 @@ skills/
 │   └── agents/openai.yaml
 └── sprint-for-analysis/
     ├── SKILL.md
-    ├── agents/openai.yaml
-    ├── stages/
-    └── templates/
+    └── agents/openai.yaml
 tests/
 └── test_repository.py
 ```

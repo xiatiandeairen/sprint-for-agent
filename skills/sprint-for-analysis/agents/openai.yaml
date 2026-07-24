@@ -1,4 +1,4 @@
 interface:
   display_name: "Sprint for Analysis"
-  short_description: "Structured workflow for decision-grade analysis"
-  default_prompt: "Use $sprint-for-analysis to run a structured analysis sprint."
+  short_description: "Decision-grade analysis from evidence"
+  default_prompt: "Use $sprint-for-analysis to investigate this question and produce an evidence-backed conclusion."
