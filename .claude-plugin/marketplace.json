@@ -4,14 +4,14 @@
     "name": "taoxia"
   },
   "metadata": {
-    "description": "任务执行引擎 — Intent Anchor + Chunk Gate + Decision Review"
+    "description": "动态问题驱动的软件工程与分析工作流"
   },
   "plugins": [
     {
       "name": "sprint",
       "source": "./",
-      "description": "AI 任务执行引擎",
-      "version": "1.1.0",
+      "description": "问题驱动的 AI 任务工作流",
+      "version": "2.0.0",
       "author": {
         "name": "taoxia"
       },
@@ -19,8 +19,8 @@
       "tags": [
         "workflow",
         "quality",
-        "long-task",
-        "task-execution",
+        "evidence-driven",
+        "code-review",
         "sprint"
       ]
     }

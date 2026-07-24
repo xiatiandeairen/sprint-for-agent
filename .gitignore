@@ -1,5 +1,5 @@
-.sprint/
-tests/bench/reports/
-tests/unit/.pytest_cache/
+.DS_Store
 __pycache__/
+*.py[cod]
+.pytest_cache/
 *.egg-info/

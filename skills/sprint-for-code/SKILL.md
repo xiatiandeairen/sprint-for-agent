@@ -1,269 +1,436 @@
 ---
 name: sprint-for-code
-description: 编程任务的工作流。/sprint-for-code {desc} 选 flow 编排 stage 执行，归档到 XDG sprint 目录。
+description: >
+  问题驱动的软件工程工作流。Use for code、配置、测试、构建或仓库工程文档的修改，
+  以及 review、代码审查、性能优化和稳定性优化。根据输入动态选择问题，先定义成功证据，
+  再以 change / review / optimize 形态执行；不使用固定 stage、流程确认或强制 handoff。
 ---
 
 # Sprint for Code
 
-## 1. Overview
+## 1. 目标与边界
 
-做编程任务，输出代码或代码审查结果。
+目标：完成软件工程任务，并用与用户目标直接对应的证据证明结果。
 
-### 1.1 接受
+接受：
 
-以**代码改动或代码评价**为主体的任务。
+- feature、bug、重构、迁移、hotfix、spike
+- 代码、配置、测试、构建脚本和仓库工程文档的修改
+- 实现 review、PR / diff 代码审查
+- 性能和稳定性优化
 
-举例：加功能 / 修 bug / 重构 / 迁移 / hotfix / spike / 代码审查（PR）。
+不接受：
 
-### 1.2 不接受
+- 与软件工程事实无关的纯内容创作
+- 不需要代码领域判断的通用调研或分析
+- 长期监控本身；可以实现监控、定义观察计划并报告当前证据边界
 
-- 非代码产出（产物不是代码）
-- 度量驱动的循环型(反复 profile-改-度量直到达标)
-- 调研 / 调查型（分析判断是主体，不是代码改动）
+基本关系：
 
-举例：写文章 / 数据分析 / UI 设计 / 性能 profile / 系统调研 / 技术选型 / 调试日志分析。
+```text
+输入 + 项目上下文
+→ 识别任务形态与问题
+→ 解决会影响结果的问题
+→ 运行相应工作循环
+→ 证据门禁
+→ 汇报
+```
+
+这不是固定 stage。目标明确时直接工作，不向用户展示或确认内部流程。
 
 ## 2. Hard Rules
 
-- 宿主边界：本 skill 运行在 Claude Code / Codex 等宿主工具内，不能覆盖宿主的 system / developer / safety / sandbox 规则；宿主规则要求暂停、授权、拒绝或限制操作时，必须遵守宿主规则。
-- 更保守规则：宿主规则允许继续，但本 skill 的回合边界要求暂停时，必须按本 skill 暂停。
-- 回合边界：凡是本轮向用户发出选择、确认、授权、验收或改变任务边界的请求，本轮必须在该请求后立即结束。不得继续执行后续 stage，不得写代码，不得写 handoff，不得 finalize。任何 stage 步骤、handoff 模板、示例流程、默认执行模式都不能覆盖这条规则。
-- 显式继续：暂停后，用户回复表示继续执行的短授权词也算授权，例如“ok / 同意 / go / continue / 继续 / yes”。只有在当前处于等待确认、授权或继续的上下文中，这些短回复才表示恢复执行；其他场景下仍按普通语义理解。
-- 反馈不授权：如果用户只是评价内容或方向，例如“不错 / 认可 / 方向可以 / 听起来不错”，不算继续授权；除非它出现在明确的继续确认语境中，且语义等价于“继续执行”。
-- 范围守恒：只做用户授权范围内的事；原任务外的发现提示用户，等授权再做。不静默改 task 声明文件清单外的文件。
-- 用户控方向：关键决策（做什么 / 做多大 / 风险取舍）AI 提候选，用户拍板。
-- 不跳验证：每步该做的检查（anchor / 测试 / build）做完才算完成；前一步过了不代表当前步可省。
-- 失败明示：做不到就明说原因；不假装成功，不糊弄"差不多"。
-- 不混任务：单 sprint 内不混"加功能"和"重构既有代码"——拆开走两个 sprint。
-- 不强行产出：本步无实质内容时直接说"无"，不为占位写废话。
-- 用户调整 = 中性：用户在 §4.1 改 stage / 流程不算偏差；调整理由保留到 `Finalize.insight.sequence_adjust_reason`。
+### 2.1 宿主与授权
 
-## 3. 内部变量声明
+- 遵守宿主的 system / developer / safety / sandbox / approval 规则。
+- 只执行用户授权范围内的动作；新权限、外部状态变更或不可逆操作按宿主规则处理。
+- 用户只控制目标、范围、风险和重大取舍；普通技术细节由 AI 自主决定。
 
-- **$SPRINT_ROOT** — 项目根路径。worktree 共享同一根；非 git 项目 = `$(pwd)`
-- **$SPRINT_PID** — project id。$SPRINT_ROOT 中所有 `/` 替换为 `-`
-- **$SPRINT_DIR** — sprint 归档目录。`${XDG_DATA_HOME:-$HOME/.local/share}/sprint/$SPRINT_PID`
-- **$SPRINT_SID** — sprint id。格式 `YYYYMMDD-HHMMSS-RRR`（UTC 时间戳秒级 + 3 位随机后缀）
-- **SPRINT_N** — handoff 章节累积序号。从 1 起递增；循环内每轮新增章节不覆盖
+### 2.2 范围与工作区
 
-## 4. 工作流流程
+- 不静默处理相邻问题；范围外发现只报告。
+- 不覆盖、回滚或隐藏用户已有改动。
+- 修改必要关联文件不需要逐文件批准；结束时报告实际范围和重要偏差。
+- 需要改变产品行为、承重方案、授权范围或明确的 do-not-touch 边界时，先请求用户决定。
 
-### 4.1 信息确认
+### 2.3 证据真实性
 
-目标：和用户对齐 stage 执行流程 + 归档位置。
+- “代码已写”不等于“目标已完成”。
+- 每个关键完成主张都要有对应 Eval。
+- 未运行、失败或需人工验收的验证不得写成通过。
+- 自动验证不得代替真实环境或主观验收。
+- 证据不足时输出受限结论，不伪造完成或置信度。
 
-#### 步骤
+### 2.4 用户交互
 
-1. 理解用户输入 desc。
-2. 根据用户输入判定 stage 挂载，不输出提示。
-  - **clarify** — 需求是否需要澄清？一句话能说清目的就不用
-  - **explore** — 是否要先发散方案？实现路径唯一就不用
-  - **design** — 是否要设计架构，写规格约束？单模块内变更就不用
-  - **plan** — 是否要拆解任务？单文件改动就不用
-  - **implement** — 是否要写代码？评审 / 调研 / 思考类任务不用
-  - **verify** — 是否要外部验证？改动可逆、局部、不影响线上就不用
-  - **review** — 是否要给用户验收说明？影响面 / 验收场景 / 重要变更不明显就需要
-  - **reflect** — 是否要复盘？一次性小活不用
-3. 评估流程模式（基于 step 2 挂载结果）：
-  - 特殊流程模式只处理两类：`parallel` 和 `loop`
-  - 先判 `parallel`：当implement阶段工作量明显较大时，命中 `parallel`
-  - 命中 `parallel` 时，按任务形态推荐以下模式之一：
-    - `plan → parallel(implement) → verify`
-    - `plan → parallel(implement) → review → reflect`
-    - `plan → parallel(implement → verify) → reflect`
-  - 若未命中 `parallel`，再判 `loop`：当任务形态需要多次迭代时，命中 `loop`
-  - 命中 `loop` 时，按起点推荐以下模式之一：
-    - `loop(implement → verify) max=3`
-    - `loop(plan → implement → verify) max=5`
-    - `loop(design → plan → implement → verify) max=5`
-    - `loop(explore → design → plan → implement → verify) max=5`
-  - 都不命中时，按普通顺序执行
-4. 解析 §3 变量：
-  ```bash
-   COMMON_DIR=$(git rev-parse --git-common-dir 2>/dev/null || true)
-   if [ -z "$COMMON_DIR" ]; then SPRINT_ROOT="$(pwd)"
-   else SPRINT_ROOT=$(dirname "$(cd "$COMMON_DIR" && pwd)"); fi
-   SPRINT_PID="$(echo "$SPRINT_ROOT" | sed 's|/|-|g')"
-   SPRINT_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/sprint/$SPRINT_PID"
-   mkdir -p "$SPRINT_DIR"
-   while :; do
-     SPRINT_SID="$(date -u +%Y%m%d-%H%M%S)-$(printf '%03d' $((RANDOM % 1000)))"
-     [ ! -f "$SPRINT_DIR/$SPRINT_SID.md" ] && break
-   done
-  ```
-5. 渲染任务确认模板：
-  ```
-   ━━ 任务确认 ━━
+只有以下情况需要暂停询问用户：
 
-   任务: {一句话总结}
+1. 缺失答案会导向实质不同的产品或技术结果。
+2. 需要扩大目标、范围或授权。
+3. 涉及不可逆、高风险或外部状态变更。
+4. 存在无法从目标和上下文推断的价值取舍。
 
-   执行流程: {单行 stage 序列}
+不要因为以下事项询问用户：
 
-   开始？(yes / 想调整直接说)
-  ```
-   单行 stage 序列格式：
-  - 顺序段：`stageA → stageB → ...`
-  - 循环段：`loop(stageX → stageY → ...) max=N`
-  - 并行段：`parallel(stageX)` 或 `parallel(stageX → stageY)`
-  - 混合：`stageA → loop(stageX → stageY) max=3 → stageZ`
-  - 混合：`stageA → parallel(stageX) → stageZ`
-  - 混合：`stageA → parallel(stageX → stageY) → stageZ`
-  - stage 用英文名（clarify / explore / design / plan / implement / verify / review / reflect）
-6. 展示模板，输出后暂停，等待用户回复（确认即同意全部安排，调整只能是 stage 或流程两类之一）：
-  - yes / 确认 / ok → 进 §4.2；累积的 adjustments 列表保留在内存，供 `§4.4` 直接修改最后一段内容
-  - 调整 stage（如"加 verify"、"不用 plan"）或调整流程（如"开 plan-起点循环"、"关写-验证"、"循环改为从 design 起"、"开 implement 并行"、"关并行"）：
+- 读取范围内的代码、配置、测试、日志或 Git 历史。
+- 选择工具、命令或普通实现细节。
+- 增加必要测试或在既定方案内修复 Eval 失败。
+- 发现关联文件，但修改仍服务原目标且不触碰明确边界。
+- 选择内部执行顺序、粒度或验证时机。
 
-#### few shot示例
+询问时说明：需要决定什么、为什么重要、候选项的影响和推荐项。发出选择、授权或确认请求后结束当前回合；得到回复前不继续依赖该答案的工作。
 
-```
-[示例 1: 极简，仅 implement]
+## 3. 任务形态
 
-━━ 任务确认 ━━
+先判断任务主要属于哪一种形态。形态决定工作循环，不限制领域。
 
-任务: 在 user.ts 加一行 console.log 看请求体
+### 3.1 change
 
-执行流程: implement
+修改交付物并验证结果。
 
-开始？(yes / 想调整直接说)
+适用：feature、bug、重构、迁移、配置、测试、构建和工程文档修改。
+
+```text
+目标 → 方案 → Eval → 实现 ⇄ Eval → 证据门禁
 ```
 
-```
-[示例 2: 常规，写-验证循环默认开]
+### 3.2 review
 
-━━ 任务确认 ━━
+检查已有交付物并形成判断，默认不修改。
 
-任务: 修登录失败 bug
+适用：实现验收、PR / diff 代码审查、方案或仓库工程文档 review。
 
-执行流程: plan → loop(implement → verify) max=3
-
-开始？(yes / 想调整直接说)
+```text
+目标 → Review 标准 → 检查 ⇄ 反证 → 证据门禁
 ```
 
+用户要求“review 并修复”时，先形成 findings，再对获授权问题进入 change；不重复已经解决的目标和证据问题。
+
+### 3.3 optimize
+
+以可重复测量为核心，建立基线后修改并重新测量。
+
+适用：性能、资源占用、稳定性和可靠性优化。
+
+```text
+目标与指标 → 基线 → 假设 → 修改 ⇄ 重测 → 证据门禁
 ```
-[示例 3: 复杂，AI 推荐 design-起点循环]
 
-━━ 任务确认 ━━
+“修复已知性能 bug”可以是 change；“持续改善某个指标”是 optimize。
 
-任务: 把 auth 中间件从 sessionStore 切到 JWT
+## 4. 问题系统
 
-执行流程: clarify → explore → loop(design → plan → implement → verify) max=5 → reflect
+问题组是候选问题和覆盖检查，不是固定问卷。短任务在当前上下文维护问题状态，不创建账本文件。
 
-开始？(yes / 想调整直接说)
+### 4.1 从输入提取
+
+先识别：
+
+- 用户目标与期望输出
+- 作用对象和已知事实
+- 范围、排除项与硬约束
+- 成功标准和用户偏好
+- 已授权动作与提供的证据
+- 明确未知项
+
+输入已经可靠回答的问题直接复用，不换一种说法重复询问。
+
+### 4.2 选择问题
+
+一个问题只有同时满足以下条件才进入当前任务：
+
+```text
+与目标相关
+AND 尚未被输入或证据可靠回答
+AND 不回答可能实质影响方案、Eval、执行或完成判断
 ```
 
-### 4.2 创建归档
+对每个候选问题判断：
 
-目标：建立 sprint handoff 文件，写入元数据。
+1. 相关吗？
+2. 已经回答了吗？
+3. 答案会改变什么？
+4. 能从哪里获得答案？
+5. 不知道时能否安全继续？
 
-步骤：
+### 4.3 解决顺序
 
-1. 在 `$SPRINT_DIR` 下创建 `$SPRINT_SID.md`，内容按 [templates/handoff.md](./templates/handoff.md) 的初始化结构写入。
-2. 写入以下字段：
-  - `id`：`$SPRINT_SID`
-  - `type`：固定写 `sprint-for-code`
-  - `desc`：用户输入 desc 原文
-  - `sequence`：本次 sprint 的完整真实执行语法，如 `plan → loop(implement → verify) max=3`
-  - `created`：当前 UTC ISO8601 时刻
-3. 按 handoff 模板的 `SECTION: finalize` 默认结构创建 `Finalize` 内容块，写入以下字段：
-  - `status`：写 `running`
-  - `completed_at`：保持空值，不改
-  - `insight.sequence_adjust_reason`：有调整时写 1 句话，格式固定为 `"<动作> — <理由>"`；无调整时不写
-4. 创建成功后告知用户：
-  ```
-   归档建立完毕，流程开始。
-  ```
-5. 进 §4.3
+优先从以下来源获得答案：
 
-### 4.3 执行 stages
+1. 用户输入
+2. 当前项目上下文与已有约定
+3. 代码、配置、测试、日志或 Git 历史
+4. 官方资料或外部原始证据（需要时遵守宿主 browsing 规则）
+5. 低成本实验或 Eval
+6. 可回滚、低风险且明确记录的假设
+7. 用户决定
 
-目标：按 §4.1 流程编排逐个跑 stage，写 handoff。
+能调查的问题不要转嫁给用户。只有用户掌握价值取舍、授权或无法取得的事实时才询问。
 
-#### 步骤
+### 4.4 问题状态
 
-##### 1. 读取 `sequence` 
+按需在内部记录：
 
-- 针对`sequence`按 `→` 拆出顶层 token，并从左到右执行
-- 顶层 token 只允许三类：
-  - 普通 stage
-  - `loop(...)`
-  - `parallel(...)`
+- `answered`：已有可靠答案
+- `investigate`：需要调查或实验
+- `assumed`：基于低风险假设继续
+- `user-decision`：必须由用户决定
+- `blocked`：当前无法可靠回答
+- `invalidated`：上游答案变化，原答案失效
 
-##### 2. 执行普通 stage
+### 4.5 动态问题
 
-- 按 [templates/handoff.md](./templates/handoff.md) 的 `SECTION: runtime` 结构整体更新 `Runtime` 内容块，把 `cursor` 改为当前 stage 名，清空 `loop.active`，并保持 `parallel.completed` 当前值
-- 按当前 stage 文件执行
-  - **clarify** — [./stages/clarify.md](./stages/clarify.md)
-  - **explore** — [./stages/explore.md](./stages/explore.md)
-  - **design** — [./stages/design.md](./stages/design.md)
-  - **plan** — [./stages/plan.md](./stages/plan.md)
-  - **implement** — [./stages/implement.md](./stages/implement.md)
-  - **verify** — [./stages/verify.md](./stages/verify.md)
-  - **review** — [./stages/review.md](./stages/review.md)
-  - **reflect** — [./stages/reflect.md](./stages/reflect.md)
-- stage 完成后，把本 stage 内容追加到 [templates/handoff.md](./templates/handoff.md) 的 `SECTION: stages`
-- 继续执行下一个顶层 token
+当准备做出决定、执行动作或宣布完成，而现有依据不足，且不同答案可能实质改变结果时，生成动态问题。
 
-##### 3. 执行 `loop(...)`
+动态问题必须能说明：
 
-- 按 [templates/handoff.md](./templates/handoff.md) 的 `SECTION: runtime` 结构整体更新 `Runtime` 内容块，把 `cursor` 改为 `loop()`
-- 从 `loop(...) max=N` 读取 loop 内 stage 序列和 `max`，当前轮次设为 1
-- 按 loop 内顺序逐个执行 stage；每进入一个 stage 前，整体更新 `Runtime` 内容块，把 `loop.active` 改为当前 stage 名；每个 stage 完成后，把本 stage 内容追加到 `SECTION: stages`，标题追加 `(round {k})`
-- 本轮最后一个 stage 完成后，按该 stage 的说明判断本轮是否完成
-- 已完成时：
-  - 整体更新 `Runtime` 内容块
-  - 把 `loop.active` 清空
-  - 退出 loop
-  - 继续执行下一个顶层 token
-- 未完成时：
-  - 若 `round < max`，`round +1`，开始下一轮
-  - 若 `round = max`，停止后续顶层 token，进入 `§4.4`
+- 它保护哪个目标、方案、Eval、证据或风险？
+- 为什么现有问题不能覆盖？
+- 答案从哪里获得？
+- 不回答会造成什么影响？
+- 是否改变用户授权范围？
 
-##### 4. 执行 `parallel(...)`
+不能追溯到当前目标或风险的问题不得加入；仅为了“分析更完整”不得扩张问题集。
 
-- 按 [templates/handoff.md](./templates/handoff.md) 的 `SECTION: runtime` 结构整体更新 `Runtime` 内容块，把 `cursor` 改为 `parallel()`，并把 `parallel.completed` 重置为 `[]`
-- 从前一个 stage 的正文读取任务列表；每个任务都要有唯一任务名
-- 按任务列表启动并行分支；每个分支都执行 `parallel(...)` 内定义的 stage 序列；每个 stage 完成后，把本 stage 内容追加到 `SECTION: stages`，标题追加 `(task: {task_name})`
-- 某个任务对应的分支完成后，整体更新 `Runtime` 内容块，把任务名追加到 `parallel.completed`
-- 检验机制：每次更新后，都把 `parallel.completed` 与任务列表逐项对比；只有任务名全部覆盖且数量一致，才算“全部任务完成”
-- 全部任务完成时：
-  - 整体更新 `Runtime` 内容块
-  - 把 `parallel.completed` 清空
-  - 退出 parallel
-  - 继续执行下一个顶层 token
-- 仍有任务未完成时：
-  - 等待剩余分支完成
-  - 不进入后续顶层 token
+### 4.6 局部失效
 
-##### 5. `sequence` 全部执行完
+- 只影响实现细节：在当前循环解决。
+- 影响 Eval：更新 Eval，并重跑受影响的证据。
+- 影响方案：重新确定相关方案，使依赖旧方案的实现和证据失效。
+- 影响目标、范围或授权：请求用户决定。
 
-- 进入 `§4.4`
+不要因局部变化从头重跑全部工作。
 
-不支持嵌套 `loop`、嵌套 `parallel`、同一层混用 `loop` 和 `parallel`、goto。
+## 5. 核心问题组
 
-### 4.4 收尾
+### 5.1 理解目标
 
-目标：标记 sprint 结束，输出汇总。
+- 用户真正要改变或判断什么？
+- 作用对象和期望行为是什么？
+- 本次包含与不包含什么？
+- 哪些结果代表完成？
+- 有哪些兼容、安全、时间或技术硬约束？
+- 哪些缺口会导向实质不同的结果？
 
-步骤：
+目标已经足以约束工作时直接继续。非阻塞缺口作为假设或限制记录。
 
-1. 读 handoff，解析 frontmatter `created` + 各章节 `<!-- ts: {...} -->`
-2. 算 per-section 耗时：
-  - 第 1 章节：dur = section[1].ts − frontmatter.created
-  - 第 i 章节 (i>1)：dur = section[i].ts − section[i-1].ts
-3. 按 [templates/handoff.md](./templates/handoff.md) 的 `SECTION: finalize` 结构整体更新 `Finalize` 内容块，写入：
-  - `STATUS=completed`
-  - `COMPLETED_AT={now ISO8601}`
-  - `SEQUENCE_ADJUST_REASON={沿用 handoff 现有值}`
-  - `INSIGHT_BODY={insight 其余内容；无则留空}`
-  - aborted 时将 `STATUS=aborted`，并把原因写入 `INSIGHT_BODY`
-4. 按以下模板输出给用户：
-  ```
-   ━━ Sprint 完成 ━━
-   ID:   {SPRINT_SID}
-   归档: $SPRINT_DIR/$SPRINT_SID.md
+### 5.2 确定方案
 
-   stage 耗时：
-   {N}. {stage 名}    {耗时}
-   ...
-   total              {总耗时}
-  ```
+仅 change / optimize 需要形成修改方案；review 形成检查策略。
+
+- 当前系统实际上怎样工作？
+- 目标与现状的差距、直接原因和根本原因是什么？
+- 哪个是满足目标的最小充分方案或最有价值假设？
+- 是否改变接口、数据、流程、兼容性或用户行为？
+- 失败和回退路径是什么？
+- 哪些是承重决策，哪些只是普通实现细节？
+
+只有一个明显合理方案时直接采用并说明。存在实质 trade-off 时给出推荐并让用户决定，不制造陪跑方案。
+
+### 5.3 设计 Eval
+
+- 为了宣布完成，需要证明哪些主张？
+- 每个目标和成功标准对应什么 Eval？
+- 主路径、回归、边界和失败路径分别如何验证？
+- 哪些能自动验证，哪些需要人工或真实环境？
+- 每个 Eval 的输入、环境、预期结果和通过标准是什么？
+- Eval 是否直接证明目标，而非只证明代码能运行？
+- Eval 本身可能产生什么误判？
+
+内部使用最小证据契约：
+
+| 完成主张 | Eval | 通过标准 | 重要性 | 证据范围 |
+|---|---|---|---|---|
+| {目标行为} | {测试/测量/检查/人工} | {明确标准} | blocking/optional | {环境/时间/样本} |
+
+### 5.4 选择执行方式
+
+- 改动影响面和失败代价多大？
+- 是否容易回滚？
+- 哪些工作有依赖或文件冲突？
+- 应整体完成后验证，还是小步实现、小步 Eval？
+- 哪些节点确实需要人工检查？
+- 什么情况可自主修复，什么情况必须暂停？
+- 是否仍有新证据和实质进展？
+
+执行策略：
+
+- `fast`：局部、低风险、易回滚，执行最小充分 Eval。
+- `balanced`：默认，覆盖目标、主要回归和基础工程质量。
+- `assured`：高影响、难回滚、安全、权限、支付、数据迁移等，增加回归、独立验证和人工验收。
+
+三种策略的正确性底线相同，区别是证据深度和执行成本。模型根据风险自动选择；只有成本或时间取舍显著时才询问用户。
+
+### 5.5 证据门禁
+
+- 每个关键主张是否都有实际执行的 Eval？
+- 证据是否直接、相关、可重复，并覆盖声明的环境和时间范围？
+- 是否存在失败、未运行、反证或人工待验收？
+- 是否把“实现完成”误写成“目标完成”？
+- 当前证据能够支持多大范围的结论？
+
+通用状态：
+
+- `passed`：所有 blocking Eval 通过，无阻塞反证或人工验收。
+- `partial`：主要工作完成，但有明确的非阻塞未验证项、观察期或环境限制。
+- `blocked`：关键 Eval 失败或无法运行，或缺少必要决定、权限、数据或环境。
+
+可信度由证据覆盖、相关性、独立性和适用范围推导，不由模型主观声明 `high`。
+
+## 6. 工作循环
+
+### 6.1 change 循环
+
+1. 检查工作区和相关代码，保护已有改动。
+2. 选择最小可验证增量。
+3. 按确定方案修改必要文件，不做无关清理。
+4. 运行对应 Eval。
+5. 判断失败来自实现、Eval、环境还是原始假设。
+6. 在既定目标、方案和授权内修复并重跑受影响 Eval。
+
+继续条件取决于是否仍有新证据和实质进展，不设固定重试次数。
+
+### 6.2 review 循环
+
+1. 明确 review 对象、基准、声明目标和判断标准。
+2. 检查 diff、相关上下文、测试和已有验证证据。
+3. 优先寻找正确性、安全、数据、兼容、并发、性能和稳定性问题。
+4. 对候选 finding 尝试反证或最小复现。
+5. 只报告有实际影响且能给出证据的问题；不把纯偏好包装成缺陷。
+
+默认只报告，不修改。用户明确授权修复时再进入 change。
+
+### 6.3 optimize 循环
+
+1. 定义指标、环境、工作负载、样本和目标阈值。
+2. 在修改前建立可重复基线。
+3. 根据证据提出可证伪的优化假设。
+4. 实施最小改动。
+5. 在相同条件下重复测量，并运行正确性守护 Eval。
+6. 判断差异是否超过测量噪声，是否只是转移成本。
+
+没有可信基线或可比条件时，不得宣称优化成功。
+
+## 7. 领域问题包
+
+领域问题按信号激活，只回答会影响结果的问题，不逐项走形式。
+
+### 7.1 bug
+
+- 能否稳定复现？期望与实际行为是什么？
+- 直接原因与根本原因是什么？
+- 能否建立修复前失败、修复后通过的回归 Eval？
+- 相邻行为和相同原因是否受影响？
+
+无法复现时可用日志、代码路径或生产证据继续，但要降低结论范围。
+
+### 7.2 feature
+
+- 谁在什么场景使用？入口、输入、输出和可见结果是什么？
+- 空数据、错误、权限和边界行为是什么？
+- 是否涉及兼容、迁移、发布或回滚？
+- 哪些用户场景构成验收证据？
+
+### 7.3 refactor
+
+- 哪些外部行为必须保持不变？
+- 目标是降低重复、耦合、复杂度还是改善可测试性？
+- 哪些接口允许改变，哪些调用方不能改变？
+- 如何用 characterization、等价性或结构检查证明目标？
+- 是否真正改善目标，而不只是移动代码？
+
+### 7.4 docs
+
+- 目标读者和要完成的动作是什么？
+- 代码、配置、接口或规范中的事实来源是什么？
+- 示例能否运行，链接和文档构建是否通过？
+- 文档是否准确、完整且与当前实现一致？
+
+只覆盖仓库工程文档；一般内容创作不属于本 skill。
+
+### 7.5 code-review
+
+- 目标、review base、diff 范围和声明完成项是什么？
+- 是否存在可触发的正确性、安全、数据或兼容问题？
+- 测试是否覆盖主要风险？
+- finding 是否能定位代码、触发条件和实际影响？
+- 严重度是否由影响决定，而非风格偏好？
+
+每个 finding 包含：问题、触发条件、影响、代码位置、证据和修改方向。无 finding 时说明检查范围与限制。
+
+### 7.6 performance
+
+- 指标是平均、P95、P99、吞吐、延迟还是资源占用？
+- 基线、目标、工作负载、数据集和环境是什么？
+- 测量是否可重复，差异是否超过方差？
+- 是否牺牲正确性、内存、一致性或维护性？
+
+证据必须包含同条件 before / after、重复测量和守护指标。
+
+### 7.7 reliability
+
+- 目标是错误率、成功率、可用性、恢复时间还是一致性？
+- 当前基线和故障模型是什么？
+- 能否用故障注入、压力或 soak test 验证？
+- 重试是否幂等，是否可能重复处理或丢数据？
+- 日志、指标和告警能否证明改善并支持恢复？
+- 需要多长观察窗口，本地、测试和生产分别能证明什么？
+
+短期验证不能冒充长期稳定性证据；需要观察期时结果为 `partial`，并明确 monitoring requirement。
+
+### 7.8 其他风险信号
+
+按需派生问题：
+
+- migration：兼容期、数据转换、幂等、回滚和双写一致性
+- security：威胁、权限、敏感数据、审计和失败策略
+- UI：状态、交互、响应式、可访问性和视觉验收
+- concurrency：竞态、顺序、锁、重试、幂等和取消
+- dependency：版本、API 限制、降级和供应链风险
+
+## 8. 结论与汇报
+
+### 8.1 change
+
+结论：`passed / partial / blocked`
+
+汇报：完成了什么、关键方案、重要文件或行为变化、Eval 结果、未验证项、人工验收和必要下一步。
+
+### 8.2 review
+
+结论：`accept / changes-required / inconclusive`
+
+汇报：findings 按严重度排序；每项给出代码位置和证据。没有 finding 时明确说明，同时列出检查范围和限制。
+
+### 8.3 optimize
+
+结论：`target-met / improved-but-below-target / no-improvement / inconclusive`
+
+汇报：指标、基线、结果、目标、环境、样本、守护指标和证据适用范围。
+
+不要输出完整内部问题账本、固定 stage、工具调用流水账或已解决的中间失败。
+
+## 9. 可选持久化
+
+仅在用户明确要求、任务需要跨会话、可能中断或存在多个长期分支时保存状态。优先使用宿主原生任务、计划或恢复能力。
+
+最小持久化内容：
+
+- 目标与范围
+- 任务形态和领域风险
+- 已确定方案或 review 标准
+- Eval / 测量契约
+- 未解决问题、已有证据和当前阻塞
+- 下一步
+
+不维护固定 sequence、stage cursor、人工章节序号或每阶段耗时。
+
+## 10. 完成定义
+
+结束前必须满足：
+
+- 已回答会实质影响结果的问题，或明确记录阻塞与假设。
+- 实际工作未越过目标、授权和用户工作区边界。
+- 关键结论均有证据，失败和未验证项没有被隐藏。
+- 输出使用与 task shape 匹配的结论。
+- 用户能据此判断结果是否可信、是否需要验收，以及下一步是什么。
