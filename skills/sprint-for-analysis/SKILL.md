@@ -1,10 +1,11 @@
 ---
 name: sprint-for-analysis
 description: >
-  问题驱动的非代码分析工作流。Use for investigation、research synthesis、decision memo、
-  trade-off or option comparison、root-cause analysis、requirements analysis、document/log/data
-  interpretation、risk assessment、claim review and strategy diagnosis。根据输入动态选择问题，
-  以 investigate / decide / review 形态形成有证据、可反驳、面向决策的结论；不用于以代码改动或代码审查为主要产出的任务。
+  问题驱动的结构化非代码分析工作流。仅当任务的主要产出是基于材料和证据的解释、比较、推荐或 verdict 时使用；
+  包括调查 / 根因分析、研究综合、方案或 trade-off 决策、需求分析、
+  文档 / 日志 / 数据 / 主张审阅、风险评估和策略诊断。仅调查软件问题而不修改代码时使用本 skill；
+  需要代码 / 配置修改、PR / diff / 实现代码审查或工程指标优化时使用 sprint-for-code。
+  不要用于简单事实问答、摘要 / 翻译 / 改写、头脑风暴、纯内容创作或无需判断的直接执行。
 ---
 
 # Sprint for Analysis
@@ -31,6 +32,12 @@ description: >
 - 主要产出是代码改动、PR 代码审查或度量驱动代码优化的任务
 - 用户已给出明确动作、无需判断的纯执行
 - 重点是文风而非事实或判断的创作
+
+按主要产出处理交叉场景：
+
+- 只调查软件问题的原因、不修改仓库时属于本 skill；诊断并修复时使用 `sprint-for-code`。
+- 需求、报告、论证或事故文档审阅属于本 skill；PR、diff 或实现代码审查使用 `sprint-for-code`。
+- 简单事实问答、摘要、翻译、改写、头脑风暴和无需判断的执行不属于本 skill。
 
 分析后需要执行时，只在原请求已授权且属于当前能力范围时继续；否则给出可执行下一步，不把建议写成已执行。
 

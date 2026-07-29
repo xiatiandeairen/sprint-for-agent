@@ -10,7 +10,9 @@ Sprint does not force agents through a stage pipeline. It selects only the quest
 
 ### `sprint-for-code`
 
-Use for code, configuration, tests, build files, repository engineering documentation, implementation reviews, code review, performance optimization, and reliability optimization.
+Use only when the primary deliverable is a software repository change, an implementation / PR / diff code-review verdict, or a performance / reliability result backed by repeatable measurement. This includes code, configuration, tests, build files, and repository engineering documentation tied to the implementation.
+
+Use this skill when fixing a software issue; use `sprint-for-analysis` when only investigating its cause. Ordinary code explanations, technical Q&A, summaries, translations, rewrites, brainstorming, and simple commands do not automatically use this skill.
 
 It recognizes three task shapes:
 
@@ -24,7 +26,9 @@ Questions come from a small core, task-specific domain checks, and new uncertain
 
 ### `sprint-for-analysis`
 
-Use for investigations, decision memos, trade-off analysis, root-cause analysis, requirements analysis, document or data interpretation, risk assessment, and strategy diagnosis.
+Use only when the primary deliverable is an explanation, comparison, recommendation, or verdict grounded in materials and evidence. This includes investigations, decision memos, trade-off analysis, root-cause analysis, requirements analysis, document / log / data / claim review, risk assessment, and strategy diagnosis.
+
+Use this skill when only investigating a software issue; use `sprint-for-code` when changing the repository or reviewing implementation code. Simple factual Q&A, summaries, translations, rewrites, brainstorming, pure content creation, and direct execution that needs no judgment do not automatically use this skill.
 
 It recognizes three analysis shapes:
 

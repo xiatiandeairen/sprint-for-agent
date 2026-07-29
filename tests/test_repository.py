@@ -37,6 +37,37 @@ class RepositoryTests(unittest.TestCase):
         self.assertTrue((CODE_SKILL.parent / "agents" / "openai.yaml").is_file())
         self.assertTrue((ANALYSIS_SKILL.parent / "agents" / "openai.yaml").is_file())
 
+    def test_skill_descriptions_define_disjoint_trigger_boundaries(self) -> None:
+        code_description = frontmatter(CODE_SKILL)["description"]
+        analysis_description = frontmatter(ANALYSIS_SKILL)["description"]
+
+        code_contract = {
+            "主要产出是软件仓库变更",
+            "PR / diff",
+            "仅调查原因而不修改",
+            "sprint-for-analysis",
+            "不要用于代码解释或一般技术问答",
+            "简单命令",
+        }
+        analysis_contract = {
+            "主要产出是基于材料和证据",
+            "解释、比较、推荐或 verdict",
+            "仅调查软件问题而不修改代码",
+            "sprint-for-code",
+            "不要用于简单事实问答",
+            "无需判断的直接执行",
+        }
+
+        for term in code_contract:
+            with self.subTest(skill="code", term=term):
+                self.assertIn(term, code_description)
+        for term in analysis_contract:
+            with self.subTest(skill="analysis", term=term):
+                self.assertIn(term, analysis_description)
+
+        self.assertLess(len(code_description), 500)
+        self.assertLess(len(analysis_description), 500)
+
     def test_plugin_versions_are_consistent(self) -> None:
         plugin = json.loads((ROOT / ".claude-plugin" / "plugin.json").read_text())
         marketplace = json.loads(
